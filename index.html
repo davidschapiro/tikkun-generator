@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tikkun Generator</title>
-<link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'ShlomoSemiStam';
+  src: url('ShlomoSemiStam.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+</style>
 <style>
 :root {
   --bg:#f7f4ee; --bg-card:#ffffff; --ink:#1a1714; --ink-mid:#463e36;
@@ -76,18 +84,18 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .aliyah{margin-bottom:1.5rem;border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;background:var(--bg-card);box-shadow:var(--shadow);}
 .aliyah-hdr{display:flex;align-items:baseline;gap:0.45rem;padding:0.5rem 1.2rem;color:#fff;}
-.lbl-he{font-size:1.05rem;font-weight:700;direction:rtl;}
+.lbl-he{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.15rem;font-weight:400;direction:rtl;}
 .lbl-sep{opacity:0.5;font-size:0.85rem;}
 .lbl-en{font-size:0.78rem;font-weight:700;letter-spacing:0.04em;}
 .lbl-range{margin-left:auto;font-size:0.7rem;opacity:0.82;}
 
 .practice-body{display:grid;grid-template-columns:1fr 1fr;}
-.col-scroll,.col-vowel{font-family:'Arimo',sans-serif;font-size:1.2rem;line-height:2.15;
+.col-scroll,.col-vowel{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.3rem;line-height:2.3;
   direction:rtl;text-align:right;padding:1rem 1.1rem;word-spacing:0.05em;}
 .col-scroll{color:var(--ink-mid);border-right:3px solid var(--red);border-left:1px solid var(--border);}
 .col-vowel{color:var(--ink);border-right:3px solid var(--gold);}
 
-.bima-body{font-family:'Arimo',sans-serif;font-size:1.65rem;line-height:2.4;
+.bima-body{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.8rem;line-height:2.5;
   direction:rtl;text-align:right;padding:1.2rem 1.4rem 1.4rem;color:var(--ink);word-spacing:0.06em;}
 
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
@@ -122,7 +130,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 @media print{
   .print-header{display:block;text-align:center;padding-bottom:0.8rem;
     margin-bottom:1.2rem;border-bottom:2px solid #7a5c14;}
-  .print-header .ph-he{font-family:'Arimo',sans-serif;font-size:2.2rem;font-weight:700;
+  .print-header .ph-he{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:2.4rem;font-weight:400;
     color:#7a5c14;direction:rtl;line-height:1.2;}
   .print-header .ph-en{font-size:0.8rem;font-weight:700;letter-spacing:0.15em;
     text-transform:uppercase;color:#7a6e64;margin-top:0.2rem;}
