@@ -373,22 +373,35 @@ function rebuildDropdown() {
   const key = state.israel ? 'israel' : 'diaspora';
   const list = PARASHA_LISTS[key];
   const sel = document.getElementById('parashaSelect');
-  // Clear entirely and rebuild — innerHTML avoids orphaned optgroups
   sel.innerHTML = '<option value="">↓ Jump to parasha</option>';
+  const BOOK_ORDER = ['Genesis','Exodus','Leviticus','Numbers','Deuteronomy'];
+  const BOOK_HE = {
+    Genesis:'בְּרֵאשִׁית',
+    Exodus:'שְׁמֹות',
+    Leviticus:'וַיִּקְרָא',
+    Numbers:'בַּמִּדְבָּר',
+    Deuteronomy:'דְּבָרִים'
+  };
+  // Group by year, then by book within each year
   const byYear = {};
   list.forEach(p => {
     const y = p.date.slice(0,4);
-    (byYear[y] = byYear[y]||[]).push(p);
+    if (!byYear[y]) byYear[y] = {};
+    (byYear[y][p.book] = byYear[y][p.book]||[]).push(p);
   });
   Object.keys(byYear).sort().forEach(year => {
-    const grp = document.createElement('optgroup');
-    grp.label = year;
-    byYear[year].forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.date; opt.textContent = p.label;
-      grp.appendChild(opt);
+    BOOK_ORDER.forEach(book => {
+      const items = byYear[year][book];
+      if (!items) return;
+      const grp = document.createElement('optgroup');
+      grp.label = year + ' · ' + BOOK_HE[book] + ' ' + book;
+      items.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.date; opt.textContent = p.label;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
     });
-    sel.appendChild(grp);
   });
 }
 function updateParashaName(title) {
