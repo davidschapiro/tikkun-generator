@@ -335,6 +335,13 @@ const COLORS = {
 };
 
 function dateStr(d){ return d.toISOString().split('T')[0]; }
+function toShabbat(d) {
+  // Advance to the Saturday of the current or upcoming week
+  const r = new Date(d);
+  const day = r.getDay(); // 0=Sun … 6=Sat
+  if (day !== 6) r.setDate(r.getDate() + (6 - day));
+  return r;
+}
 function shiftWeeks(d,n){ const r=new Date(d); r.setDate(r.getDate()+n*7); return r; }
 function triennialYear(hYear){ return ((hYear-5786)%3+3)%3+1; }
 
@@ -355,7 +362,7 @@ function syncDropdown() {
 // ── Hebcal ──
 async function fetchParasha() {
   const il = state.israel ? '&i=on' : '';
-  const ds = dateStr(state.refDate);
+  const ds = dateStr(toShabbat(state.refDate));
   const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&start=${ds}&end=${ds}&s=on&leyning=1&maj=off&min=off&nx=off&mf=off&ss=off&mod=off${il}`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Hebcal error: ${r.status}`);
@@ -524,6 +531,7 @@ function printSection(which) {
 
 // ── Init ──
 function init() {
+  state.refDate = toShabbat(new Date());
   // Mode toggle — auto-generate on change
   document.querySelectorAll('#modeToggle .toggle-btn').forEach(btn=>{
     if(btn.dataset.val===state.mode) btn.classList.add('active');
