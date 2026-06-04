@@ -2,7 +2,7 @@
 
 A self-contained web tool for generating Torah reading practice sheets (tikkunim).
 
-**Live:** https://davidschapiro.github.io/tikkun-tool
+**Live:** https://davidschapiro.github.io/tikkun-generator
 
 ## What it does
 
