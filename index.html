@@ -473,7 +473,7 @@ async function fetchParasha() {
   if (!r.ok) throw new Error(`Hebcal error: ${r.status}`);
   const data = await r.json();
   const item = data.items && data.items.find(x => x.category === 'parashat');
-  if (!item) throw new Error('No parasha found for this date.');
+  if (!item) throw new Error('Could not reach Hebcal — please try again in a moment.');
   return item;
 }
 
