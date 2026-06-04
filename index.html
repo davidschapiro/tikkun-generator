@@ -120,6 +120,14 @@ footer{text-align:center;padding:0.9rem 1rem;font-size:0.72rem;
   color:var(--ink-pale);border-top:1px solid var(--border);}
 footer a{color:var(--ink-soft);text-decoration:none;cursor:pointer;}
 footer a:hover{color:var(--gold);}
+.support-btn{
+  display:inline-block;padding:0.15rem 0.5rem;
+  border:1px solid var(--border);border-radius:3px;
+  font-size:0.7rem;font-weight:700;letter-spacing:0.04em;
+  transition:all 0.12s;
+}
+.support-btn:hover{border-color:var(--gold)!important;color:var(--gold)!important;}
+footer a:hover{color:var(--gold);}
 
 /* ── IMPRESSUM MODAL ── */
 dialog{border:none;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);
@@ -365,7 +373,8 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 <footer>
   Text: <a href="https://sefaria.org" target="_blank">Sefaria.org</a> ·
   Leyning: <a href="https://hebcal.com" target="_blank">Hebcal.com</a> ·
-  <a onclick="document.getElementById('impressumDialog').showModal()">Impressum</a>
+  <a onclick="document.getElementById('impressumDialog').showModal()">Impressum</a> ·
+  <a href="mailto:david@schapiro.org?subject=Tikkun%20Generator" class="support-btn">✉ Feedback</a>
 </footer>
 
 <dialog id="impressumDialog">
@@ -587,11 +596,32 @@ async function generate() {
       leyningData = leyning;
       updateParashaName(hTitle);
     } else {
-      p = await fetchParasha();
-      if (myId !== state.genId) return;
-      syncDropdown();
-      updateParashaName(p.title);
-      leyningData = p.leyning || {};
+      try {
+        p = await fetchParasha();
+      } catch(e) {
+        // Yom Tov falling on Shabbat — no parashat item, check holiday data
+        const ds = dateStr(toShabbat(state.refDate));
+        const locKey = state.israel ? 'israel' : 'diaspora';
+        const entry = Object.entries(HOLIDAY_DATA[locKey])
+          .find(([key]) => key.startsWith(ds + '|') && !key.includes('Mincha'));
+        if (entry) {
+          const [key, leyning] = entry;
+          const hTitle = key.split('|').slice(1).join('|');
+          state.holidayKey = key;
+          isHoliday = true;
+          p = { title: hTitle, date: ds, hebrew: hTitle, hdate: ds, leyning };
+          leyningData = leyning;
+          updateParashaName(hTitle);
+        } else {
+          throw e;
+        }
+      }
+      if (!isHoliday) {
+        if (myId !== state.genId) return;
+        syncDropdown();
+        updateParashaName(p.title);
+        leyningData = p.leyning || {};
+      }
     }
 
     status.innerHTML='<div class="status"><div class="spinner"></div>Fetching text from Sefaria…</div>';
