@@ -319,7 +319,8 @@ const state = {
   refDate:  new Date(),
   israel:   false,
   mode:     localStorage.getItem('tikkunMode') || 'triennial',
-  chCache:  {}
+  chCache:  {},
+  genId:    0
 };
 
 const LABELS = {
@@ -471,6 +472,7 @@ function renderOutput(p, aliyotData) {
 
 // ── Generate ──
 async function generate() {
+  const myId = ++state.genId;
   const status = document.getElementById('statusArea');
   const output = document.getElementById('outputArea');
   const genBtn = document.getElementById('genBtn');
@@ -478,6 +480,7 @@ async function generate() {
   output.innerHTML=''; genBtn.disabled=true;
   try {
     const p = await fetchParasha();
+    if (myId !== state.genId) return;
     syncDropdown();
     status.innerHTML='<div class="status"><div class="spinner"></div>Fetching text from Sefaria…</div>';
     const leyning = p.leyning||{};
@@ -493,6 +496,7 @@ async function generate() {
     for (const [k,range] of Object.entries(ranges)) {
       aliyotData[k] = {range, verses: await fetchVerses(range)};
     }
+    if (myId !== state.genId) return;
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData);
     // Show tab bar and restore saved tab
