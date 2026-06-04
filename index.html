@@ -99,7 +99,6 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
-.mq{white-space:nowrap;}
 
 
 /* ── TAB SWITCHER ── */
@@ -403,17 +402,14 @@ function processHe(raw, forScroll) {
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
   s = s.replace(/&nbsp;/g,' ').replace(/\u00a0/g,' ').trim();
-  if (forScroll) s = s.replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, '');
+  if (forScroll) { s = s.replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, ''); s = s.replace(/\u05BE/g, ' '); }
   s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
   s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
   return s;
 }
-function wrapMq(s){
-  return s.replace(/([^\s<>]+\u05BE[^\s<>]+)/g,'<span class="mq">$1</span>');
-}
 function buildFlow(verses, forScroll, showVn=true){
   return verses.map(({v,he})=>
-    `${showVn ? `<sup class="vn">${v}</sup>` : ''}${wrapMq(processHe(he,forScroll))} `
+    `${showVn ? `<sup class="vn">${v}</sup>` : ''}${processHe(he,forScroll)} `
   ).join('').trim();
 }
 
