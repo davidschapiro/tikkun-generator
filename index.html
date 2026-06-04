@@ -373,21 +373,17 @@ function rebuildDropdown() {
   const key = state.israel ? 'israel' : 'diaspora';
   const list = PARASHA_LISTS[key];
   const sel = document.getElementById('parashaSelect');
-  // Keep placeholder, replace optgroups
-  while (sel.options.length > 1) sel.remove(1);
-  const BOOK_ORDER = ['Genesis','Exodus','Leviticus','Numbers','Deuteronomy'];
-  const BOOK_HE = {Genesis:'\u05d1\u05bc\u05b0\u05e8\u05b5\u05d0\u05e9\u05c1\u05b4\u05d9\u05ea',
-    Exodus:'\u05e9\u05c1\u05b0\u05de\u05b9\u05d5\u05ea',
-    Leviticus:'\u05d5\u05b7\u05d9\u05bc\u05b4\u05e7\u05b0\u05e8\u05b8\u05d0',
-    Numbers:'\u05d1\u05bc\u05b7\u05de\u05bc\u05b4\u05d3\u05b0\u05d1\u05bc\u05b8\u05e8',
-    Deuteronomy:'\u05d3\u05bc\u05b0\u05d1\u05b8\u05e8\u05b4\u05d9\u05dd'};
-  const byBook = {};
-  list.forEach(p => { (byBook[p.book] = byBook[p.book]||[]).push(p); });
-  BOOK_ORDER.forEach(book => {
-    if (!byBook[book]) return;
+  // Clear entirely and rebuild — innerHTML avoids orphaned optgroups
+  sel.innerHTML = '<option value="">↓ Jump to parasha</option>';
+  const byYear = {};
+  list.forEach(p => {
+    const y = p.date.slice(0,4);
+    (byYear[y] = byYear[y]||[]).push(p);
+  });
+  Object.keys(byYear).sort().forEach(year => {
     const grp = document.createElement('optgroup');
-    grp.label = BOOK_HE[book] + ' · ' + book;
-    byBook[book].forEach(p => {
+    grp.label = year;
+    byYear[year].forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.date; opt.textContent = p.label;
       grp.appendChild(opt);
