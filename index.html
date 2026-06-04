@@ -153,6 +153,25 @@ footer{
   color:var(--ink-pale);border-top:1px solid var(--border);
 }
 
+/* ── PRINT HEADER (hidden on screen, shown when printing) ── */
+.print-header{display:none;}
+@media print {
+  .print-header{
+    display:block;text-align:center;
+    padding-bottom:0.8rem;margin-bottom:1.2rem;
+    border-bottom:2px solid #7a5c14;
+  }
+  .print-header .ph-he{
+    font-family:'Arimo',sans-serif;font-size:2.2rem;font-weight:700;
+    color:#7a5c14;direction:rtl;line-height:1.2;
+  }
+  .print-header .ph-en{
+    font-size:0.8rem;font-weight:700;letter-spacing:0.15em;
+    text-transform:uppercase;color:#7a6e64;margin-top:0.2rem;
+  }
+  .print-header .ph-meta{font-size:0.75rem;color:#aaa090;margin-top:0.2rem;}
+}
+
 /* ── PRINT ── */
 @media print {
   .app-title,.controls-bar,footer,.print-btn,.tikkun-section-header{display:none!important;}
@@ -371,6 +390,16 @@ function renderOutput(parashaItem, aliyotData) {
     bimaHTML     += aliyahSection(k, range, verses, 'bima');
   }
 
+  const heTitle = parashaItem.hebrew || '';
+  const enTitle = parashaItem.title || '';
+
+  const printHdr = (type) => `
+    <div class="print-header">
+      <div class="ph-he">${heTitle}</div>
+      <div class="ph-en">${enTitle} · ${type}</div>
+      <div class="ph-meta">${dateInfo}</div>
+    </div>`;
+
   return `
     <div class="tikkun-section practice-section">
       <div class="tikkun-section-header">
@@ -380,6 +409,7 @@ function renderOutput(parashaItem, aliyotData) {
         </div>
         <button class="print-btn" onclick="printSection('practice')">🖨 Print</button>
       </div>
+      ${printHdr('Tikkun Korim')}
       ${practiceHTML}
     </div>
     <div class="tikkun-section bima-section">
@@ -390,6 +420,7 @@ function renderOutput(parashaItem, aliyotData) {
         </div>
         <button class="print-btn" onclick="printSection('bima')">🖨 Print</button>
       </div>
+      ${printHdr('Bima Tikkun')}
       ${bimaHTML}
     </div>`;
 }
