@@ -14,8 +14,9 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 ## Features
 
 - Auto-generates on load and on every control change
-- **Parasha selector** grouped by year and book, ~14 months of upcoming Shabbatot
+- **Parasha selector** grouped by year and book, ~2.5 years of upcoming Shabbatot
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays, Purim, Tisha B'Av, Yom Kippur Mincha; pre-baked, no extra API calls
+- **Yom Tov on Shabbat** — automatically displays holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
 - **Diaspora / Israel** toggle — separate parasha and holiday schedules for each
 - Honors special maftirs: Arba Parashiot (Shekalim, Zachor, Para, HaChodesh), Shabbat Rosh Chodesh, Shabbat Chanukka
@@ -38,9 +39,11 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - Simchat Torah Chatanim structure not included
 - Weekday fast day readings (Shacharit/Mincha) not included
 
-## Deploy
+## Deploy & maintenance
 
 Hosted on GitHub Pages. Any push to `main` auto-deploys. Single file — no build process.
+
+Schedule data (parasha and holiday listings) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1** each year. Can also be triggered manually from the Actions tab. No manual maintenance required.
 
 ## Impressum
 
