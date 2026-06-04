@@ -354,8 +354,9 @@ function syncDropdown() {
 
 // ── Hebcal ──
 async function fetchParasha() {
-  const i = state.israel ? '&i=on' : '';
-  const url = `https://www.hebcal.com/shabbat?cfg=json&leyning=1&a=on&date=${dateStr(state.refDate)}${i}`;
+  const il = state.israel ? '&i=on' : '';
+  const ds = dateStr(state.refDate);
+  const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&start=${ds}&end=${ds}&s=on&leyning=1&maj=off&min=off&nx=off&mf=off&ss=off&mod=off${il}`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Hebcal error: ${r.status}`);
   const data = await r.json();
