@@ -34,6 +34,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
 
 .nav-group{display:flex;align-items:center;gap:0.35rem;}
+.date-display{font-size:0.8rem;font-weight:700;color:var(--ink-soft);
+  min-width:130px;text-align:center;letter-spacing:0.02em;}
+.parasha-name{font-size:0.95rem;font-weight:700;color:var(--ink);
+  min-width:160px;text-align:center;direction:ltr;}
 .nav-btn{background:none;border:1px solid var(--border);border-radius:var(--radius);
   padding:0.28rem 0.65rem;cursor:pointer;font-size:1rem;color:var(--ink-soft);line-height:1;
   transition:all 0.12s;}
@@ -178,7 +182,12 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 <div class="controls-bar">
   <div class="nav-group">
     <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
-    <select class="parasha-select" id="parashaSelect">
+    <div class="date-display" id="dateDisplay">—</div>
+    <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+  </div>
+  <div class="parasha-name" id="parashaName">—</div>
+  <select class="parasha-select" id="parashaSelect">
+    <option value="">↓ Jump to parasha</option>
 <optgroup label="בְּרֵאשִׁית · Genesis">
 <option value="2026-10-10">Bereshit · Oct 10, 2026</option>
 <option value="2026-10-17">Noach · Oct 17, 2026</option>
@@ -264,8 +273,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 <option value="2027-10-09">Ha’azinu · Oct 9, 2027</option>
 </optgroup>
     </select>
-    <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
-  </div>
 
   <div class="toggle-group" id="modeToggle">
     <button class="toggle-btn" data-val="triennial">Triennial</button>
@@ -351,16 +358,17 @@ function triennialYear(hYear){ return ((hYear-5786)%3+3)%3+1; }
 
 // ── Sync dropdown to current refDate ──
 function syncDropdown() {
-  const sel = document.getElementById('parashaSelect');
-  const ds = dateStr(state.refDate);
-  // Find closest option
-  let best = null, bestDiff = Infinity;
-  for (const opt of sel.options) {
-    if (!opt.value) continue;
-    const diff = Math.abs(new Date(opt.value) - new Date(ds));
-    if (diff < bestDiff) { bestDiff = diff; best = opt; }
-  }
-  if (best) sel.value = best.value;
+  // Update date display
+  const shabbat = toShabbat(state.refDate);
+  const opts = {month:'short', day:'numeric', year:'numeric'};
+  document.getElementById('dateDisplay').textContent =
+    'Shabbat ' + shabbat.toLocaleDateString('en-GB', opts);
+  // Reset jump-to dropdown to placeholder
+  document.getElementById('parashaSelect').value = '';
+}
+function updateParashaName(title) {
+  const name = (title||'').replace('Parashat ','').replace('Parashas ','');
+  document.getElementById('parashaName').textContent = name;
 }
 
 // ── Hebcal ──
@@ -494,6 +502,7 @@ async function generate() {
     const p = await fetchParasha();
     if (myId !== state.genId) return;
     syncDropdown();
+    updateParashaName(p.title);
     status.innerHTML='<div class="status"><div class="spinner"></div>Fetching text from Sefaria…</div>';
     const leyning = p.leyning||{};
     const ranges = {};
@@ -559,8 +568,10 @@ function init() {
   });
   // Parasha dropdown — auto-generate on change
   document.getElementById('parashaSelect').addEventListener('change',function(){
+    if (!this.value) return;
     state.refDate = new Date(this.value + 'T12:00:00');
     state.chCache={};
+    syncDropdown();
     generate();
   });
   // Prev/Next — auto-generate
