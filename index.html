@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="he" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tikkun Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #f7f4ee;
+  --bg-card:  #ffffff;
+  --ink:      #1a1714;
+  --ink-mid:  #463e36;
+  --ink-soft: #7a6e64;
+  --ink-pale: #aaa090;
+  --gold:     #7a5c14;
+  --gold-lgt: #c49a20;
+  --red:      #8a1c1c;
+  --border:   #ddd5c8;
+  --radius:   5px;
+  --shadow:   0 1px 4px rgba(0,0,0,0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#181410; --bg-card:#211d18; --ink:#f0ebe0;
+    --ink-mid:#c8bfb0; --ink-soft:#86786a; --ink-pale:#524840;
+    --gold:#c49a20; --red:#c44040; --border:#362e26;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-size:15px;line-height:1.6;}
+
+/* ── APP HEADER ── */
+.app-title{
+  background:var(--bg-card);border-bottom:2px solid var(--gold);
+  padding:1.2rem 1.5rem;display:flex;align-items:baseline;gap:0.8rem;
+}
+.app-title h1{font-size:1.3rem;font-weight:700;color:var(--gold);}
+.app-title span{font-size:0.8rem;color:var(--ink-soft);letter-spacing:0.05em;}
+
+/* ── CONTROLS ── */
+.controls-bar{
+  background:var(--bg-card);border-bottom:1px solid var(--border);
+  padding:0.9rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;
+  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);
+}
+.nav-group{display:flex;align-items:center;gap:0.4rem;}
+.nav-btn{
+  background:none;border:1px solid var(--border);border-radius:var(--radius);
+  padding:0.3rem 0.7rem;cursor:pointer;font-size:1rem;color:var(--ink-soft);
+  transition:all 0.12s;line-height:1;
+}
+.nav-btn:hover{border-color:var(--gold);color:var(--gold);}
+.current-parasha{
+  font-weight:700;font-size:0.9rem;color:var(--ink);min-width:160px;text-align:center;
+}
+.toggle-group{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.toggle-btn{
+  padding:0.3rem 0.85rem;border:none;background:var(--bg);
+  cursor:pointer;font-size:0.78rem;font-weight:700;color:var(--ink-soft);
+  font-family:'Arimo',sans-serif;transition:all 0.12s;letter-spacing:0.03em;
+}
+.toggle-btn.active{background:var(--gold);color:#fff;}
+.gen-btn{
+  background:var(--gold);color:#fff;border:none;border-radius:var(--radius);
+  padding:0.4rem 1.2rem;font-weight:700;font-size:0.85rem;cursor:pointer;
+  font-family:'Arimo',sans-serif;letter-spacing:0.04em;transition:background 0.12s;
+  margin-left:auto;
+}
+.gen-btn:hover{background:var(--gold-lgt);}
+.gen-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ── LOADING / ERROR ── */
+.status{text-align:center;padding:3rem;color:var(--ink-soft);font-size:0.9rem;}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--border);
+  border-top-color:var(--gold);border-radius:50%;
+  animation:spin 0.7s linear infinite;margin:0 auto 1rem;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-box{
+  background:var(--bg-card);border:1px solid #c44;border-radius:var(--radius);
+  padding:1rem 1.2rem;max-width:500px;margin:2rem auto;color:#c44;font-size:0.85rem;
+}
+
+/* ── MAIN ── */
+.content{max-width:1100px;margin:0 auto;padding:1.2rem 1.2rem 3rem;}
+
+/* ── TIKKUN SECTION WRAPPER ── */
+.tikkun-section{margin-bottom:2.5rem;}
+.tikkun-section-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0.6rem 0;margin-bottom:0.8rem;
+  border-bottom:2px solid var(--gold);
+}
+.tikkun-section-header h2{
+  font-size:1rem;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--gold);
+}
+.tikkun-meta{font-size:0.75rem;color:var(--ink-soft);}
+.print-btn{
+  background:none;border:1px solid var(--border);border-radius:var(--radius);
+  padding:0.25rem 0.7rem;font-size:0.72rem;font-weight:700;
+  cursor:pointer;color:var(--ink-soft);font-family:'Arimo',sans-serif;
+  transition:all 0.12s;
+}
+.print-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ── ALIYAH ── */
+.aliyah{
+  margin-bottom:1.5rem;border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;background:var(--bg-card);
+  box-shadow:var(--shadow);
+}
+.aliyah-hdr{
+  display:flex;align-items:baseline;gap:0.45rem;
+  padding:0.5rem 1.2rem;color:#fff;
+}
+.lbl-he{font-size:1.05rem;font-weight:700;direction:rtl;}
+.lbl-sep{opacity:0.5;font-size:0.85rem;}
+.lbl-en{font-size:0.78rem;font-weight:700;letter-spacing:0.04em;}
+.lbl-range{margin-left:auto;font-size:0.7rem;opacity:0.82;letter-spacing:0.02em;}
+
+/* ── PRACTICE: two columns ── */
+.practice-body{display:grid;grid-template-columns:1fr 1fr;}
+.col-scroll,.col-vowel{
+  font-family:'Arimo',sans-serif;font-size:1.2rem;line-height:2.15;
+  direction:rtl;text-align:right;padding:1rem 1.1rem;
+  word-spacing:0.05em;
+}
+.col-scroll{color:var(--ink-mid);border-right:3px solid var(--red);border-left:1px solid var(--border);}
+.col-vowel{color:var(--ink);border-right:3px solid var(--gold);}
+
+/* ── BIMA: single large column ── */
+.bima-body{
+  font-family:'Arimo',sans-serif;font-size:1.65rem;line-height:2.4;
+  direction:rtl;text-align:right;padding:1.2rem 1.4rem 1.4rem;
+  color:var(--ink);word-spacing:0.06em;
+}
+
+/* ── SHARED TEXT ELEMENTS ── */
+sup.vn{
+  font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;
+  color:var(--ink-pale);vertical-align:super;line-height:0;
+  margin-left:0.12em;user-select:none;
+}
+.pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
+.mq{white-space:nowrap;}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;padding:1rem;font-size:0.72rem;
+  color:var(--ink-pale);border-top:1px solid var(--border);
+}
+
+/* ── PRINT ── */
+@media print {
+  .app-title,.controls-bar,footer,.print-btn,.tikkun-section-header{display:none!important;}
+  body{background:white;}
+  .aliyah{box-shadow:none;break-inside:avoid;border:1px solid #ccc;}
+  .aliyah-hdr{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+  .content{padding:0;max-width:100%;}
+  body.print-practice .bima-section{display:none!important;}
+  body.print-bima    .practice-section{display:none!important;}
+  .col-vowel,.col-scroll{font-size:1.05rem;padding:0.8rem 0.9rem;}
+  .bima-body{font-size:1.5rem;padding:0.9rem 1rem;}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:680px){
+  .practice-body{grid-template-columns:1fr;}
+  .col-scroll{border-left:none;border-top:2px solid var(--border);}
+  .controls-bar{gap:0.5rem;}
+  .gen-btn{margin-left:0;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<header class="app-title">
+  <h1>Tikkun Generator</h1>
+  <span>Sefaria · Hebcal · Triennial &amp; Full Kriyah</span>
+</header>
+
+<div class="controls-bar">
+  <div class="nav-group">
+    <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
+    <div class="current-parasha" id="parashaLabel">Loading…</div>
+    <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+  </div>
+
+  <div class="toggle-group" id="modeToggle">
+    <button class="toggle-btn" data-val="triennial">Triennial</button>
+    <button class="toggle-btn" data-val="full">Full Kriyah</button>
+  </div>
+
+  <div class="toggle-group" id="locToggle">
+    <button class="toggle-btn active" data-val="diaspora">Diaspora</button>
+    <button class="toggle-btn" data-val="israel">Israel</button>
+  </div>
+
+  <button class="gen-btn" id="genBtn">Generate Tikkun</button>
+</div>
+
+<main class="content">
+  <div id="statusArea"></div>
+  <div id="outputArea"></div>
+</main>
+
+<footer>
+  Text: Sefaria.org · Leyning: Hebcal.com (Eisenberg/CJLS triennial system) · For Torah readers
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+const state = {
+  refDate:  new Date(),
+  israel:   false,
+  mode:     localStorage.getItem('tikkunMode') || 'triennial',
+  parasha:  null,
+  chCache:  {}
+};
+
+// ═══════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════
+const LABELS = {
+  '1':      {he:'ראשון',  en:'Rishon'},
+  '2':      {he:'שני',    en:'Sheni'},
+  '3':      {he:'שלישי',  en:'Shlishi'},
+  '4':      {he:'רביעי',  en:"Revi'i"},
+  '5':      {he:'חמישי',  en:'Chamishi'},
+  '6':      {he:'שישי',   en:'Shishi'},
+  '7':      {he:'שביעי',  en:"Shvi'i"},
+  'maftir': {he:'מפטיר',  en:'Maftir'},
+};
+const COLORS = {
+  '1':'#3d2b1a','2':'#1e3b1e','3':'#1a2e42',
+  '4':'#3b1a30','5':'#283b18','6':'#18303b',
+  '7':'#3b2e18','maftir':'#5e1e1e'
+};
+
+// ═══════════════════════════════════════════════
+//  DATE HELPERS
+// ═══════════════════════════════════════════════
+function dateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+function shiftWeeks(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n * 7);
+  return r;
+}
+function triennialYear(hYear) {
+  // 5786 = year 1
+  return ((hYear - 5786) % 3 + 3) % 3 + 1;
+}
+
+// ═══════════════════════════════════════════════
+//  HEBCAL
+// ═══════════════════════════════════════════════
+async function fetchParasha() {
+  const i = state.israel ? '&i=on' : '';
+  const url = `https://www.hebcal.com/shabbat?cfg=json&leyning=1&a=on&date=${dateStr(state.refDate)}${i}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Hebcal error: ${r.status}`);
+  const data = await r.json();
+  const item = data.items && data.items.find(x => x.category === 'parashat');
+  if (!item) throw new Error('No parasha found for this date.');
+  return item;
+}
+
+// ═══════════════════════════════════════════════
+//  SEFARIA
+// ═══════════════════════════════════════════════
+async function fetchChapter(book, ch) {
+  const key = `${book}.${ch}`;
+  if (state.chCache[key]) return state.chCache[key];
+  const r = await fetch(`https://www.sefaria.org/api/texts/${encodeURIComponent(book)}.${ch}?lang=both`);
+  if (!r.ok) throw new Error(`Sefaria error: ${r.status}`);
+  const data = await r.json();
+  state.chCache[key] = data;
+  return data;
+}
+
+function parseRange(str) {
+  // "Numbers 8:1-8:4" or "Numbers 9:15-10:10"
+  const m = str.match(/^(.+?)\s+(\d+):(\d+)-(\d+):(\d+)$/);
+  if (!m) return null;
+  return { book:m[1], sc:+m[2], sv:+m[3], ec:+m[4], ev:+m[5] };
+}
+
+async function fetchVerses(rangeStr) {
+  const p = parseRange(rangeStr);
+  if (!p) return [];
+  const {book, sc, sv, ec, ev} = p;
+  const verses = [];
+  for (let ch = sc; ch <= ec; ch++) {
+    const data = await fetchChapter(book, ch);
+    const he = data.he || [];
+    const from = (ch === sc) ? sv - 1 : 0;
+    const to   = (ch === ec) ? ev      : he.length;
+    for (let i = from; i < to; i++) {
+      verses.push({ch, v: i+1, he: he[i] || ''});
+    }
+  }
+  return verses;
+}
+
+// ═══════════════════════════════════════════════
+//  TEXT PROCESSING
+// ═══════════════════════════════════════════════
+function processHe(raw, forScroll) {
+  let s = raw;
+  s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,      '##PE##');
+  s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g,  '##SAM##');
+  s = s.replace(/<[^>]+>/g, '');
+  s = s.replace(/&nbsp;/g, ' ').replace(/\u00a0/g, ' ').trim();
+  if (forScroll) s = s.replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, '');
+  s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
+  s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
+  return s;
+}
+function wrapMq(s) {
+  return s.replace(/([^\s<>]+\u05BE[^\s<>]+)/g, '<span class="mq">$1</span>');
+}
+function buildFlow(verses, forScroll) {
+  return verses.map(({v, he}) =>
+    `<sup class="vn">${v}</sup>${wrapMq(processHe(he, forScroll))} `
+  ).join('').trim();
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+function aliyahSection(key, rangeStr, verses, tikkun) {
+  const lbl = LABELS[key] || {he: key, en: key};
+  const col = COLORS[key] || '#333';
+  const hdr = `
+    <div class="aliyah-hdr" style="background:${col}">
+      <span class="lbl-he">${lbl.he}</span>
+      <span class="lbl-sep">·</span>
+      <span class="lbl-en">${lbl.en}</span>
+      <span class="lbl-range">${rangeStr}</span>
+    </div>`;
+  const body = tikkun === 'practice'
+    ? `<div class="practice-body">
+         <div class="col-scroll" dir="rtl">${buildFlow(verses, true)}</div>
+         <div class="col-vowel"  dir="rtl">${buildFlow(verses, false)}</div>
+       </div>`
+    : `<div class="bima-body" dir="rtl">${buildFlow(verses, false)}</div>`;
+  return `<section class="aliyah">${hdr}${body}</section>`;
+}
+
+function renderOutput(parashaItem, aliyotData) {
+  const hYear = parseInt(parashaItem.hdate.split(' ').pop());
+  const tyear = triennialYear(hYear);
+  const modeLbl = state.mode === 'triennial'
+    ? `Triennial Year ${tyear}` : 'Full Kriyah';
+  const dateInfo = `${parashaItem.hdate} · ${parashaItem.date} · ${modeLbl} · ${state.israel ? 'Israel' : 'Diaspora'}`;
+
+  // Build aliyah HTML for each tikkun type
+  const keys = ['1','2','3','4','5','6','7','maftir'];
+  let practiceHTML = '', bimaHTML = '';
+  for (const k of keys) {
+    if (!aliyotData[k]) continue;
+    const {range, verses} = aliyotData[k];
+    practiceHTML += aliyahSection(k, range, verses, 'practice');
+    bimaHTML     += aliyahSection(k, range, verses, 'bima');
+  }
+
+  return `
+    <div class="tikkun-section practice-section">
+      <div class="tikkun-section-header">
+        <div>
+          <h2>Practice Tikkun — Tikkun Korim</h2>
+          <div class="tikkun-meta">${dateInfo}</div>
+        </div>
+        <button class="print-btn" onclick="printSection('practice')">🖨 Print</button>
+      </div>
+      ${practiceHTML}
+    </div>
+    <div class="tikkun-section bima-section">
+      <div class="tikkun-section-header">
+        <div>
+          <h2>Bima Tikkun</h2>
+          <div class="tikkun-meta">${dateInfo}</div>
+        </div>
+        <button class="print-btn" onclick="printSection('bima')">🖨 Print</button>
+      </div>
+      ${bimaHTML}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  GENERATE
+// ═══════════════════════════════════════════════
+async function generate() {
+  const status = document.getElementById('statusArea');
+  const output = document.getElementById('outputArea');
+  const genBtn = document.getElementById('genBtn');
+
+  status.innerHTML = `<div class="status"><div class="spinner"></div>Fetching parasha…</div>`;
+  output.innerHTML = '';
+  genBtn.disabled = true;
+
+  try {
+    // 1. Fetch parasha from Hebcal
+    const p = await fetchParasha();
+    state.parasha = p;
+    updateParashaLabel(p);
+
+    status.innerHTML = `<div class="status"><div class="spinner"></div>Fetching text from Sefaria…</div>`;
+
+    // 2. Determine which aliyot to use
+    const leyning = p.leyning || {};
+    const aliyotRanges = {};
+    if (state.mode === 'triennial' && leyning.triennial) {
+      const t = leyning.triennial;
+      for (const k of ['1','2','3','4','5','6','7','maftir']) {
+        if (t[k]) aliyotRanges[k] = t[k];
+      }
+    } else {
+      for (const k of ['1','2','3','4','5','6','7']) {
+        if (leyning[k]) aliyotRanges[k] = leyning[k];
+      }
+      if (leyning.maftir) aliyotRanges['maftir'] = leyning.maftir;
+    }
+
+    // 3. Fetch verses for each aliyah
+    const aliyotData = {};
+    for (const [k, range] of Object.entries(aliyotRanges)) {
+      const verses = await fetchVerses(range);
+      aliyotData[k] = {range, verses};
+    }
+
+    // 4. Render
+    status.innerHTML = '';
+    output.innerHTML = renderOutput(p, aliyotData);
+
+  } catch (err) {
+    status.innerHTML = `<div class="error-box">⚠ ${err.message}<br><br>
+      <button onclick="generate()" style="margin-top:0.5rem;padding:0.3rem 0.8rem;cursor:pointer;">Retry</button>
+    </div>`;
+  } finally {
+    genBtn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════
+function updateParashaLabel(p) {
+  const lbl = document.getElementById('parashaLabel');
+  if (p) {
+    const name = p.title.replace("Parashat ","").replace("Parashas ","");
+    lbl.textContent = name;
+    lbl.title = p.hdate;
+  } else {
+    lbl.textContent = '—';
+  }
+}
+
+function printSection(which) {
+  document.body.classList.add(`print-${which}`);
+  window.print();
+  setTimeout(() => document.body.classList.remove(`print-${which}`), 1500);
+}
+
+// Quick parasha label fetch (without full Sefaria text)
+async function peekParasha() {
+  try {
+    const p = await fetchParasha();
+    state.parasha = p;
+    updateParashaLabel(p);
+  } catch(_) {
+    document.getElementById('parashaLabel').textContent = '?';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  // Restore mode toggle
+  document.querySelectorAll('#modeToggle .toggle-btn').forEach(btn => {
+    if (btn.dataset.val === state.mode) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#modeToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.mode = btn.dataset.val;
+      localStorage.setItem('tikkunMode', state.mode);
+    });
+  });
+
+  // Location toggle
+  document.querySelectorAll('#locToggle .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#locToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.israel = btn.dataset.val === 'israel';
+      state.chCache = {}; // clear cache on location change
+      peekParasha();
+    });
+  });
+
+  // Prev/Next navigation
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    state.refDate = shiftWeeks(state.refDate, -1);
+    state.chCache = {};
+    peekParasha();
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    state.refDate = shiftWeeks(state.refDate, 1);
+    state.chCache = {};
+    peekParasha();
+  });
+
+  // Generate button
+  document.getElementById('genBtn').addEventListener('click', generate);
+
+  // Auto-load parasha name, then auto-generate
+  generate();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
