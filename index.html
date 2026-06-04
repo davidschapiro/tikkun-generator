@@ -441,7 +441,8 @@ async function fetchChapter(book, ch) {
 }
 
 function parseRange(str) {
-  const m = str.match(/^(.+?)\s+(\d+):(\d+)-(\d+):(\d+)$/);
+  const clean = str.split(' | ')[0].trim(); // strip Hebcal annotations
+  const m = clean.match(/^(.+?)\s+(\d+):(\d+)-(\d+):(\d+)$/);
   if (!m) return null;
   return {book:m[1],sc:+m[2],sv:+m[3],ec:+m[4],ev:+m[5]};
 }
