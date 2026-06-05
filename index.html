@@ -606,7 +606,7 @@ async function generate() {
       const hDate = parts[0], hTitle = parts.slice(1).join('|');
       p = { title: hTitle, date: hDate, hebrew: hTitle, hdate: hDate, leyning };
       leyningData = leyning;
-      updateParashaName(hTitle);
+      updateParashaName(formatHolidayTitle(hTitle));
     } else {
       try {
         p = await fetchParasha();
@@ -623,7 +623,7 @@ async function generate() {
           isHoliday = true;
           p = { title: hTitle, date: ds, hebrew: hTitle, hdate: ds, leyning };
           leyningData = leyning;
-          updateParashaName(hTitle);
+          updateParashaName(formatHolidayTitle(hTitle));
         } else {
           throw e;
         }
@@ -678,6 +678,13 @@ function printSection(which) {
   setTimeout(()=>document.body.classList.remove(`print-${which}`),1500);
 }
 
+function formatHolidayTitle(title) {
+  // Chanukah: X Candles → Chanukka Day N (X candles = N+1 with shamash, so Day = X-1)
+  const candles = title.match(/^Chanukah: (\d+) Candles$/);
+  if (candles) return `Chanukka Day ${parseInt(candles[1]) - 1}`;
+  if (title === 'Chanukah: 8th Day') return 'Chanukka Day 8 · Zot Chanukka';
+  return title;
+}
 function rebuildDropdown() {
   const locKey = state.israel ? 'israel' : 'diaspora';
   const sel = document.getElementById('parashaSelect');
@@ -727,7 +734,7 @@ function rebuildDropdown() {
       const d = new Date(h.dt + 'T12:00:00');
       const opt = document.createElement('option');
       opt.value = 'holiday|' + h.key;
-      opt.textContent = title + ' \u00b7 ' + d.toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'});
+      opt.textContent = formatHolidayTitle(title) + ' \u00b7 ' + d.toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'});
       grp.appendChild(opt);
     });
     sel.appendChild(grp);
