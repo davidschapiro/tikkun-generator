@@ -115,6 +115,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
+.kt{font-size:0.55em;font-weight:400;color:var(--ink-pale);font-style:italic;margin:0 0.2em;vertical-align:0.15em;}
 
 
 /* ── TAB SWITCHER ── */
@@ -507,8 +508,23 @@ async function fetchVerses(rangeStr) {
   return verses;
 }
 
+function resolveKetivQere(s, forScroll) {
+  // Handles both orderings: ketiv-then-qere and qere-then-ketiv
+  const pat1 = /<span class="mam-kq">\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<\/span>/g;
+  const pat2 = /<span class="mam-kq">\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<\/span>/g;
+  const repl = (ketiv, qere) => forScroll
+    ? ketiv
+    : `${qere} <span class="kt">\u05db\u05f3 ${ketiv}</span>`;
+  s = s.replace(pat1, (m, k, q) => repl(k, q));
+  s = s.replace(pat2, (m, q, k) => repl(k, q));
+  return s;
+}
 function processHe(raw, forScroll) {
   let s = raw;
+  // Strip manuscript-variant footnotes entirely (marker + note)
+  s = s.replace(/<sup class="footnote-marker">\*<\/sup><i class="footnote">\(.*?\)<\/i>/gs, '');
+  // Resolve Ketiv-Qere: scroll gets ketiv only, vowelized gets qere + small ketiv note
+  s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
