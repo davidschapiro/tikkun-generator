@@ -115,7 +115,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
-.kt{font-size:0.32em;font-weight:400;color:var(--ink-pale);font-style:italic;margin:0 0.15em;vertical-align:0.5em;}
+.kt{font-size:0.45em;font-weight:400;color:var(--ink-pale);font-style:italic;margin:0 0.15em;vertical-align:0.3em;}
 
 
 /* ── TAB SWITCHER ── */
@@ -510,11 +510,13 @@ async function fetchVerses(rangeStr) {
 
 function resolveKetivQere(s, forScroll) {
   // Handles both orderings: ketiv-then-qere and qere-then-ketiv
+  // Uses a ##KT_..._END## placeholder so the annotation survives the
+  // generic HTML-tag-stripping pass that runs later in processHe.
   const pat1 = /<span class="mam-kq">\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<\/span>/g;
   const pat2 = /<span class="mam-kq">\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<\/span>/g;
   const repl = (ketiv, qere) => forScroll
     ? ketiv
-    : `${qere} <span class="kt">\u05db\u05f3 ${ketiv}</span>`;
+    : `${qere} ##KT_${ketiv}_END##`;
   s = s.replace(pat1, (m, k, q) => repl(k, q));
   s = s.replace(pat2, (m, q, k) => repl(k, q));
   return s;
@@ -535,6 +537,7 @@ function processHe(raw, forScroll) {
   }
   s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
   s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
+  s = s.replace(/##KT_(.*?)_END##/g, '<span class="kt">\u05db\u05f3 $1</span>');
   return s;
 }
 function buildFlow(verses, forScroll, showVn=true){
