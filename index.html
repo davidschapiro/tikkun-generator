@@ -45,7 +45,8 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   padding:0.8rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;
   position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
 
-.nav-group{display:flex;align-items:center;gap:0.35rem;}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:0.6rem;width:100%;}
+.nav-group{display:flex;align-items:center;gap:0.35rem;flex-shrink:0;}
 .date-display{font-size:0.8rem;font-weight:700;color:var(--ink);
   min-width:130px;text-align:center;letter-spacing:0.02em;}
 .parasha-name{font-size:0.95rem;font-weight:700;color:var(--ink);
@@ -198,6 +199,8 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .practice-body{grid-template-columns:1fr;}
   .col-scroll{border-left:none;border-top:2px solid var(--border);}
   .gen-btn{margin-left:0;width:100%;}
+  .controls-bar{position:static;box-shadow:none;}
+  .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
 }
 </style>
 </head>
@@ -209,12 +212,14 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </header>
 
 <div class="controls-bar">
-  <div class="nav-group">
-    <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
-    <div class="date-display" id="dateDisplay">—</div>
-    <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+  <div class="top-row">
+    <div class="nav-group">
+      <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
+      <div class="date-display" id="dateDisplay">—</div>
+      <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+    </div>
+    <div class="parasha-name" id="parashaName">—</div>
   </div>
-  <div class="parasha-name" id="parashaName">—</div>
   <select class="parasha-select" id="parashaSelect">
     <option value="">↓ Jump to parasha or holiday</option>
     <optgroup label="2026 · בַּמִּדְבָּר Numbers">
