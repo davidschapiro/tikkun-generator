@@ -46,7 +46,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
 
 .nav-group{display:flex;align-items:center;gap:0.35rem;}
-.date-display{font-size:0.8rem;font-weight:700;color:#fff;
+.date-display{font-size:0.8rem;font-weight:700;color:var(--ink);
   min-width:130px;text-align:center;letter-spacing:0.02em;}
 .parasha-name{font-size:0.95rem;font-weight:700;color:var(--ink);
   min-width:160px;text-align:center;direction:ltr;}
@@ -115,6 +115,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
+.kt{font-size:0.78em;font-weight:400;color:var(--ink-pale);font-style:normal;margin:0 0.15em;vertical-align:0.1em;}
 
 
 /* ── TAB SWITCHER ── */
@@ -368,6 +369,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="israel">Israel</button>
   </div>
 
+  <select class="parasha-select" id="aliyahFilter" style="display:none;min-width:130px;">
+    <option value="all">All Aliyot</option>
+  </select>
+
   <button class="gen-btn" id="genBtn">↻ Refresh</button>
 </div>
 
@@ -507,8 +512,25 @@ async function fetchVerses(rangeStr) {
   return verses;
 }
 
+function resolveKetivQere(s, forScroll) {
+  // Handles both orderings: ketiv-then-qere and qere-then-ketiv
+  // Uses a ##KT_..._END## placeholder so the annotation survives the
+  // generic HTML-tag-stripping pass that runs later in processHe.
+  const pat1 = /<span class="mam-kq">\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<\/span>/g;
+  const pat2 = /<span class="mam-kq">\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<\/span>/g;
+  const repl = (ketiv, qere) => forScroll
+    ? ketiv
+    : `${qere} ##KT_${ketiv}_END##`;
+  s = s.replace(pat1, (m, k, q) => repl(k, q));
+  s = s.replace(pat2, (m, q, k) => repl(k, q));
+  return s;
+}
 function processHe(raw, forScroll) {
   let s = raw;
+  // Strip manuscript-variant footnotes entirely (marker + note)
+  s = s.replace(/<sup class="footnote-marker">\*<\/sup><i class="footnote">\(.*?\)<\/i>/gs, '');
+  // Resolve Ketiv-Qere: scroll gets ketiv only, vowelized gets qere + small ketiv note
+  s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
@@ -519,6 +541,7 @@ function processHe(raw, forScroll) {
   }
   s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
   s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
+  s = s.replace(/##KT_(.*?)_END##/g, '<span class="kt">\u05db\u05f3 $1</span>');
   return s;
 }
 function buildFlow(verses, forScroll, showVn=true){
@@ -540,7 +563,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
          <div class="col-scroll" dir="rtl">${buildFlow(verses,true,false)}</div>
          <div class="col-vowel"  dir="rtl">${buildFlow(verses,false,true)}</div></div>`
     : `<div class="bima-body" dir="rtl">${buildFlow(verses,false)}</div>`;
-  return `<section class="aliyah">${hdr}${body}</section>`;
+  return `<section class="aliyah" data-aliyah="${key}">${hdr}${body}</section>`;
 }
 
 function renderOutput(p, aliyotData, isHoliday) {
@@ -655,6 +678,7 @@ async function generate() {
     if (myId !== state.genId) return;
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData, isHoliday);
+    populateAliyahFilter(aliyotData);
 
     const tabBar = document.getElementById('tabBar');
     tabBar.style.display='block';
@@ -672,6 +696,28 @@ async function generate() {
   } finally { genBtn.disabled=false; }
 }
 
+function populateAliyahFilter(aliyotData) {
+  const sel = document.getElementById('aliyahFilter');
+  const keys = ['1','2','3','4','5','6','7','maftir'].filter(k => aliyotData[k]);
+  sel.innerHTML = '<option value="all">All Aliyot</option>';
+  keys.forEach(k => {
+    const lbl = LABELS[k] || {he:k, en:k};
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${lbl.en} \u00b7 ${lbl.he}`;
+    sel.appendChild(opt);
+  });
+  sel.value = 'all';
+  sel.style.display = keys.length > 1 ? 'inline-block' : 'none';
+  applyAliyahFilter();
+}
+function applyAliyahFilter() {
+  const val = document.getElementById('aliyahFilter').value;
+  document.querySelectorAll('.aliyah').forEach(sec => {
+    const key = sec.dataset.aliyah;
+    sec.style.display = (val === 'all' || key === val) ? '' : 'none';
+  });
+}
 function printSection(which) {
   document.body.classList.add(`print-${which}`);
   window.print();
@@ -802,6 +848,7 @@ function init() {
   });
 
   document.getElementById('genBtn').addEventListener('click',generate);
+  document.getElementById('aliyahFilter').addEventListener('change', applyAliyahFilter);
   syncDropdown();
   generate();
 }
