@@ -43,7 +43,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 
 .controls-bar{background:var(--bg-card);border-bottom:1px solid var(--border);
   padding:0.8rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;
-  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);
+  transition:transform 0.25s ease;}
+.controls-bar.hide-on-scroll{transform:translateY(-100%);}
 
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:0.6rem;width:100%;}
 .nav-group{display:flex;align-items:center;gap:0.35rem;flex-shrink:0;}
@@ -199,7 +201,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .practice-body{grid-template-columns:1fr;}
   .col-scroll{border-left:none;border-top:2px solid var(--border);}
   .gen-btn{margin-left:0;width:100%;}
-  .controls-bar{position:static;box-shadow:none;}
+  
   .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
 }
 </style>
@@ -904,6 +906,28 @@ function init() {
   });
   syncDropdown();
   generate();
+
+  // Hide controls bar on scroll-down, reveal on scroll-up (mobile-friendly nav)
+  let lastScrollY = window.scrollY;
+  const controlsBar = document.querySelector('.controls-bar');
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY;
+      if (currentY <= 10) {
+        controlsBar.classList.remove('hide-on-scroll');
+      } else if (delta > 8) {
+        controlsBar.classList.add('hide-on-scroll');
+      } else if (delta < -8) {
+        controlsBar.classList.remove('hide-on-scroll');
+      }
+      lastScrollY = currentY;
+      ticking = false;
+    });
+  }, { passive: true });
 }
 document.addEventListener('DOMContentLoaded',init);
 
