@@ -396,7 +396,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn active" data-val="tikkun">Tikkun view</button>
   </div>
 
-  <button class="gen-btn" id="genBtn">↻ Refresh</button>
+
 </div>
 
 <main class="content">
@@ -636,9 +636,8 @@ async function generate() {
   const myId = ++state.genId;
   const status = document.getElementById('statusArea');
   const output = document.getElementById('outputArea');
-  const genBtn = document.getElementById('genBtn');
   status.innerHTML='<div class="status"><div class="spinner"></div>Fetching…</div>';
-  output.innerHTML=''; genBtn.disabled=true;
+  output.innerHTML='';
 
   try {
     let p, leyningData, isHoliday=false;
@@ -716,7 +715,7 @@ async function generate() {
   } catch(err) {
     status.innerHTML=`<div class="error-box">⚠ ${err.message}<br><br>
       <button onclick="generate()" style="margin-top:0.5rem;padding:0.3rem 0.8rem;cursor:pointer;">Retry</button></div>`;
-  } finally { genBtn.disabled=false; }
+  } finally { /* no-op */ }
 }
 
 function populateAliyahFilter(aliyotData) {
@@ -870,7 +869,6 @@ function init() {
     });
   });
 
-  document.getElementById('genBtn').addEventListener('click',generate);
   document.getElementById('aliyahFilter').addEventListener('change', applyAliyahFilter);
 
   // Layout toggle: Side-by-Side / Either-Or
