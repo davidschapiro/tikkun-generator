@@ -43,9 +43,12 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 
 .controls-bar{background:var(--bg-card);border-bottom:1px solid var(--border);
   padding:0.8rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;
-  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+  position:sticky;top:0;z-index:50;box-shadow:var(--shadow);
+  transition:transform 0.25s ease;}
+.controls-bar.hide-on-scroll{transform:translateY(-100%);}
 
-.nav-group{display:flex;align-items:center;gap:0.35rem;}
+.top-row{display:flex;align-items:center;gap:0.6rem;}
+.nav-group{display:flex;align-items:center;gap:0.35rem;flex-shrink:0;}
 .date-display{font-size:0.8rem;font-weight:700;color:var(--ink);
   min-width:130px;text-align:center;letter-spacing:0.02em;}
 .parasha-name{font-size:0.95rem;font-weight:700;color:var(--ink);
@@ -68,6 +71,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   font-size:0.75rem;font-weight:700;color:var(--ink-soft);font-family:'Arimo',sans-serif;
   transition:all 0.12s;letter-spacing:0.03em;}
 .toggle-btn.active{background:var(--gold);color:#fff;}
+.toggle-group.tg-hidden{display:none;}
 
 .gen-btn{background:var(--gold);color:#fff;border:none;border-radius:var(--radius);
   padding:0.35rem 1.1rem;font-weight:700;font-size:0.82rem;cursor:pointer;
@@ -104,6 +108,13 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .lbl-range{margin-left:auto;font-size:0.7rem;opacity:0.82;}
 
 .practice-body{display:grid;grid-template-columns:1fr 1fr;}
+body.layout-either .practice-body{grid-template-columns:1fr;}
+body.layout-either.show-scroll .col-vowel{display:none;}
+body.layout-either.show-tikkun .col-scroll{display:none;}
+@media print {
+  body.layout-either .practice-body{grid-template-columns:1fr 1fr!important;}
+  body.layout-either .col-vowel,body.layout-either .col-scroll{display:block!important;}
+}
 .col-scroll,.col-vowel{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.3rem;line-height:2.3;
   direction:rtl;text-align:justify;padding:1rem 1.1rem;word-spacing:0.05em;}
 .col-scroll{color:var(--ink);border-right:3px solid var(--red);border-left:1px solid var(--border);}
@@ -190,6 +201,9 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .practice-body{grid-template-columns:1fr;}
   .col-scroll{border-left:none;border-top:2px solid var(--border);}
   .gen-btn{margin-left:0;width:100%;}
+  
+  .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
+  .top-row{width:100%;justify-content:space-between;}
 }
 </style>
 </head>
@@ -201,12 +215,14 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </header>
 
 <div class="controls-bar">
-  <div class="nav-group">
-    <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
-    <div class="date-display" id="dateDisplay">—</div>
-    <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+  <div class="top-row">
+    <div class="nav-group">
+      <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
+      <div class="date-display" id="dateDisplay">—</div>
+      <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+    </div>
+    <div class="parasha-name" id="parashaName">—</div>
   </div>
-  <div class="parasha-name" id="parashaName">—</div>
   <select class="parasha-select" id="parashaSelect">
     <option value="">↓ Jump to parasha or holiday</option>
     <optgroup label="2026 · בַּמִּדְבָּר Numbers">
@@ -373,7 +389,17 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <option value="all">All Aliyot</option>
   </select>
 
-  <button class="gen-btn" id="genBtn">↻ Refresh</button>
+  <div class="toggle-group" id="layoutToggle">
+    <button class="toggle-btn active" data-val="side">Side-by-Side</button>
+    <button class="toggle-btn" data-val="either">Either-Or</button>
+  </div>
+
+  <div class="toggle-group tg-hidden" id="columnToggle">
+    <button class="toggle-btn" data-val="scroll">Scroll view</button>
+    <button class="toggle-btn active" data-val="tikkun">Tikkun view</button>
+  </div>
+
+
 </div>
 
 <main class="content">
@@ -613,9 +639,8 @@ async function generate() {
   const myId = ++state.genId;
   const status = document.getElementById('statusArea');
   const output = document.getElementById('outputArea');
-  const genBtn = document.getElementById('genBtn');
   status.innerHTML='<div class="status"><div class="spinner"></div>Fetching…</div>';
-  output.innerHTML=''; genBtn.disabled=true;
+  output.innerHTML='';
 
   try {
     let p, leyningData, isHoliday=false;
@@ -693,7 +718,7 @@ async function generate() {
   } catch(err) {
     status.innerHTML=`<div class="error-box">⚠ ${err.message}<br><br>
       <button onclick="generate()" style="margin-top:0.5rem;padding:0.3rem 0.8rem;cursor:pointer;">Retry</button></div>`;
-  } finally { genBtn.disabled=false; }
+  } finally { /* no-op */ }
 }
 
 function populateAliyahFilter(aliyotData) {
@@ -847,10 +872,63 @@ function init() {
     });
   });
 
-  document.getElementById('genBtn').addEventListener('click',generate);
   document.getElementById('aliyahFilter').addEventListener('change', applyAliyahFilter);
+
+  // Layout toggle: Side-by-Side / Either-Or
+  document.querySelectorAll('#layoutToggle .toggle-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('#layoutToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.val;
+      const columnToggle = document.getElementById('columnToggle');
+      if (mode === 'either') {
+        document.body.classList.add('layout-either');
+        columnToggle.classList.remove('tg-hidden');
+        // Default to Tikkun view when entering Either-Or mode
+        document.querySelectorAll('#columnToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').classList.add('active');
+        document.body.classList.remove('show-scroll');
+        document.body.classList.add('show-tikkun');
+      } else {
+        document.body.classList.remove('layout-either','show-scroll','show-tikkun');
+        columnToggle.classList.add('tg-hidden');
+      }
+    });
+  });
+
+  // Column toggle: Scroll view / Tikkun view (only active in Either-Or mode)
+  document.querySelectorAll('#columnToggle .toggle-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('#columnToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.body.classList.remove('show-scroll','show-tikkun');
+      document.body.classList.add('show-' + btn.dataset.val);
+    });
+  });
   syncDropdown();
   generate();
+
+  // Hide controls bar on scroll-down, reveal on scroll-up (mobile-friendly nav)
+  let lastScrollY = window.scrollY;
+  const controlsBar = document.querySelector('.controls-bar');
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY;
+      if (currentY <= 10) {
+        controlsBar.classList.remove('hide-on-scroll');
+      } else if (delta > 8) {
+        controlsBar.classList.add('hide-on-scroll');
+      } else if (delta < -8) {
+        controlsBar.classList.remove('hide-on-scroll');
+      }
+      lastScrollY = currentY;
+      ticking = false;
+    });
+  }, { passive: true });
 }
 document.addEventListener('DOMContentLoaded',init);
 
