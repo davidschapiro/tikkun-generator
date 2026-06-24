@@ -115,7 +115,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
-.kt{font-size:0.6em;font-weight:400;color:var(--ink-pale);font-style:italic;margin:0 0.15em;vertical-align:0.2em;}
+.kt{font-size:0.78em;font-weight:400;color:var(--ink-pale);font-style:normal;margin:0 0.15em;vertical-align:0.1em;}
 
 
 /* ── TAB SWITCHER ── */
@@ -369,6 +369,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="israel">Israel</button>
   </div>
 
+  <select class="parasha-select" id="aliyahFilter" style="display:none;min-width:130px;">
+    <option value="all">All Aliyot</option>
+  </select>
+
   <button class="gen-btn" id="genBtn">↻ Refresh</button>
 </div>
 
@@ -559,7 +563,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
          <div class="col-scroll" dir="rtl">${buildFlow(verses,true,false)}</div>
          <div class="col-vowel"  dir="rtl">${buildFlow(verses,false,true)}</div></div>`
     : `<div class="bima-body" dir="rtl">${buildFlow(verses,false)}</div>`;
-  return `<section class="aliyah">${hdr}${body}</section>`;
+  return `<section class="aliyah" data-aliyah="${key}">${hdr}${body}</section>`;
 }
 
 function renderOutput(p, aliyotData, isHoliday) {
@@ -674,6 +678,7 @@ async function generate() {
     if (myId !== state.genId) return;
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData, isHoliday);
+    populateAliyahFilter(aliyotData);
 
     const tabBar = document.getElementById('tabBar');
     tabBar.style.display='block';
@@ -691,6 +696,28 @@ async function generate() {
   } finally { genBtn.disabled=false; }
 }
 
+function populateAliyahFilter(aliyotData) {
+  const sel = document.getElementById('aliyahFilter');
+  const keys = ['1','2','3','4','5','6','7','maftir'].filter(k => aliyotData[k]);
+  sel.innerHTML = '<option value="all">All Aliyot</option>';
+  keys.forEach(k => {
+    const lbl = LABELS[k] || {he:k, en:k};
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `${lbl.en} \u00b7 ${lbl.he}`;
+    sel.appendChild(opt);
+  });
+  sel.value = 'all';
+  sel.style.display = keys.length > 1 ? 'inline-block' : 'none';
+  applyAliyahFilter();
+}
+function applyAliyahFilter() {
+  const val = document.getElementById('aliyahFilter').value;
+  document.querySelectorAll('.aliyah').forEach(sec => {
+    const key = sec.dataset.aliyah;
+    sec.style.display = (val === 'all' || key === val) ? '' : 'none';
+  });
+}
 function printSection(which) {
   document.body.classList.add(`print-${which}`);
   window.print();
@@ -821,6 +848,7 @@ function init() {
   });
 
   document.getElementById('genBtn').addEventListener('click',generate);
+  document.getElementById('aliyahFilter').addEventListener('change', applyAliyahFilter);
   syncDropdown();
   generate();
 }
