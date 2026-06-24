@@ -727,9 +727,10 @@ function populateAliyahFilter(aliyotData) {
   sel.innerHTML = '<option value="all">All Aliyot</option>';
   keys.forEach(k => {
     const lbl = LABELS[k] || {he:k, en:k};
+    const displayRange = (aliyotData[k].range || '').split(' | ')[0];
     const opt = document.createElement('option');
     opt.value = k;
-    opt.textContent = `${lbl.en} \u00b7 ${lbl.he}`;
+    opt.textContent = `${lbl.en} \u00b7 ${lbl.he} \u00b7 ${displayRange}`;
     sel.appendChild(opt);
   });
   sel.value = 'all';
