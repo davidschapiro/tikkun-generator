@@ -836,6 +836,13 @@ async function generate() {
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData, isHoliday);
     syncAllPracticeColumns();
+    // The very first measurement pass on freshly-inserted content is
+    // unreliable (root cause not fully isolated — possibly font glyph-
+    // shaping or layout settling that needs a real event-loop yield, not
+    // just another synchronous call). A setTimeout(...,0) genuinely yields
+    // back to the browser before recomputing, which empirically stabilizes
+    // the result — a same-tick double-call does NOT.
+    setTimeout(syncAllPracticeColumns, 0);
     populateAliyahFilter(aliyotData);
 
     const tabBar = document.getElementById('tabBar');
