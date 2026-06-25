@@ -67,6 +67,21 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .parasha-select option{font-weight:400;}
 
 .toggle-group{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+
+/* ── FLOATING VIEW TOGGLE (always visible, independent of controls-bar scroll behavior) ── */
+.floating-toggle{
+  position:fixed;bottom:1.1rem;right:1.1rem;z-index:80;
+  display:flex;flex-direction:column;gap:0.4rem;align-items:flex-end;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+  padding:0.5rem;box-shadow:0 2px 10px rgba(0,0,0,0.18);
+}
+.floating-toggle .toggle-group{border-color:var(--border);}
+.floating-toggle .toggle-btn{font-size:0.7rem;padding:0.3rem 0.6rem;}
+@media print{.floating-toggle{display:none!important;}}
+@media(max-width:680px){
+  .floating-toggle{bottom:0.8rem;right:0.8rem;padding:0.4rem;}
+  .floating-toggle .toggle-btn{font-size:0.66rem;padding:0.26rem 0.5rem;}
+}
 .toggle-btn{padding:0.28rem 0.8rem;border:none;background:var(--bg);cursor:pointer;
   font-size:0.75rem;font-weight:700;color:var(--ink-soft);font-family:'Arimo',sans-serif;
   transition:all 0.12s;letter-spacing:0.03em;}
@@ -127,6 +142,7 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:va
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
 .kt{font-size:0.78em;font-weight:400;color:var(--ink-pale);font-style:normal;margin:0 0.15em;vertical-align:0.1em;}
+.ttok{display:inline-block;white-space:nowrap;}
 
 
 /* ── TAB SWITCHER ── */
@@ -389,16 +405,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <option value="all">All Aliyot</option>
   </select>
 
-  <div class="toggle-group" id="layoutToggle">
-    <button class="toggle-btn active" data-val="side">Side-by-Side</button>
-    <button class="toggle-btn" data-val="either">Either-Or</button>
-  </div>
-
-  <div class="toggle-group tg-hidden" id="columnToggle">
-    <button class="toggle-btn" data-val="scroll">Scroll view</button>
-    <button class="toggle-btn active" data-val="tikkun">Tikkun view</button>
-  </div>
-
 
 </div>
 
@@ -412,6 +418,17 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </div>
 <div id="outputArea"></div>
 </main>
+
+<div id="floatingViewToggle" class="floating-toggle" style="display:none">
+  <div class="toggle-group" id="layoutToggle">
+    <button class="toggle-btn active" data-val="side">Side-by-Side</button>
+    <button class="toggle-btn" data-val="either">Either-Or</button>
+  </div>
+  <div class="toggle-group tg-hidden" id="columnToggle">
+    <button class="toggle-btn" data-val="scroll">Scroll view</button>
+    <button class="toggle-btn active" data-val="tikkun">Tikkun view</button>
+  </div>
+</div>
 
 <footer>
   Text: <a href="https://sefaria.org" target="_blank">Sefaria.org</a> ·
@@ -539,42 +556,129 @@ async function fetchVerses(rangeStr) {
 }
 
 function resolveKetivQere(s, forScroll) {
-  // Handles both orderings: ketiv-then-qere and qere-then-ketiv
-  // Uses a ##KT_..._END## placeholder so the annotation survives the
-  // generic HTML-tag-stripping pass that runs later in processHe.
+  // Multi-word qere: glue with WORD JOINER (invisible, non-\s) so it
+  // survives as ONE token through the later whitespace-split.
   const pat1 = /<span class="mam-kq">\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<\/span>/g;
   const pat2 = /<span class="mam-kq">\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<\/span>/g;
-  const repl = (ketiv, qere) => forScroll
-    ? ketiv
-    : `${qere} ##KT_${ketiv}_END##`;
+  const repl = (ketiv, qere) => {
+    const gluedQere = qere.replace(/\s+/g, '\u2060');
+    return forScroll ? ketiv : `${gluedQere}##KT_${ketiv}_END##`;
+  };
   s = s.replace(pat1, (m, k, q) => repl(k, q));
   s = s.replace(pat2, (m, q, k) => repl(k, q));
   return s;
 }
-function processHe(raw, forScroll) {
+
+function processHeToWords(raw, forScroll) {
   let s = raw;
-  // Strip manuscript-variant footnotes entirely (marker + note)
   s = s.replace(/<sup class="footnote-marker">\*<\/sup><i class="footnote">\(.*?\)<\/i>/gs, '');
-  // Resolve Ketiv-Qere: scroll gets ketiv only, vowelized gets qere + small ketiv note
   s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
-  s = s.replace(/&nbsp;/g,' ').replace(/\u00a0/g,' ').trim();
+  s = s.replace(/&nbsp;/g,' ').replace(/&thinsp;/g,' ').replace(/\u00a0/g,' ').trim();
   if (forScroll) {
-    s = s.replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, '');
+    // U+05C0 (paseq) and U+05C6 (inverted nun) are scribal/sectioning marks,
+    // not nikud — excluded from stripping so they survive in both columns.
+    s = s.replace(/[\u0591-\u05BD\u05BF\u05C1-\u05C5\u05C7]/g, '');
+  }
+  return s.split(/\s+/).filter(w => w.length > 0);
+}
+
+function wordToHtml(word, forScroll) {
+  let s = word
+    .replace(/\u2060/g, ' ')
+    .replace(/##PE##/g,  '<span class="pm">פ</span>')
+    .replace(/##SAM##/g, '<span class="pm">ס</span>')
+    .replace(/##KT_(.*?)_END##/g, ' <span class="kt">\u05db\u05f3 $1</span>');
+  if (forScroll) {
     s = s.replace(/\u05BE/g, ' ');
   }
-  s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
-  s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
-  s = s.replace(/##KT_(.*?)_END##/g, '<span class="kt">\u05db\u05f3 $1</span>');
   return s;
 }
-function buildFlow(verses, forScroll, showVn=true){
-  return verses.map(({v,he})=>
-    `${showVn ? `<sup class="vn">${v}</sup>` : ''}${processHe(he,forScroll)} `
-  ).join('').trim();
+
+function buildTokens(verses) {
+  const tokens = [];
+  const mismatches = [];
+  for (const {v, he} of verses) {
+    const vowelWords  = processHeToWords(he, false);
+    const scrollWords = processHeToWords(he, true);
+    if (vowelWords.length !== scrollWords.length) {
+      mismatches.push({v, vowelWords, scrollWords});
+    }
+    vowelWords.forEach((vw, i) => {
+      tokens.push({
+        vowel: wordToHtml(vw, false),
+        scroll: wordToHtml(scrollWords[i] || '', true),
+        verseNum: i === 0 ? v : null
+      });
+    });
+  }
+  return {tokens, mismatches};
 }
+
+// ── BIMA: simple flowing render, no break-sync needed (single column) ──
+function buildBimaFlow(verses) {
+  const {tokens} = buildTokens(verses);
+  return tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    return (i>0 ? ' ' : '') + vn + t.vowel;
+  }).join('');
+}
+
+// ── PRACTICE: token-paired columns with synced line breaks ──
+window.__aliyahTokenRegistry = {};
+let __aliyahTokenCounter = 0;
+
+function renderSyncedColumns(tokens, vowelEl, scrollEl) {
+  // Step 1: render vowel tokens as individually-measurable inline-blocks
+  vowelEl.innerHTML = tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
+  }).join(' ');
+
+  // Step 2: measure — detect line membership via offsetTop changes
+  const spans = vowelEl.querySelectorAll('.ttok');
+  const breaks = [];
+  let lastTop = null;
+  spans.forEach((span, i) => {
+    const top = span.offsetTop;
+    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
+    lastTop = top;
+  });
+
+  // Step 3: rebuild both columns with identical explicit breaks
+  function build(key) {
+    let html = '';
+    tokens.forEach((t, i) => {
+      if (breaks.includes(i)) html += '<br>';
+      else if (i > 0) html += ' ';
+      if (key === 'vowel' && t.verseNum) html += `<sup class="vn">${t.verseNum}</sup>`;
+      html += t[key];
+    });
+    return html;
+  }
+  vowelEl.innerHTML = build('vowel');
+  scrollEl.innerHTML = build('scroll');
+}
+
+function syncAllPracticeColumns() {
+  document.querySelectorAll('.practice-body[data-token-id]').forEach(body => {
+    const id = body.dataset.tokenId;
+    const tokens = window.__aliyahTokenRegistry[id];
+    if (!tokens) return;
+    const vowelEl = body.querySelector('.col-vowel');
+    const scrollEl = body.querySelector('.col-scroll');
+    if (vowelEl && scrollEl) renderSyncedColumns(tokens, vowelEl, scrollEl);
+  });
+}
+
+// Debounced resize listener — recompute breaks when column width changes
+let __resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(__resizeTimer);
+  __resizeTimer = setTimeout(syncAllPracticeColumns, 150);
+});
 
 function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const lbl = LABELS[key] || {he:key,en:key};
@@ -584,15 +688,25 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const hdr = `<div class="aliyah-hdr" style="background:${col}">
     <span class="lbl-he">${lbl.he}</span><span class="lbl-sep">·</span>
     <span class="lbl-en">${lbl.en}</span><span class="lbl-range">${displayRange}</span></div>`;
-  const body = tikkun==='practice'
-    ? `<div class="practice-body">
-         <div class="col-scroll" dir="rtl">${buildFlow(verses,true,false)}</div>
-         <div class="col-vowel"  dir="rtl">${buildFlow(verses,false,true)}</div></div>`
-    : `<div class="bima-body" dir="rtl">${buildFlow(verses,false)}</div>`;
+
+  let body;
+  if (tikkun === 'practice') {
+    const {tokens} = buildTokens(verses);
+    const tokenId = 'tk' + (__aliyahTokenCounter++);
+    window.__aliyahTokenRegistry[tokenId] = tokens;
+    // Columns start empty — populated by renderSyncedColumns() once this
+    // HTML is actually in the live DOM (measurement requires real layout).
+    body = `<div class="practice-body" data-token-id="${tokenId}">
+         <div class="col-scroll" dir="rtl"></div>
+         <div class="col-vowel"  dir="rtl"></div></div>`;
+  } else {
+    body = `<div class="bima-body" dir="rtl">${buildBimaFlow(verses)}</div>`;
+  }
   return `<section class="aliyah" data-aliyah="${key}">${hdr}${body}</section>`;
 }
 
 function renderOutput(p, aliyotData, isHoliday) {
+
   const hYear = p.hdate ? parseInt(p.hdate.split(' ').pop()) : null;
   const ty = hYear ? triennialYear(hYear) : null;
   const modeLbl = isHoliday ? 'Holiday Reading'
@@ -703,6 +817,7 @@ async function generate() {
     if (myId !== state.genId) return;
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData, isHoliday);
+    syncAllPracticeColumns();
     populateAliyahFilter(aliyotData);
 
     const tabBar = document.getElementById('tabBar');
@@ -714,6 +829,7 @@ async function generate() {
     document.querySelectorAll('.tikkun-section').forEach(s=>s.classList.remove('visible'));
     const target = document.querySelector('.'+savedTab+'-section');
     if(target) target.classList.add('visible');
+    updateFloatingToggleVisibility(savedTab);
 
   } catch(err) {
     status.innerHTML=`<div class="error-box">⚠ ${err.message}<br><br>
@@ -743,6 +859,12 @@ function applyAliyahFilter() {
     const key = sec.dataset.aliyah;
     sec.style.display = (val === 'all' || key === val) ? '' : 'none';
   });
+}
+function updateFloatingToggleVisibility(activeTab) {
+  // Either-Or / Scroll-Tikkun only applies to the two-column Tikkun Korim
+  // view — hide the floating control entirely on the single-column Bima tab.
+  const widget = document.getElementById('floatingViewToggle');
+  widget.style.display = (activeTab === 'practice') ? 'flex' : 'none';
 }
 function printSection(which) {
   document.body.classList.add(`print-${which}`);
@@ -870,6 +992,7 @@ function init() {
       document.querySelectorAll('.tikkun-section').forEach(s=>s.classList.remove('visible'));
       document.querySelector('.'+tab+'-section').classList.add('visible');
       localStorage.setItem('tikkunTab', tab);
+      updateFloatingToggleVisibility(tab);
     });
   });
 
