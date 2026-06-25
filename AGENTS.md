@@ -484,19 +484,19 @@ this is *what*.
 
 **Open work, in priority order:**
 
-1. **Step 4 of line-sync (print-time computation).** Currently print
-   reuses whatever line breaks were last computed for the on-screen width
-   — works, but isn't the originally-designed fixed-reference-width
-   computation. Plan (already scoped, not yet built): compute breaks
-   lazily inside the print button's `onclick`, measured against a fixed
-   ~650–700px reference width, independent of whatever device triggered
-   the print. Full design rationale: `line-sync/README.md` on the
-   `line-sync-tikkun` branch (kept for reference, never merged — its git
-   history diverged from `main`, see §5/§6 above. Don't try to merge it;
-   re-read it for context, then build Step 4 on a *fresh* branch off
-   current `main`).
+**Done since last update:** Step 4 of line-sync (print-time computation)
+— print now computes line breaks against a fixed, deterministic
+per-column reference width (`@page` margin pinned + conservative
+`PRINT_REF_WIDTH`), identical across mobile/desktop regardless of window
+size, and refreshed automatically in the background (not just on our
+in-app Print button's click) so it works for any print trigger. Verified
+against real rendered PDFs on Letter and A4, not just DOM assertions —
+this is the one with a real bug along the way, see §5's writeup on
+`PRINT_REF_WIDTH` before touching this code again.
 
-2. **Unverified assumption**: line-sync always measures against the
+**Open work, in priority order:**
+
+1. **Unverified assumption**: line-sync always measures against the
    *vowel* column as the reference for break-points, on the theory that
    it's generally the wider/more-constraining column (cantillation + ketiv
    annotations add width). This has held in every real-data test so far,
@@ -505,7 +505,7 @@ this is *what*.
    with a visual space). Worth a dedicated check before considering
    line-sync fully closed.
 
-3. **Aesthetic fixes** (small, independent, low-risk — good to batch
+2. **Aesthetic fixes** (small, independent, low-risk — good to batch
    together):
    - Switch the non-Torah Hebrew font (aliyah labels like rishon, sheni,
      etc. — *not* the title) to Arimo.
@@ -514,7 +514,7 @@ this is *what*.
    - Increase verse-number font size slightly (currently too small
      relative to the surrounding text).
 
-4. **Justified block format.** Lines are currently word-count-matched
+3. **Justified block format.** Lines are currently word-count-matched
    between scroll/vowel columns (see §3, `buildTokens`/line-sync) but not
    visually justified — on-screen line *lengths* vary, unlike a real
    tikkun korim where every line in a block is the same physical width.
@@ -526,12 +526,12 @@ this is *what*.
    approach). Must hold for both scroll and vowel columns simultaneously,
    without breaking token-index alignment.
 
-5. **Paragraph style as visual line-breaking, not glyphs.** Currently
+4. **Paragraph style as visual line-breaking, not glyphs.** Currently
    open/closed parasha breaks (פ/ס) render as a small gold `<span
    class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
    physical-Torah-style visual layout, applied identically to *both*
    scroll and vowel/tikkun columns, and compatible with justified block
-   format (#4) and the existing line-sync break logic (§3):
+   format (#3) and the existing line-sync break logic (§3):
    - **Open parasha (פ, petucha):** always start a new line. If the line
      before the break is already a "full" line (same length as other
      lines in the block), and a naive break would leave only the last
@@ -549,7 +549,7 @@ this is *what*.
    - This is the most structurally invasive item on this list — it
      changes how line-break decisions are made, not just how they're
      styled, and interacts directly with the line-sync break-index logic
-     in §3. Build and test in isolation from #4 first if both are in
+     in §3. Build and test in isolation from #3 first if both are in
      flight, since debugging both at once will be hard to disentangle.
    - **Needs its own dedicated test**, separate from and in addition to
      the existing `tests/validate-tokenizer.js` (which only validates
@@ -565,7 +565,7 @@ this is *what*.
      feature, not after — it's the only way to catch a regression in one
      edge case while fixing another.
 
-6. **Lower priority, only if the project keeps growing** (see §7 and §9):
+5. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:
    write`, so unlike the earlier note in §6/§9, the workflow YAML *can* be
    pushed via the API directly — no need to paste it through the GitHub
