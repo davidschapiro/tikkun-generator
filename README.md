@@ -28,6 +28,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - Maqaf-joined words rendered as a real space in the scroll column (not merged into one unbroken word)
 
 ### Reading & practice tools
+- **Line-synced columns** — scroll and vowelized columns wrap at identical points, so they align row-for-row in Side-by-Side mode and there's no visual jump switching between views in Either-Or mode. Recomputed live on resize; print uses its own fixed-width computation (deterministic `@page` margins) so printed output is identical regardless of the device or window size used to print.
 - **Aliyah jump dropdown** — verse range shown inline, jump straight to any aliyah
 - **Side-by-Side / Either-Or layout toggle** for Tikkun Korim — Either-Or collapses to a single full-width column with its own **Scroll view / Tikkun view** sub-toggle, for cover-and-check practice
 - Both toggles live in a **floating widget** (bottom-right, always visible while scrolling, on both mobile and desktop) — no need to scroll back up mid-practice
@@ -41,7 +42,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 ### Technical
 - Hebrew text set in **Shlomo SemiStam** (SIL Open Font License), embedded — no external dependencies
 - Dark mode support
-- No backend, no build step — single HTML file
+- No backend, no build step — `index.html` + a small `tokenizer.js` module, both static
 
 ## Sources
 
@@ -54,11 +55,10 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - Yom Kippur Mincha is hardcoded (Leviticus 18:1–30); not in Hebcal
 - Simchat Torah Chatanim structure not included
 - Weekday fast day readings (Shacharit/Mincha) not included
-- **Line breaks are not synced between the scroll and vowelized columns** — independent text flow means the two columns don't align row-for-row in Side-by-Side mode, and Either-Or mode has a visual jump when switching views. A fix (token-paired line measurement, computed live per device/print) is in progress — see the `line-sync-tikkun` branch for design notes, working tokenizer, and full-Torah validation (Step 1 of 4 complete as of this writing).
 
 ## Deploy & maintenance
 
-Hosted on GitHub Pages. Any push to `main` auto-deploys. Single file — no build process.
+Hosted on GitHub Pages. Any push to `main` auto-deploys. Static files — no build process.
 
 Schedule data (parasha and holiday listings) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1** each year. Can also be triggered manually from the Actions tab. No manual maintenance required.
 
