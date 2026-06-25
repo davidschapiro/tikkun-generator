@@ -471,15 +471,62 @@ this is *what*.
    with a visual space). Worth a dedicated check before considering
    line-sync fully closed.
 
-3. **Lower priority, only if the project keeps growing** (see §7 and §9):
-   CI workflow running the test on every push; moving embedded schedule
-   data to separate fetched JSON files.
+3. **Aesthetic fixes** (small, independent, low-risk — good to batch
+   together):
+   - Switch the non-Torah Hebrew font (aliyah labels like rishon, sheni,
+     etc. — *not* the title) to Arimo.
+   - Restyle the aliyah heading row: English on the left, Hebrew on the
+     right, verse span in the middle.
+   - Increase verse-number font size slightly (currently too small
+     relative to the surrounding text).
+
+4. **Justified block format.** Lines are currently word-count-matched
+   between scroll/vowel columns (see §3, `buildTokens`/line-sync) but not
+   visually justified — on-screen line *lengths* vary, unlike a real
+   tikkun korim where every line in a block is the same physical width.
+   Needs inter-word spacing to stretch per line (CSS `text-align:
+   justify` / `text-justify` on the Hebrew columns, or manual per-line
+   space distribution if justify doesn't behave well with the `<br>`-based
+   line-sync approach already in place — verify which one is compatible
+   with the existing break-measurement code before committing to an
+   approach). Must hold for both scroll and vowel columns simultaneously,
+   without breaking token-index alignment.
+
+5. **Paragraph style as visual line-breaking, not glyphs.** Currently
+   open/closed parasha breaks (פ/ס) render as a small gold `<span
+   class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
+   physical-Torah-style visual layout, applied identically to *both*
+   scroll and vowel/tikkun columns, and compatible with justified block
+   format (#4) and the existing line-sync break logic (§3):
+   - **Open parasha (פ, petucha):** always start a new line. If the line
+     before the break is already a "full" line (same length as other
+     lines in the block), and a naive break would leave only the last
+     word of that line dangling, instead pull that last word forward onto
+     its own line by itself (still respecting block justification), *then*
+     start the new paragraph on the line after that.
+   - **Closed parasha (ס, setuma):** insert a tab-like gap within the
+     line (not a line break) — i.e. the line must end with at least one
+     word from the paragraph before the gap and begin with at least one
+     word from the paragraph after it. If a naive break would put the
+     closed-parasha gap right at the line's end (no trailing word after
+     it on that line) or right at the line's start (no leading word
+     before it), shift the minimal number of words to/from the adjacent
+     line so both conditions hold.
+   - This is the most structurally invasive item on this list — it
+     changes how line-break decisions are made, not just how they're
+     styled, and interacts directly with the line-sync break-index logic
+     in §3. Build and test in isolation from #4 first if both are in
+     flight, since debugging both at once will be hard to disentangle.
+
+6. **Lower priority, only if the project keeps growing** (see §7 and §9):
+   CI workflow running the test on every push (the PAT now has `Actions:
+   write`, so unlike the earlier note in §6/§9, the workflow YAML *can* be
+   pushed via the API directly — no need to paste it through the GitHub
+   web UI); moving embedded schedule data to separate fetched JSON files.
 
 **Already done, don't redo:** tokenizer extraction (§9), the full
 line-sync mechanism for screen rendering — Side-by-Side, Either-Or, resize,
 initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 (§2), the paseq scroll-removal fix.
 
-**Nothing is currently broken on `main`.** The `extract-tokenizer` branch
-(tokenizer.js split out + automated test) is verified and ready to merge
-whenever convenient — it's not urgent, just good hygiene.
+**Nothing is currently broken on `main`.** `extract-tokenizer` is merged.
