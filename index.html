@@ -116,11 +116,12 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 
 .aliyah{margin-bottom:1.5rem;border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;background:var(--bg-card);box-shadow:var(--shadow);}
-.aliyah-hdr{display:flex;align-items:baseline;gap:0.45rem;padding:0.5rem 1.2rem;color:#fff;}
-.lbl-he{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.15rem;font-weight:400;direction:rtl;}
-.lbl-sep{opacity:0.5;font-size:0.85rem;}
-.lbl-en{font-size:0.78rem;font-weight:700;letter-spacing:0.04em;}
-.lbl-range{margin-left:auto;font-size:0.7rem;opacity:0.82;}
+.aliyah-hdr{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;
+  gap:0.6rem;padding:0.5rem 1.2rem;color:#fff;}
+.lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
+  direction:rtl;justify-self:end;letter-spacing:0.01em;}
+.lbl-en{font-size:0.78rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
+.lbl-range{font-size:0.7rem;opacity:0.82;justify-self:center;white-space:nowrap;}
 
 .practice-body{display:grid;grid-template-columns:1fr 1fr;}
 body.layout-either .practice-body{grid-template-columns:1fr;}
@@ -152,7 +153,7 @@ body.layout-either.show-tikkun .col-scroll{display:none;}
 .bima-body{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.8rem;line-height:2.5;
   direction:rtl;text-align:right;padding:1.2rem 1.4rem 1.4rem;color:var(--ink);word-spacing:0.06em;}
 
-sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:var(--ink-pale);
+sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:var(--ink-pale);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
 .kt{font-size:0.78em;font-weight:400;color:var(--ink-pale);font-style:normal;margin:0 0.15em;vertical-align:0.1em;}
@@ -225,7 +226,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .bima-body{font-size:1.5rem;padding:0.9rem 1rem;}
   .aliyah-hdr{background:#fff!important;color:#000!important;
     border-top:2px solid #000;border-bottom:1px solid #ccc;}
-  .lbl-he,.lbl-sep,.lbl-en,.lbl-range{color:#000!important;}
+  .lbl-he,.lbl-en,.lbl-range{color:#000!important;}
 }
 @media(max-width:680px){
   .practice-body{grid-template-columns:1fr;}
@@ -767,8 +768,9 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const col = colors[key] || '#333';
   const displayRange = rangeStr.split(' | ')[0];
   const hdr = `<div class="aliyah-hdr" style="background:${col}">
-    <span class="lbl-he">${lbl.he}</span><span class="lbl-sep">·</span>
-    <span class="lbl-en">${lbl.en}</span><span class="lbl-range">${displayRange}</span></div>`;
+    <span class="lbl-en">${lbl.en}</span>
+    <span class="lbl-range">${displayRange}</span>
+    <span class="lbl-he">${lbl.he}</span></div>`;
 
   let body;
   if (tikkun === 'practice') {
