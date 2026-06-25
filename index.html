@@ -572,15 +572,24 @@ function resolveKetivQere(s, forScroll) {
 function processHeToWords(raw, forScroll) {
   let s = raw;
   s = s.replace(/<sup class="footnote-marker">\*<\/sup><i class="footnote">\(.*?\)<\/i>/gs, '');
+  // Paseq (U+05C0) is a vocalization/cantillation mark used in printed
+  // texts — it is NOT written in an actual sefer Torah, so it must be
+  // dropped from the scroll column. But it always appears as its own
+  // standalone token (e.g. "קוּמָה ׀ יְהֹוָה"); naively stripping the
+  // character would leave an empty "word" that gets filtered out of the
+  // scroll array but not the vowel array, breaking 1:1 token alignment.
+  // Convert to a placeholder first so both columns keep the same word
+  // count; resolved differently per column in wordToHtml.
+  s = s.replace(/<(?:b|small)>\u05C0<\/(?:b|small)>/g, '##PASEQ##');
   s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
   s = s.replace(/&nbsp;/g,' ').replace(/&thinsp;/g,' ').replace(/\u00a0/g,' ').trim();
   if (forScroll) {
-    // U+05C0 (paseq) and U+05C6 (inverted nun) are scribal/sectioning marks,
-    // not nikud — excluded from stripping so they survive in both columns.
-    s = s.replace(/[\u0591-\u05BD\u05BF\u05C1-\u05C5\u05C7]/g, '');
+    // U+05C6 (inverted nun) is a scribal/sectioning mark, not nikud —
+    // excluded from stripping so it survives in both columns.
+    s = s.replace(/[\u0591-\u05BD\u05BF-\u05C5\u05C7]/g, '');
   }
   return s.split(/\s+/).filter(w => w.length > 0);
 }
@@ -593,6 +602,9 @@ function wordToHtml(word, forScroll) {
     .replace(/##KT_(.*?)_END##/g, ' <span class="kt">\u05db\u05f3 $1</span>');
   if (forScroll) {
     s = s.replace(/\u05BE/g, ' ');
+    s = s.replace(/##PASEQ##/g, ''); // not written in an actual scroll
+  } else {
+    s = s.replace(/##PASEQ##/g, '\u05C0');
   }
   return s;
 }
