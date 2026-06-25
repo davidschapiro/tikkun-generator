@@ -386,3 +386,55 @@ real problem:**
       using the tool confirms it actually looks right in a real browser
 - [ ] If GitHub Pages build errors, check for the errored→built-on-retry
       pattern before assuming the content is broken
+
+
+---
+
+## 9. Update: tokenizer extracted to a standalone file (post-AGENTS.md v1)
+
+`resolveKetivQere`, `processHeToWords`, `wordToHtml`, `buildTokens` now
+live in `tokenizer.js`, loaded via `<script src="tokenizer.js"></script>`
+in `index.html`, not inline. GitHub Pages serves separate `.js`/`.css`/
+`.json` files exactly like any static host — no CORS issue, same-origin.
+
+This removes the single biggest fragility called out in §7: tests no
+longer need to re-extract code from the HTML string before validating —
+`tests/validate-tokenizer.js` does a plain `require('../tokenizer.js')`
+against the *actual shipped file*. There is no longer a "the test copy
+silently drifted from the real file" failure mode for this part of the
+codebase. Run it with `node tests/validate-tokenizer.js`; needs
+`full-torah-reference.json` (1.6MB, fetch via `raw.githubusercontent.com`
+if missing — see §4A, same as before).
+
+**Deliberately NOT extracted**: the font (stays embedded base64 — was
+embedded specifically to avoid a network dependency, extracting it would
+be a regression, not an improvement). The rendering/sync logic
+(`renderSyncedColumns`, `syncAllPracticeColumns`, etc.) — left inline for
+now since it's tightly coupled to the DOM structure rendered by the rest
+of `index.html`; a future session could extract this too, but it's lower
+priority than the tokenizer was, since it was never the thing going stale
+between test runs.
+
+**Not yet done, lower priority, consider if the project keeps growing:**
+- CI: a GitHub Actions workflow running `node tests/validate-tokenizer.js`
+  on every push. Needs `Actions: write` PAT scope (not available via API —
+  must paste the YAML into the GitHub web UI directly, same as the
+  biannual refresh workflow).
+- Moving embedded schedule data (`PARASHA_LISTS`, `HOLIDAY_DATA`) to
+  separate `.json` files fetched at runtime — the single biggest remaining
+  chunk of `index.html`'s size, but works fine as-is; only worth doing if
+  size becomes a real problem.
+
+## 10. A note on context window economics
+
+This entire project (tikkun.kahal-masorti.org) has been built across one
+very long conversation. By this point in that conversation, every new
+message carries the full accumulated history — hundreds of tool calls,
+file contents, screenshots — which makes every subsequent message
+significantly more expensive than it needs to be.
+
+**If you are an agent starting fresh on this repo: you almost certainly
+don't need that history.** Read this file, read `README.md`, and you have
+the actual institutional knowledge without the conversational overhead.
+**Strongly prefer starting a new conversation for new work** rather than
+continuing an already-long one — point it at this file first.
