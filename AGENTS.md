@@ -438,3 +438,48 @@ don't need that history.** Read this file, read `README.md`, and you have
 the actual institutional knowledge without the conversational overhead.
 **Strongly prefer starting a new conversation for new work** rather than
 continuing an already-long one — point it at this file first.
+
+
+---
+
+## 11. TODO — consolidated, single source of truth
+
+If you're starting a fresh conversation, this section is the answer to
+"what's left to do." Everything else in this file is *why* and *how*;
+this is *what*.
+
+**Open work, in priority order:**
+
+1. **Step 4 of line-sync (print-time computation).** Currently print
+   reuses whatever line breaks were last computed for the on-screen width
+   — works, but isn't the originally-designed fixed-reference-width
+   computation. Plan (already scoped, not yet built): compute breaks
+   lazily inside the print button's `onclick`, measured against a fixed
+   ~650–700px reference width, independent of whatever device triggered
+   the print. Full design rationale: `line-sync/README.md` on the
+   `line-sync-tikkun` branch (kept for reference, never merged — its git
+   history diverged from `main`, see §5/§6 above. Don't try to merge it;
+   re-read it for context, then build Step 4 on a *fresh* branch off
+   current `main`).
+
+2. **Unverified assumption**: line-sync always measures against the
+   *vowel* column as the reference for break-points, on the theory that
+   it's generally the wider/more-constraining column (cantillation + ketiv
+   annotations add width). This has held in every real-data test so far,
+   but was never deliberately stress-tested against a verse where
+   *scroll* might end up wider (e.g. many maqaf-joined words rendered
+   with a visual space). Worth a dedicated check before considering
+   line-sync fully closed.
+
+3. **Lower priority, only if the project keeps growing** (see §7 and §9):
+   CI workflow running the test on every push; moving embedded schedule
+   data to separate fetched JSON files.
+
+**Already done, don't redo:** tokenizer extraction (§9), the full
+line-sync mechanism for screen rendering — Side-by-Side, Either-Or, resize,
+initial-load timing fix (§3), all the Hebrew-text-processing edge cases
+(§2), the paseq scroll-removal fix.
+
+**Nothing is currently broken on `main`.** The `extract-tokenizer` branch
+(tokenizer.js split out + automated test) is verified and ready to merge
+whenever convenient — it's not urgent, just good hygiene.
