@@ -142,6 +142,7 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.58rem;font-weight:700;color:va
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
 .pm{font-size:0.85em;font-weight:700;color:var(--gold);margin:0 0.12em;}
 .kt{font-size:0.78em;font-weight:400;color:var(--ink-pale);font-style:normal;margin:0 0.15em;vertical-align:0.1em;}
+.ttok{display:inline-block;white-space:nowrap;}
 
 
 /* ── TAB SWITCHER ── */
@@ -555,42 +556,147 @@ async function fetchVerses(rangeStr) {
 }
 
 function resolveKetivQere(s, forScroll) {
-  // Handles both orderings: ketiv-then-qere and qere-then-ketiv
-  // Uses a ##KT_..._END## placeholder so the annotation survives the
-  // generic HTML-tag-stripping pass that runs later in processHe.
+  // Multi-word qere: glue with WORD JOINER (invisible, non-\s) so it
+  // survives as ONE token through the later whitespace-split.
   const pat1 = /<span class="mam-kq">\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<\/span>/g;
   const pat2 = /<span class="mam-kq">\s*<span class="mam-kq-q">\[([^\]]*)\]<\/span>\s*<span class="mam-kq-k">\(([^)]*)\)<\/span>\s*<\/span>/g;
-  const repl = (ketiv, qere) => forScroll
-    ? ketiv
-    : `${qere} ##KT_${ketiv}_END##`;
+  const repl = (ketiv, qere) => {
+    const gluedQere = qere.replace(/\s+/g, '\u2060');
+    return forScroll ? ketiv : `${gluedQere}##KT_${ketiv}_END##`;
+  };
   s = s.replace(pat1, (m, k, q) => repl(k, q));
   s = s.replace(pat2, (m, q, k) => repl(k, q));
   return s;
 }
-function processHe(raw, forScroll) {
+
+function processHeToWords(raw, forScroll) {
   let s = raw;
-  // Strip manuscript-variant footnotes entirely (marker + note)
   s = s.replace(/<sup class="footnote-marker">\*<\/sup><i class="footnote">\(.*?\)<\/i>/gs, '');
-  // Resolve Ketiv-Qere: scroll gets ketiv only, vowelized gets qere + small ketiv note
   s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
   s = s.replace(/<[^>]+>/g, '');
-  s = s.replace(/&nbsp;/g,' ').replace(/\u00a0/g,' ').trim();
+  s = s.replace(/&nbsp;/g,' ').replace(/&thinsp;/g,' ').replace(/\u00a0/g,' ').trim();
   if (forScroll) {
-    s = s.replace(/[\u0591-\u05BD\u05BF-\u05C7]/g, '');
+    // U+05C0 (paseq) and U+05C6 (inverted nun) are scribal/sectioning marks,
+    // not nikud — excluded from stripping so they survive in both columns.
+    s = s.replace(/[\u0591-\u05BD\u05BF\u05C1-\u05C5\u05C7]/g, '');
+  }
+  return s.split(/\s+/).filter(w => w.length > 0);
+}
+
+function wordToHtml(word, forScroll) {
+  let s = word
+    .replace(/\u2060/g, ' ')
+    .replace(/##PE##/g,  '<span class="pm">פ</span>')
+    .replace(/##SAM##/g, '<span class="pm">ס</span>')
+    .replace(/##KT_(.*?)_END##/g, ' <span class="kt">\u05db\u05f3 $1</span>');
+  if (forScroll) {
     s = s.replace(/\u05BE/g, ' ');
   }
-  s = s.replace(/##PE##/g,  ' <span class="pm">פ</span>');
-  s = s.replace(/##SAM##/g, ' <span class="pm">ס</span>');
-  s = s.replace(/##KT_(.*?)_END##/g, '<span class="kt">\u05db\u05f3 $1</span>');
   return s;
 }
-function buildFlow(verses, forScroll, showVn=true){
-  return verses.map(({v,he})=>
-    `${showVn ? `<sup class="vn">${v}</sup>` : ''}${processHe(he,forScroll)} `
-  ).join('').trim();
+
+function buildTokens(verses) {
+  const tokens = [];
+  const mismatches = [];
+  for (const {v, he} of verses) {
+    const vowelWords  = processHeToWords(he, false);
+    const scrollWords = processHeToWords(he, true);
+    if (vowelWords.length !== scrollWords.length) {
+      mismatches.push({v, vowelWords, scrollWords});
+    }
+    vowelWords.forEach((vw, i) => {
+      tokens.push({
+        vowel: wordToHtml(vw, false),
+        scroll: wordToHtml(scrollWords[i] || '', true),
+        verseNum: i === 0 ? v : null
+      });
+    });
+  }
+  return {tokens, mismatches};
 }
+
+// ── BIMA: simple flowing render, no break-sync needed (single column) ──
+function buildBimaFlow(verses) {
+  const {tokens} = buildTokens(verses);
+  return tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    return (i>0 ? ' ' : '') + vn + t.vowel;
+  }).join('');
+}
+
+// ── PRACTICE: token-paired columns with synced line breaks ──
+window.__aliyahTokenRegistry = {};
+let __aliyahTokenCounter = 0;
+
+function renderSyncedColumns(tokens, vowelEl, scrollEl) {
+  // If the vowel column is currently hidden (Either-Or + Scroll-view mode
+  // hides it via CSS), offsetTop reads would be meaningless — there's no
+  // layout box. Temporarily force it visible (inline style wins over the
+  // body-class CSS rule) for the synchronous measurement, then restore.
+  const hadInlineDisplay = vowelEl.style.display;
+  const wasHidden = window.getComputedStyle(vowelEl).display === 'none';
+  if (wasHidden) vowelEl.style.display = 'block';
+
+  // Step 1: render vowel tokens as individually-measurable inline-blocks
+  vowelEl.innerHTML = tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
+  }).join(' ');
+
+  // Step 2: measure — detect line membership via offsetTop changes
+  const spans = vowelEl.querySelectorAll('.ttok');
+  const breaks = [];
+  let lastTop = null;
+  spans.forEach((span, i) => {
+    const top = span.offsetTop;
+    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
+    lastTop = top;
+  });
+
+  // Step 3: rebuild both columns with identical explicit breaks
+  function build(key) {
+    let html = '';
+    tokens.forEach((t, i) => {
+      if (breaks.includes(i)) html += '<br>';
+      else if (i > 0) html += ' ';
+      if (key === 'vowel' && t.verseNum) html += `<sup class="vn">${t.verseNum}</sup>`;
+      html += t[key];
+    });
+    return html;
+  }
+  vowelEl.innerHTML = build('vowel');
+  scrollEl.innerHTML = build('scroll');
+
+  if (wasHidden) vowelEl.style.display = hadInlineDisplay; // restore CSS-driven visibility
+}
+
+function syncAllPracticeColumns() {
+  // If the whole Practice tab is hidden (Bima tab currently active), the
+  // entire section has no layout box — measurement would be meaningless.
+  // Skip silently; the tab-switch handler recomputes when Practice becomes
+  // visible again, catching up on anything missed (e.g. a resize that
+  // happened while Bima was showing).
+  const practiceSection = document.querySelector('.practice-section');
+  if (!practiceSection || !practiceSection.classList.contains('visible')) return;
+
+  document.querySelectorAll('.practice-body[data-token-id]').forEach(body => {
+    const id = body.dataset.tokenId;
+    const tokens = window.__aliyahTokenRegistry[id];
+    if (!tokens) return;
+    const vowelEl = body.querySelector('.col-vowel');
+    const scrollEl = body.querySelector('.col-scroll');
+    if (vowelEl && scrollEl) renderSyncedColumns(tokens, vowelEl, scrollEl);
+  });
+}
+
+// Debounced resize listener — recompute breaks when column width changes
+let __resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(__resizeTimer);
+  __resizeTimer = setTimeout(syncAllPracticeColumns, 150);
+});
 
 function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const lbl = LABELS[key] || {he:key,en:key};
@@ -600,15 +706,25 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const hdr = `<div class="aliyah-hdr" style="background:${col}">
     <span class="lbl-he">${lbl.he}</span><span class="lbl-sep">·</span>
     <span class="lbl-en">${lbl.en}</span><span class="lbl-range">${displayRange}</span></div>`;
-  const body = tikkun==='practice'
-    ? `<div class="practice-body">
-         <div class="col-scroll" dir="rtl">${buildFlow(verses,true,false)}</div>
-         <div class="col-vowel"  dir="rtl">${buildFlow(verses,false,true)}</div></div>`
-    : `<div class="bima-body" dir="rtl">${buildFlow(verses,false)}</div>`;
+
+  let body;
+  if (tikkun === 'practice') {
+    const {tokens} = buildTokens(verses);
+    const tokenId = 'tk' + (__aliyahTokenCounter++);
+    window.__aliyahTokenRegistry[tokenId] = tokens;
+    // Columns start empty — populated by renderSyncedColumns() once this
+    // HTML is actually in the live DOM (measurement requires real layout).
+    body = `<div class="practice-body" data-token-id="${tokenId}">
+         <div class="col-scroll" dir="rtl"></div>
+         <div class="col-vowel"  dir="rtl"></div></div>`;
+  } else {
+    body = `<div class="bima-body" dir="rtl">${buildBimaFlow(verses)}</div>`;
+  }
   return `<section class="aliyah" data-aliyah="${key}">${hdr}${body}</section>`;
 }
 
 function renderOutput(p, aliyotData, isHoliday) {
+
   const hYear = p.hdate ? parseInt(p.hdate.split(' ').pop()) : null;
   const ty = hYear ? triennialYear(hYear) : null;
   const modeLbl = isHoliday ? 'Holiday Reading'
@@ -719,6 +835,14 @@ async function generate() {
     if (myId !== state.genId) return;
     status.innerHTML='';
     output.innerHTML = renderOutput(p, aliyotData, isHoliday);
+    syncAllPracticeColumns();
+    // The very first measurement pass on freshly-inserted content is
+    // unreliable (root cause not fully isolated — possibly font glyph-
+    // shaping or layout settling that needs a real event-loop yield, not
+    // just another synchronous call). A setTimeout(...,0) genuinely yields
+    // back to the browser before recomputing, which empirically stabilizes
+    // the result — a same-tick double-call does NOT.
+    setTimeout(syncAllPracticeColumns, 0);
     populateAliyahFilter(aliyotData);
 
     const tabBar = document.getElementById('tabBar');
@@ -894,6 +1018,9 @@ function init() {
       document.querySelector('.'+tab+'-section').classList.add('visible');
       localStorage.setItem('tikkunTab', tab);
       updateFloatingToggleVisibility(tab);
+      // Catch up on any resize/layout change that happened while this
+      // section was hidden (and thus skipped by syncAllPracticeColumns).
+      if (tab === 'practice') requestAnimationFrame(syncAllPracticeColumns);
     });
   });
 
@@ -918,6 +1045,9 @@ function init() {
         document.body.classList.remove('layout-either','show-scroll','show-tikkun');
         columnToggle.classList.add('tg-hidden');
       }
+      // The available column width just changed (half-width <-> full-width)
+      // — recompute line breaks against the new width, not the old one.
+      requestAnimationFrame(syncAllPracticeColumns);
     });
   });
 
