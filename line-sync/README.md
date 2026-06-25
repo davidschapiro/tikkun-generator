@@ -1,8 +1,10 @@
 # Line-Sync Tikkun — Working Notes
 
-**Status as of this checkpoint: Step 1 (tokenization layer) complete and fully
-validated. Step 2 (DOM measurement + line-break rendering) not yet started.
-Nothing in this folder is wired into `index.html` yet.**
+**Status as of this checkpoint: Steps 1 and 2 complete and fully validated.
+Step 2 IS wired into `index.html` on this branch (not yet merged to `main`).
+Steps 3 (resize listener) and 4 (lazy print-time computation) — see below,
+Step 3 turned out to be small enough to fold into Step 2's build; Step 4
+remains genuinely separate and not yet started.**
 
 ---
 
@@ -80,17 +82,28 @@ stay one token). **Worth revisiting in Step 2 testing.**
 ## Build order (per user's explicit step-by-step request)
 
 1. ✅ **Tokenization layer** — build token-paired arrays, validate against
-   the entire Torah. **Done, this checkpoint.**
-2. ⬜ Measure-and-break pipeline for **screen only** (Side-by-Side +
-   Either-Or). Prototype and verify via headless browser before adding
-   anything else.
-3. ⬜ Debounced resize listener, re-running step 2's logic.
-4. ⬜ Lazy print-time computation (separate measurement, fixed print-width
-   reference), wired into the existing `printSection()` click handlers.
+   the entire Torah.
+2. ✅ **Measure-and-break pipeline for screen** (Side-by-Side + Either-Or).
+   Prototyped in isolation first (hand-typed tokens, then real Sefaria data),
+   verified visually via screenshot before touching the real app. Then
+   integrated into `index.html`: `aliyahSection()` now builds tokens and
+   leaves empty `.col-vowel`/`.col-scroll` containers; `syncAllPracticeColumns()`
+   runs after the HTML is in the live DOM (measurement needs real layout) and
+   populates both columns with explicit, identical `<br>` breaks.
+3. ✅ **Debounced resize listener** (150ms) — turned out small enough to
+   build alongside Step 2 rather than as a separate pass. Re-runs
+   `syncAllPracticeColumns()` on width change.
+4. ⬜ **Lazy print-time computation** — still not started. Current print
+   output uses whatever breaks were last computed for the on-screen width
+   (verified this doesn't crash or lose content, but it's not yet the
+   "fixed ~650–700px print reference, computed inside the print button's
+   click handler" design from earlier discussion). This is the next and
+   final step.
 
-Each step should be fully verified (headless browser, real DOM inspection —
-not just "should work" reasoning) before moving to the next, and before
-anything is pushed to `main`.
+Each step has been fully verified via headless browser (Playwright) — real
+DOM inspection, real Sefaria data, full-Torah validation re-run against the
+*exact* code living in `index.html` (not just the standalone prototype) —
+before being pushed to this branch. Nothing has been merged to `main` yet.
 
 ---
 
@@ -170,6 +183,65 @@ Index `i` means the same logical word position in *both* `vowel` and
 the thing that was actually broken (4 ways) and is now fixed and verified.
 
 ---
+
+## Step 2 details: what was built and validated
+
+### Architecture
+- `buildTokens(verses)` (unchanged from Step 1) is now the single source of
+  truth for both Bima and Practice rendering — no more duplicate
+  string-based `processHe`/`buildFlow` logic for two different paths.
+- **Bima**: `buildBimaFlow(verses)` — tokens joined with natural spaces, no
+  break-syncing (single column, responsive, exactly as before).
+- **Practice**: `aliyahSection()` registers each aliyah's tokens in
+  `window.__aliyahTokenRegistry`, keyed by a generated `data-token-id`, and
+  renders *empty* `.col-vowel`/`.col-scroll` containers. After the full
+  output HTML is inserted into the DOM (`output.innerHTML = ...`),
+  `syncAllPracticeColumns()` runs once, finds every practice aliyah, and
+  calls `renderSyncedColumns(tokens, vowelEl, scrollEl)` for each.
+- `renderSyncedColumns()`: renders vowel tokens as `<span class="ttok">`
+  inline-blocks (so the browser lays them out naturally first), measures
+  `offsetTop` to detect line membership, records break indices, then
+  rebuilds *both* columns with identical `<br>` tags at those indices.
+- A debounced (150ms) `resize` listener re-runs `syncAllPracticeColumns()`
+  on viewport width changes (covers window resize and phone rotation).
+
+### Why measure against the vowel column specifically
+Kept as originally planned — vowel tokens include cantillation and ketiv
+annotations, generally making them the wider/more-constraining column.
+**Not yet stress-tested** for a hypothetical verse where scroll ends up
+wider (e.g. many maqaf-joined words rendered with a visual space). Worth
+a dedicated check before merging to `main`, though no failure observed
+across the full real-data testing done so far.
+
+### Validation performed
+- **Full-Torah token validation re-run against the exact code extracted
+  from the live `index.html`** (not just the standalone `tokenizer.js`) —
+  69,561 tokens, 0 mismatches. Confirms the integration didn't silently
+  diverge from the verified Step 1 logic.
+- **Headless browser (Playwright), real Sefaria data**: generated a full
+  real parasha (Chukat-Balak, 8 aliyot) — 0 console/page errors, 160
+  matching `<br>` breaks between vowel and scroll across all aliyot.
+  Screenshot-verified row-for-row visual alignment.
+- **Holiday reading** (Purim, 6 aliyot — different structure/count from a
+  Shabbat parasha) — 0 errors, 18/18 matching breaks.
+- **Bima tab** — confirmed still renders correctly (not broken by the
+  shared-tokenizer refactor).
+- **Either-Or mode** — confirmed default-to-Tikkun-view still works
+  correctly with the new token-based columns.
+- **Resize** — confirmed breaks recompute correctly at a new width (160 →
+  210 breaks when narrowing from 800px to 380px), and vowel/scroll stay
+  matched after recompute.
+- **Print** — confirmed both columns still render with content and equal
+  grid widths in `@media print`. **Not yet using a dedicated print-width
+  computation** — see Step 4, still open.
+
+### Known limitation carried into this checkpoint
+Print currently shows whatever breaks were last computed for the
+*on-screen* width at generation time — not yet the planned fixed
+print-reference-width computation. This means if you print from a very
+narrow phone screen, the printed columns will reflect the phone's narrow
+breaks, not an optimized print layout. This is exactly the problem Step 4
+is meant to solve, and is now the only remaining piece of the original plan.
 
 ## Open questions / things to revisit in Step 2
 
