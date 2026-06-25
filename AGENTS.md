@@ -517,6 +517,19 @@ this is *what*.
      styled, and interacts directly with the line-sync break-index logic
      in §3. Build and test in isolation from #4 first if both are in
      flight, since debugging both at once will be hard to disentangle.
+   - **Needs its own dedicated test**, separate from and in addition to
+     the existing `tests/validate-tokenizer.js` (which only validates
+     Hebrew text processing — ketiv/qere, paseq, maqaf, word-count
+     alignment — and has no coverage of line-break/layout logic). This
+     new test should assert, across a representative sample of every
+     petucha and setuma break in the full Torah: (a) every open-parasha
+     break actually starts a fresh line, with the one-word-dangling case
+     handled correctly; (b) every closed-parasha break has at least one
+     word before and after it on its line, with the line-end/line-start
+     edge cases handled correctly; (c) neither case breaks token-index
+     alignment between scroll and vowel columns. Write this alongside the
+     feature, not after — it's the only way to catch a regression in one
+     edge case while fixing another.
 
 6. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:
