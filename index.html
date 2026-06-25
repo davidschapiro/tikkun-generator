@@ -568,6 +568,20 @@ function buildBimaFlow(verses) {
 window.__aliyahTokenRegistry = {};
 let __aliyahTokenCounter = 0;
 
+// Shared by both screen rendering (renderSyncedColumns) and print-time
+// rendering (computePrintBreaks/applyPrintBreaks below) — given a token
+// array and a set of break indices, build the HTML for one column.
+function buildColumnHTML(tokens, breaks, key) {
+  let html = '';
+  tokens.forEach((t, i) => {
+    if (breaks.includes(i)) html += '<br>';
+    else if (i > 0) html += ' ';
+    if (key === 'vowel' && t.verseNum) html += `<sup class="vn">${t.verseNum}</sup>`;
+    html += t[key];
+  });
+  return html;
+}
+
 function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   // If the vowel column is currently hidden (Either-Or + Scroll-view mode
   // hides it via CSS), offsetTop reads would be meaningless — there's no
@@ -594,18 +608,8 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   });
 
   // Step 3: rebuild both columns with identical explicit breaks
-  function build(key) {
-    let html = '';
-    tokens.forEach((t, i) => {
-      if (breaks.includes(i)) html += '<br>';
-      else if (i > 0) html += ' ';
-      if (key === 'vowel' && t.verseNum) html += `<sup class="vn">${t.verseNum}</sup>`;
-      html += t[key];
-    });
-    return html;
-  }
-  vowelEl.innerHTML = build('vowel');
-  scrollEl.innerHTML = build('scroll');
+  vowelEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
+  scrollEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
 
   if (wasHidden) vowelEl.style.display = hadInlineDisplay; // restore CSS-driven visibility
 }
@@ -635,6 +639,86 @@ window.addEventListener('resize', () => {
   clearTimeout(__resizeTimer);
   __resizeTimer = setTimeout(syncAllPracticeColumns, 150);
 });
+
+// ── PRINT: lazy break computation against a fixed reference width ──
+// On-screen breaks depend on the viewport that happened to trigger the
+// print (phone-narrow vs. desktop-wide), which is wrong for a printed
+// page — printed line breaks should be identical regardless of what
+// device requested the print. We measure into an off-screen probe sized
+// to the actual print column width (matching the @media print font-size/
+// padding for .col-vowel/.col-scroll, ~650-700px content width), compute
+// break indices against THAT width, then rebuild the visible columns with
+// those breaks immediately before window.print(). syncAllPracticeColumns()
+// restores the on-screen breaks afterward (see printSection()).
+const PRINT_REF_WIDTH = 680; // px, mid-point of the ~650-700px print target
+
+function computeBreaksAtWidth(tokens, width) {
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.left = '-99999px';
+  probe.style.top = '0';
+  probe.style.width = width + 'px';
+  probe.dir = 'rtl';
+  // Match the print CSS for .col-vowel exactly (see @media print rule),
+  // not whatever font-size is currently active on screen, since width
+  // measurement must reflect how it will actually render on paper.
+  probe.style.fontFamily = "'ShlomoSemiStam','Arimo',sans-serif";
+  probe.style.fontSize = '1.05rem';
+  probe.style.lineHeight = '2.3';
+  document.body.appendChild(probe);
+
+  probe.innerHTML = tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
+  }).join(' ');
+
+  const spans = probe.querySelectorAll('.ttok');
+  const breaks = [];
+  let lastTop = null;
+  spans.forEach((span, i) => {
+    const top = span.offsetTop;
+    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
+    lastTop = top;
+  });
+
+  document.body.removeChild(probe);
+  return breaks;
+}
+
+// Same root cause as the documented screen-sync "initial-load timing bug"
+// (§3 / §5 of AGENTS.md): the very first offsetTop measurement after a
+// fresh page load can read stale/unsettled layout (likely font
+// glyph-shaping or layout settling on first paint — never fully isolated
+// for the screen-sync case either, see AGENTS.md). Confirmed present here
+// too via direct testing: identical inputs/width produced different break
+// positions on a probe's first-ever measurement vs. every measurement
+// after. Fix: run one throwaway measurement, yield a real event-loop tick
+// (same-tick re-measurement does NOT fix it, exactly as documented for
+// screen-sync), then trust all subsequent measurements. Only needs to
+// happen once per page load.
+let __printProbeWarmed = false;
+async function ensurePrintProbeWarm() {
+  if (__printProbeWarmed) return;
+  computeBreaksAtWidth([{vowel: 'א', verseNum: null}], PRINT_REF_WIDTH); // throwaway
+  await new Promise(r => setTimeout(r, 0)); // real yield, not same-tick
+  __printProbeWarmed = true;
+}
+
+async function applyPrintLayout() {
+  await ensurePrintProbeWarm();
+  document.querySelectorAll('.practice-body[data-token-id]').forEach(body => {
+    const id = body.dataset.tokenId;
+    const tokens = window.__aliyahTokenRegistry[id];
+    if (!tokens) return;
+    const vowelEl = body.querySelector('.col-vowel');
+    const scrollEl = body.querySelector('.col-scroll');
+    if (!vowelEl || !scrollEl) return;
+    const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+    vowelEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
+    scrollEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
+  });
+}
 
 function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
   const lbl = LABELS[key] || {he:key,en:key};
@@ -829,10 +913,14 @@ function updateFloatingToggleVisibility(activeTab) {
   const widget = document.getElementById('floatingViewToggle');
   widget.style.display = (activeTab === 'practice') ? 'flex' : 'none';
 }
-function printSection(which) {
+async function printSection(which) {
   document.body.classList.add(`print-${which}`);
+  if (which === 'practice') await applyPrintLayout();
   window.print();
-  setTimeout(()=>document.body.classList.remove(`print-${which}`),1500);
+  setTimeout(() => {
+    document.body.classList.remove(`print-${which}`);
+    if (which === 'practice') syncAllPracticeColumns(); // restore on-screen breaks
+  }, 1500);
 }
 
 function formatHolidayTitle(title) {
