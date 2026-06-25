@@ -269,6 +269,40 @@ are exactly what wastes a future session's time if not written down.
   contents. The PAT used in this project does not have Pages-write scope,
   so manually requesting a rebuild via `/pages/builds` POST returns 403 —
   the only available retry mechanism is a new commit.
+- **Print-time reference width: 680px was wrong, badly, and the mistake
+  shipped before being caught.** When building line-sync Step 4
+  (print-time break computation, see §3/§9 history), the original
+  README's note "~650-700px reference print-page width" was misread as a
+  *single column's* width and hardcoded directly as the probe width fed
+  to `computeBreaksAtWidth`. It is NOT a single column's width — it's
+  (approximately) the FULL two-column printed page's content width.
+  Feeding the full-page figure into a single-column probe let roughly
+  *twice* as much text fit per computed "line" as a real printed column
+  can actually hold, so each pre-broken `<br>`-delimited line silently
+  re-wrapped a second time inside the real narrow column at print time —
+  producing exactly the "jumbled, misaligned" output a user will report
+  after printing, while every automated test still passed (the tests
+  checked internal consistency — same breaks on both columns, viewport-
+  independence — not real-world physical wrap-fit, which no DOM
+  measurement catches without literally generating a paginated PDF).
+  **Caught by:** generating a real PDF via `page.pdf({format:'Letter'})`
+  (NOT `page.emulateMedia({media:'print'})` alone — that only flips which
+  CSS rules match, it does NOT simulate real print pagination/margins, so
+  measuring `.col-vowel-print`'s `getBoundingClientRect().width` under
+  plain `emulateMedia` gave 407px with implied zero margins, which is
+  *also* not trustworthy as a real-world figure) and rendering it to a
+  PNG (`pdftoppm`) for actual visual inspection. **Fix:** added an
+  explicit `@page { margin: 0.5in; }` so the printable area is
+  deterministic instead of depending on whatever margin the browser/OS
+  print dialog defaults to, then picked a deliberately conservative
+  per-column width (300px, calculated as roughly 327px available, used
+  300 as safety margin) — erring short is the safe failure direction
+  (wastes a little paper) vs. erring long (jumbled re-wrap). **If you
+  ever touch `PRINT_REF_WIDTH` again: verify with an actual rendered PDF
+  page, on both Letter and A4, not just an automated test asserting
+  internal consistency between the two columns.** Internal consistency
+  and real-world physical correctness are different claims, and only one
+  of them is checked by `tests/validate-print-layout.js`.
 
 ---
 

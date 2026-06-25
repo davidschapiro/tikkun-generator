@@ -3,17 +3,17 @@
 // of whatever viewport/device triggered the print — NOT just whatever
 // breaks happened to be on screen already.
 //
-// Loads the real index.html in a headless browser, injects a synthetic
-// practice-body with a long token array (so it reliably wraps to multiple
-// lines at any plausible width), then:
-//   1. Confirms print-layout output is IDENTICAL across two very different
-//      viewport widths (mobile-narrow vs. desktop-wide) — proving it does
-//      not depend on the viewport.
-//   2. Confirms print-layout output DIFFERS from the on-screen layout when
-//      the viewport width differs meaningfully from PRINT_REF_WIDTH —
-//      proving it isn't just reusing whatever was last rendered.
-//   3. Confirms scroll/vowel columns stay token-count-aligned (same number
-//      of <br> breaks in both columns) after print-layout is applied.
+// Architecture under test: hidden .col-*-print twin columns are kept
+// fresh automatically by refreshAllPrintColumns() (called from
+// syncAllPracticeColumns(), i.e. on every initial render + resize) and
+// only revealed via @media print CSS — NOT computed reactively inside a
+// click handler. This matters because native/OS print triggers (browser
+// menu, share-sheet, Ctrl+P) never run our JS at all, so anything that
+// only fires on our in-app Print button's onclick would silently fail
+// for those paths. This test simulates that gap directly: it never calls
+// printSection() or clicks the button — it only waits for the normal
+// render path to finish, then inspects the hidden print columns, exactly
+// as a real native-print trigger would see them.
 //
 // Run with: node tests/validate-print-layout.js
 
@@ -22,10 +22,6 @@ const path = require('path');
 
 const FILE_URL = 'file://' + path.resolve(__dirname, '..', 'index.html');
 
-// Build a synthetic but realistic-shaped token array: alternating
-// short/long "words" so it wraps unpredictably and reliably spans many
-// lines, independent of any real Sefaria data (keeps this test offline
-// and fast).
 function makeFakeTokens(n) {
   const words = ['אֱלֹהִים','בָּרָא','אֶת','הַשָּׁמַיִם','וְאֵת','הָאָרֶץ','וְהָאָרֶץ','הָיְתָה','תֹהוּ','וָבֹהוּ'];
   const scrollWords = ['אלהים','ברא','את','השמים','ואת','הארץ','והארץ','היתה','תהו','ובהו'];
@@ -40,10 +36,8 @@ function makeFakeTokens(n) {
   return tokens;
 }
 
-async function injectFakeAliyah(page, tokens) {
+async function injectFakeAliyahAndSync(page, tokens) {
   await page.evaluate((tokens) => {
-    // Ensure the practice section is "visible" per syncAllPracticeColumns'
-    // own gating check.
     let section = document.querySelector('.practice-section');
     if (!section) {
       section = document.createElement('div');
@@ -61,19 +55,30 @@ async function injectFakeAliyah(page, tokens) {
       body = document.createElement('div');
       body.className = 'practice-body';
       body.dataset.tokenId = id;
-      body.innerHTML = '<div class="col-scroll" dir="rtl"></div><div class="col-vowel" dir="rtl"></div>';
+      body.innerHTML = `<div class="col-scroll" dir="rtl"></div>
+        <div class="col-vowel" dir="rtl"></div>
+        <div class="col-scroll-print" dir="rtl"></div>
+        <div class="col-vowel-print" dir="rtl"></div>`;
       section.appendChild(body);
     }
+    window.syncAllPracticeColumns();
   }, tokens);
+  await page.waitForTimeout(100);
 }
 
-async function getColumnsBrCounts(page) {
+async function getCounts(page) {
   return page.evaluate(() => {
     const body = document.querySelector('.practice-body[data-token-id="test-token-id"]');
-    const vowelHtml = body.querySelector('.col-vowel').innerHTML;
-    const scrollHtml = body.querySelector('.col-scroll').innerHTML;
+    const screenVowel = body.querySelector('.col-vowel').innerHTML;
+    const printVowel = body.querySelector('.col-vowel-print').innerHTML;
+    const printScroll = body.querySelector('.col-scroll-print').innerHTML;
     const count = (html) => (html.match(/<br>/g) || []).length;
-    return { vowelBr: count(vowelHtml), scrollBr: count(scrollHtml), vowelHtml, scrollHtml };
+    return {
+      screenBr: count(screenVowel),
+      printVowelBr: count(printVowel),
+      printScrollBr: count(printScroll),
+      printVowelHtml: printVowel,
+    };
   });
 }
 
@@ -81,70 +86,66 @@ async function getColumnsBrCounts(page) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   let failures = 0;
-
   const tokens = makeFakeTokens(120);
 
-  // --- Test 1: print layout is viewport-independent ---
-  await page.setViewportSize({ width: 360, height: 800 }); // mobile-narrow
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto(FILE_URL);
-  await injectFakeAliyah(page, tokens);
-  await page.evaluate(() => window.applyPrintLayout());
-  const printNarrow = await getColumnsBrCounts(page);
+  await injectFakeAliyahAndSync(page, tokens);
+  const narrow = await getCounts(page);
 
-  await page.setViewportSize({ width: 1400, height: 900 }); // desktop-wide
-  // applyPrintLayout uses an absolutely-positioned, fixed-width offscreen
-  // probe — it should NOT be affected by re-running at a different
-  // viewport. Re-inject onto the same loaded page (no reload) to prove
-  // the *viewport* change alone doesn't change the result.
-  await injectFakeAliyah(page, tokens); // idempotent: re-registers same tokens
-  await page.evaluate(() => window.applyPrintLayout());
-  const printWide = await getColumnsBrCounts(page);
-
-  if (printNarrow.vowelHtml !== printWide.vowelHtml || printNarrow.scrollHtml !== printWide.scrollHtml) {
-    console.log('FAIL: print layout differs between 360px and 1400px viewports — it should be viewport-independent.');
-    console.log('  360px breaks:', printNarrow.vowelBr, ' 1400px breaks:', printWide.vowelBr);
+  if (narrow.printVowelBr === 0) {
+    console.log('FAIL: print columns are empty after a normal render — native print triggers would print nothing useful.');
     failures++;
   } else {
-    console.log('PASS: print layout identical across 360px and 1400px viewports (' + printNarrow.vowelBr + ' breaks each).');
+    console.log(`PASS: print columns auto-populated without clicking Print (${narrow.printVowelBr} breaks).`);
   }
 
-  // --- Test 2: print layout differs from on-screen layout at a viewport
-  // far from PRINT_REF_WIDTH (680px) — proves it isn't just reusing
-  // whatever was already on screen.
   await page.setViewportSize({ width: 1400, height: 900 });
-  await page.reload();
-  await injectFakeAliyah(page, tokens);
-  // Force the practice-body's column width to roughly match the full
-  // 1400px viewport (no max-width cap in this synthetic body), then
-  // render on-screen breaks via the normal screen path.
-  await page.evaluate(() => {
+  await injectFakeAliyahAndSync(page, tokens);
+  const wide = await getCounts(page);
+
+  if (narrow.printVowelHtml !== wide.printVowelHtml) {
+    console.log(`FAIL: print columns differ between 360px and 1400px viewports (${narrow.printVowelBr} vs ${wide.printVowelBr} breaks) — should be viewport-independent.`);
+    failures++;
+  } else {
+    console.log(`PASS: print columns identical across 360px and 1400px viewports (${wide.printVowelBr} breaks each).`);
+  }
+
+  if (wide.screenBr === wide.printVowelBr) {
+    console.log(`FAIL: on-screen breaks (${wide.screenBr}) at 1400px match print breaks (${wide.printVowelBr}) — expected them to differ (print targets ~680px).`);
+    failures++;
+  } else {
+    console.log(`PASS: on-screen breaks at 1400px (${wide.screenBr}) differ from print breaks (${wide.printVowelBr}), as expected.`);
+  }
+
+  if (wide.printVowelBr !== wide.printScrollBr) {
+    console.log(`FAIL: print vowel/scroll columns have different break counts (${wide.printVowelBr} vs ${wide.printScrollBr}) — token alignment broken.`);
+    failures++;
+  } else {
+    console.log(`PASS: print vowel/scroll columns have identical break counts (${wide.printVowelBr} each).`);
+  }
+
+  await page.emulateMedia({ media: 'print' });
+  const visibility = await page.evaluate(() => {
     const body = document.querySelector('.practice-body[data-token-id="test-token-id"]');
-    body.style.display = 'block';
-    const vowelEl = body.querySelector('.col-vowel');
-    const scrollEl = body.querySelector('.col-scroll');
-    vowelEl.style.width = '1300px';
-    window.renderSyncedColumns(window.__aliyahTokenRegistry['test-token-id'], vowelEl, scrollEl);
+    const disp = (el) => window.getComputedStyle(el).display;
+    return {
+      screenVowelDisplay: disp(body.querySelector('.col-vowel')),
+      screenScrollDisplay: disp(body.querySelector('.col-scroll')),
+      printVowelDisplay: disp(body.querySelector('.col-vowel-print')),
+      printScrollDisplay: disp(body.querySelector('.col-scroll-print')),
+    };
   });
-  const onScreenWide = await getColumnsBrCounts(page);
-
-  await page.evaluate(() => window.applyPrintLayout());
-  const printAfterWide = await getColumnsBrCounts(page);
-
-  if (onScreenWide.vowelBr === printAfterWide.vowelBr && onScreenWide.vowelHtml === printAfterWide.vowelHtml) {
-    console.log('FAIL: print layout is identical to the 1300px-wide on-screen layout — expected it to differ (print targets ~680px).');
+  if (visibility.screenVowelDisplay !== 'none' || visibility.screenScrollDisplay !== 'none') {
+    console.log('FAIL: live screen columns are not hidden under print media — would double-print content.', visibility);
+    failures++;
+  } else if (visibility.printVowelDisplay === 'none' || visibility.printScrollDisplay === 'none') {
+    console.log('FAIL: print columns are hidden under print media — nothing would print.', visibility);
     failures++;
   } else {
-    console.log('PASS: print layout (' + printAfterWide.vowelBr + ' breaks) differs from 1300px on-screen layout (' + onScreenWide.vowelBr + ' breaks), as expected.');
+    console.log('PASS: under print media, live columns hidden and print columns visible, as expected.');
   }
-
-  // --- Test 3: scroll/vowel stay break-count-aligned after print layout ---
-  if (printAfterWide.vowelBr !== printAfterWide.scrollBr) {
-    console.log('FAIL: vowel and scroll columns have different break counts after print layout (' +
-      printAfterWide.vowelBr + ' vs ' + printAfterWide.scrollBr + ') — token alignment broken.');
-    failures++;
-  } else {
-    console.log('PASS: vowel and scroll columns have identical break counts after print layout (' + printAfterWide.vowelBr + ' each).');
-  }
+  await page.emulateMedia({ media: 'screen' });
 
   await browser.close();
 

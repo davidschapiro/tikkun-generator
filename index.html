@@ -126,14 +126,28 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 body.layout-either .practice-body{grid-template-columns:1fr;}
 body.layout-either.show-scroll .col-vowel{display:none;}
 body.layout-either.show-tikkun .col-scroll{display:none;}
-@media print {
-  body.layout-either .practice-body{grid-template-columns:1fr 1fr!important;}
-  body.layout-either .col-vowel,body.layout-either .col-scroll{display:block!important;}
-}
 .col-scroll,.col-vowel{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.3rem;line-height:2.3;
   direction:rtl;text-align:justify;padding:1rem 1.1rem;word-spacing:0.05em;}
 .col-scroll{color:var(--ink);border-right:3px solid var(--red);border-left:1px solid var(--border);}
 .col-vowel{color:var(--ink);border-right:3px solid var(--gold);}
+
+/* Print-only twins of .col-scroll/.col-vowel. Always populated in the
+   background (see refreshAllPrintColumns()/syncAllPracticeColumns()) with
+   line breaks computed against a fixed reference width — NOT whatever the
+   on-screen breaks happen to be — so that printing works correctly no
+   matter how it's triggered: our in-app Print button, the browser's own
+   print menu, a phone's share-sheet print, Ctrl+P, anything. Hidden on
+   screen at all times; swapped in for the live columns only @media print. */
+.col-scroll-print,.col-vowel-print{display:none;font-family:'ShlomoSemiStam','Arimo',sans-serif;
+  line-height:2.3;direction:rtl;text-align:justify;word-spacing:0.05em;}
+.col-scroll-print{color:var(--ink);border-right:3px solid var(--red);border-left:1px solid var(--border);}
+.col-vowel-print{color:var(--ink);border-right:3px solid var(--gold);}
+@media print {
+  .col-vowel,.col-scroll{display:none!important;}
+  .col-vowel-print,.col-scroll-print{display:block!important;font-size:1.05rem;padding:0.8rem 0.9rem;}
+  body.layout-either .practice-body{grid-template-columns:1fr 1fr!important;}
+  body.layout-either .col-vowel-print,body.layout-either .col-scroll-print{display:block!important;}
+}
 
 .bima-body{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.8rem;line-height:2.5;
   direction:rtl;text-align:right;padding:1.2rem 1.4rem 1.4rem;color:var(--ink);word-spacing:0.06em;}
@@ -186,6 +200,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 .modal-close:hover{border-color:var(--gold);color:var(--gold);}
 
 /* ── PRINT HEADER ── */
+@page { margin: 0.5in; }
 .print-header{display:none;}
 @media print{
   .print-header{display:block;text-align:center;padding-bottom:0.8rem;
@@ -207,7 +222,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .content{padding:0;max-width:100%;}
   body.print-practice .bima-section{display:none!important;}
   body.print-bima    .practice-section{display:none!important;}
-  .col-vowel,.col-scroll{font-size:1.05rem;padding:0.8rem 0.9rem;}
   .bima-body{font-size:1.5rem;padding:0.9rem 1rem;}
   .aliyah-hdr{background:#fff!important;color:#000!important;
     border-top:2px solid #000;border-bottom:1px solid #ccc;}
@@ -631,6 +645,7 @@ function syncAllPracticeColumns() {
     const scrollEl = body.querySelector('.col-scroll');
     if (vowelEl && scrollEl) renderSyncedColumns(tokens, vowelEl, scrollEl);
   });
+  refreshAllPrintColumns();
 }
 
 // Debounced resize listener — recompute breaks when column width changes
@@ -650,7 +665,21 @@ window.addEventListener('resize', () => {
 // break indices against THAT width, then rebuild the visible columns with
 // those breaks immediately before window.print(). syncAllPracticeColumns()
 // restores the on-screen breaks afterward (see printSection()).
-const PRINT_REF_WIDTH = 680; // px, mid-point of the ~650-700px print target
+const PRINT_REF_WIDTH = 300; // px — conservative estimate of ONE column's
+// usable width on a real printed page (not the full two-column page width).
+//
+// Math: US Letter (8.5in = 816px @96dpi) minus the @page margin set above
+// (0.5in each side = 96px total) = 720px usable page content width. Two
+// columns (.practice-body grid-template-columns: 1fr 1fr) split that to
+// ~360px each, minus this column's own padding (0.9rem×2≈28.8px) and
+// border (~4px) ≈ 327px content width. We deliberately use 300, below
+// that calculated value, as a safety margin: this whole constant was
+// previously set to 680 (an order-of-magnitude-too-generous guess that
+// caused real-world print jumbling — see commit history), so a
+// conservative under-estimate here is the safer failure mode than
+// another over-estimate. A short line just wastes a little paper; a
+// line that's too long for the real column re-wraps unpredictably
+// mid-row, breaking row alignment between the two columns entirely.
 
 function computeBreaksAtWidth(tokens, width) {
   const probe = document.createElement('div');
@@ -705,18 +734,30 @@ async function ensurePrintProbeWarm() {
   __printProbeWarmed = true;
 }
 
-async function applyPrintLayout() {
+async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
+  const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  vowelPrintEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
+  scrollPrintEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
+}
+
+// Keeps the hidden .col-*-print twins current for every practice body.
+// Called automatically after every screen sync (initial render + resize)
+// so print output is correct whenever printing happens to be triggered —
+// we can't hook "the moment before printing" reliably, since native
+// browser/OS print (menu, share-sheet, Ctrl+P) never calls our JS at all.
+// Fire-and-forget: any one aliyah's print columns lag the screen ones by
+// at most a few ms (one probe warm-up tick), which is irrelevant — nobody
+// reaches for Print within milliseconds of content first rendering.
+function refreshAllPrintColumns() {
   document.querySelectorAll('.practice-body[data-token-id]').forEach(body => {
     const id = body.dataset.tokenId;
     const tokens = window.__aliyahTokenRegistry[id];
     if (!tokens) return;
-    const vowelEl = body.querySelector('.col-vowel');
-    const scrollEl = body.querySelector('.col-scroll');
-    if (!vowelEl || !scrollEl) return;
-    const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
-    vowelEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
-    scrollEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
+    const scrollPrintEl = body.querySelector('.col-scroll-print');
+    const vowelPrintEl = body.querySelector('.col-vowel-print');
+    if (!scrollPrintEl || !vowelPrintEl) return;
+    refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl);
   });
 }
 
@@ -738,7 +779,9 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
     // HTML is actually in the live DOM (measurement requires real layout).
     body = `<div class="practice-body" data-token-id="${tokenId}">
          <div class="col-scroll" dir="rtl"></div>
-         <div class="col-vowel"  dir="rtl"></div></div>`;
+         <div class="col-vowel"  dir="rtl"></div>
+         <div class="col-scroll-print" dir="rtl"></div>
+         <div class="col-vowel-print"  dir="rtl"></div></div>`;
   } else {
     body = `<div class="bima-body" dir="rtl">${buildBimaFlow(verses)}</div>`;
   }
@@ -915,12 +958,24 @@ function updateFloatingToggleVisibility(activeTab) {
 }
 async function printSection(which) {
   document.body.classList.add(`print-${which}`);
-  if (which === 'practice') await applyPrintLayout();
+  if (which === 'practice') {
+    // Defensive refresh for our own button specifically (covers the edge
+    // case of printing within milliseconds of a resize/render finishing).
+    // Native/OS print triggers skip this — they rely entirely on
+    // refreshAllPrintColumns() having already run via syncAllPracticeColumns(),
+    // since there's no JS hook for "about to print" we can act on in time.
+    const jobs = [...document.querySelectorAll('.practice-body[data-token-id]')].map(body => {
+      const id = body.dataset.tokenId;
+      const tokens = window.__aliyahTokenRegistry[id];
+      const scrollPrintEl = body.querySelector('.col-scroll-print');
+      const vowelPrintEl = body.querySelector('.col-vowel-print');
+      if (!tokens || !scrollPrintEl || !vowelPrintEl) return Promise.resolve();
+      return refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl);
+    });
+    await Promise.all(jobs);
+  }
   window.print();
-  setTimeout(() => {
-    document.body.classList.remove(`print-${which}`);
-    if (which === 'practice') syncAllPracticeColumns(); // restore on-screen breaks
-  }, 1500);
+  setTimeout(() => document.body.classList.remove(`print-${which}`), 1500);
 }
 
 function formatHolidayTitle(title) {
