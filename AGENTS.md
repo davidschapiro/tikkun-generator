@@ -482,29 +482,42 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
-**Open work, in priority order:**
-
 **Done since last update:**
 - Step 4 of line-sync (print-time computation) — see prior note above.
 - Aesthetic fixes — aliyah heading restyled to a 3-column grid (English
   left, verse range centered, Hebrew right); Hebrew aliyah labels now use
   Arimo (bold) instead of ShlomoSemiStam, reserving the Torah-text font
-  for actual Torah text; verse-number font-size bumped 0.58rem → 0.68rem.
-  Verified no overflow at 360px across every real aliyah range string,
-  and checked in an actual rendered print PDF, not just on screen.
+  for actual Torah text; verse-number font-size bumped 0.58rem → 0.68rem
+  → 0.7rem-equivalent contrast fix (color `--ink-pale` → `--ink-soft`,
+  darker in light mode / lighter in dark mode); English aliyah labels
+  0.78rem → 0.9rem; verse-range label 0.7rem → 0.82rem. Verified no
+  overflow at 360px across every real aliyah range string, checked in
+  both light/dark color schemes and in an actual rendered print PDF.
+- **Vowel-vs-scroll width assumption — verified closed, not just
+  assumed.** Line-sync only ever measures the vowel column and trusts
+  scroll to fit the same break points; the open question was whether
+  maqaf-joined words (which render as a literal space in scroll,
+  potentially widening it locally) could ever make scroll the wider
+  column for some line. Wrote `scripts/check-vowel-vs-scroll-width.js`:
+  builds the full-Torah token stream, computes vowel's real line breaks
+  at four representative widths (300/400/530/680px), then checks whether
+  scroll's text ever overflows (needs an internal wrap) when confined to
+  each of those vowel-defined lines. **Result: zero overflows across
+  ~96,783 total vowel-defined lines spanning the whole Torah at all four
+  widths.** The assumption holds with high confidence — not proven for
+  literally every possible width, but covers the full realistic range
+  (mobile through generous desktop) end to end. (Note: an earlier version
+  of this script compared two *independently* greedy-wrapped break sets
+  between vowel and scroll and found thousands of "violations" — that
+  was testing the wrong thing; two texts with different per-token widths
+  throughout will essentially never choose the same break points by
+  chance even when one is uniformly wider everywhere. The correct test
+  constrains scroll to vowel's actual breaks and checks for overflow,
+  not whether the two columns' independent wrapping happens to agree.)
 
 **Open work, in priority order:**
 
-1. **Unverified assumption**: line-sync always measures against the
-   *vowel* column as the reference for break-points, on the theory that
-   it's generally the wider/more-constraining column (cantillation + ketiv
-   annotations add width). This has held in every real-data test so far,
-   but was never deliberately stress-tested against a verse where
-   *scroll* might end up wider (e.g. many maqaf-joined words rendered
-   with a visual space). Worth a dedicated check before considering
-   line-sync fully closed.
-
-2. **Justified block format.** Lines are currently word-count-matched
+1. **Justified block format.** Lines are currently word-count-matched
    between scroll/vowel columns (see §3, `buildTokens`/line-sync) but not
    visually justified — on-screen line *lengths* vary, unlike a real
    tikkun korim where every line in a block is the same physical width.
@@ -516,12 +529,12 @@ this is *what*.
    approach). Must hold for both scroll and vowel columns simultaneously,
    without breaking token-index alignment.
 
-3. **Paragraph style as visual line-breaking, not glyphs.** Currently
+2. **Paragraph style as visual line-breaking, not glyphs.** Currently
    open/closed parasha breaks (פ/ס) render as a small gold `<span
    class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
    physical-Torah-style visual layout, applied identically to *both*
    scroll and vowel/tikkun columns, and compatible with justified block
-   format (#2) and the existing line-sync break logic (§3):
+   format (#1) and the existing line-sync break logic (§3):
    - **Open parasha (פ, petucha):** always start a new line. If the line
      before the break is already a "full" line (same length as other
      lines in the block), and a naive break would leave only the last
@@ -539,7 +552,7 @@ this is *what*.
    - This is the most structurally invasive item on this list — it
      changes how line-break decisions are made, not just how they're
      styled, and interacts directly with the line-sync break-index logic
-     in §3. Build and test in isolation from #2 first if both are in
+     in §3. Build and test in isolation from #1 first if both are in
      flight, since debugging both at once will be hard to disentangle.
    - **Needs its own dedicated test**, separate from and in addition to
      the existing `tests/validate-tokenizer.js` (which only validates
@@ -555,7 +568,7 @@ this is *what*.
      feature, not after — it's the only way to catch a regression in one
      edge case while fixing another.
 
-4. **Lower priority, only if the project keeps growing** (see §7 and §9):
+3. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:
    write`, so unlike the earlier note in §6/§9, the workflow YAML *can* be
    pushed via the API directly — no need to paste it through the GitHub
