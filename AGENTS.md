@@ -562,37 +562,43 @@ this is *what*.
   test-script failure has zero stretch applied (see next item — it's a
   separate, pre-existing bug, not caused by this work).
 
+**Done since last update:**
+- **Vowel-vs-scroll overflow — fixed, surgically.** Was ~3,859 lines
+  across the full Torah (max 7.4px overflow, see severity data below,
+  kept for historical context). Two real bugs fixed:
+  1. The actual targeted fix: `findScrollOverflowExtraBreaks()` checks
+     each vowel-defined line and, ONLY if scroll's natural width for that
+     exact range would overflow, inserts the minimal extra break(s)
+     needed — shrinking from the end of the segment until it fits.
+     Everywhere else is completely untouched.
+  2. Found while building #1: `computeBreaksAtWidth`'s probe never set
+     `word-spacing` (defaulted to `normal`/0), while real rendering
+     always applies a 0.05em baseline — making break-detection think
+     lines were narrower than they'd actually render, letting one too
+     many tokens onto borderline lines. A real, independent,
+     deterministic bug (not flaky/timing-related) — fixed by setting
+     `word-spacing:0.05em` on the probe to match.
+  - **A first attempt was tried and explicitly rejected**: taking the
+    full union of vowel's AND scroll's independently-computed natural
+    breaks (provably safe, zero overflow) instead of only the lines that
+    needed it. Visual review on a real device caught what testing
+    didn't: it broke far more lines than necessary — any line where
+    EITHER column's own greedy-wrap wanted an earlier break got
+    shortened, even when that line was never actually a problem. On
+    mobile this produced visibly sparse 1-2-word lines stretched across
+    the full width with huge gaps. Quantified: union added ~75% more
+    lines overall; the surgical version that shipped adds only 1-5%
+    (611/13267 at 300px, 248/9753 at 400px, 97/7256 at 530px). **If this
+    code is ever touched again: visually check a real narrow/mobile
+    screenshot, not just the overflow-count test — a fix can pass every
+    automated check and still look obviously wrong.**
+  - Verified: zero overflows across the full Torah at all three
+    realistic widths, full existing regression suite passes, visual
+    check at desktop/mobile/print all match the pre-bug-fix quality.
+
 **Open work, in priority order:**
 
-1. **Confirmed minor bug, already on `main`: vowel-only break
-   measurement occasionally leaves scroll slightly short of room.**
-   Found while verifying block-justify with the real font loaded (see
-   §5's retraction note above for how the earlier "verified closed" claim
-   was invalid). ~3,859 lines across the full Torah, at realistic widths
-   (300/400/530px), where scroll's natural width exceeds vowel's break
-   point. **Severity, checked directly — this matters for prioritization:**
-   max overflow found anywhere in the Torah is **7.4px** (Exodus 26:2, at
-   530px width), median ~2px, zero cases exceed 10px, zero cases reach a
-   full extra word (~30px+). In practice this is the last character or
-   two of a line's final word spilling a sliver past the edge — not a
-   dropped word, not a visibly broken layout. Confirmed unrelated to and
-   not worsened by the justify work (every failing case gets zero stretch
-   applied — pure pass-through of the pre-existing rendering).
-   **Recommendation: fix it, but treat as low-urgency given the severity
-   ceiling, and be careful** — `renderSyncedColumns`'s break computation
-   (§3) is central, shared, load-bearing code; today's session twice
-   introduced new regressions while touching adjacent logic (the gap-
-   counting bug and the calc()-wrapper bug, both in this same commit
-   range) despite real-Torah verification at every step. Build any fix on
-   a dedicated branch, never directly on `main`, and rerun
-   `scripts/check-justify-overflow.js` (zero overflows in both columns at
-   all three widths required) plus the full existing suite before
-   merging. **Likely fix direction:** measure both columns' `offsetTop`
-   jumps, not just vowel's, and take whichever break point is more
-   constraining per line. Do not reuse `scripts/check-vowel-vs-scroll-
-   width.js` — it has the blank-page/no-real-font bug described in §5.
-
-2. **Paragraph style as visual line-breaking, not glyphs.** Currently
+1. **Paragraph style as visual line-breaking, not glyphs.** Currently
    open/closed parasha breaks (פ/ס) render as a small gold `<span
    class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
    physical-Torah-style visual layout, applied identically to *both*
@@ -615,9 +621,10 @@ this is *what*.
    - This is the most structurally invasive item on this list — it
      changes how line-break decisions are made, not just how they're
      styled, and interacts directly with the line-sync break-index logic
-     in §3. Build and verify against the real-bug fix (item 1) once that
-     lands — both touch break computation, so fixing item 1 first avoids
-     building this on top of the known-broken vowel-only measurement.
+     in §3, which now includes the surgical scroll-overflow patching
+     (`findScrollOverflowExtraBreaks`, see above) — build and verify this
+     parasha work on top of that, not against the old vowel-only-only
+     measurement.
    - **Needs its own dedicated test**, separate from and in addition to
      the existing `tests/validate-tokenizer.js` (which only validates
      Hebrew text processing — ketiv/qere, paseq, maqaf, word-count
@@ -632,7 +639,7 @@ this is *what*.
      feature, not after — it's the only way to catch a regression in one
      edge case while fixing another.
 
-3. **Lower priority, only if the project keeps growing** (see §7 and §9):
+2. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:
    write`, so unlike the earlier note in §6/§9, the workflow YAML *can* be
    pushed via the API directly — no need to paste it through the GitHub
@@ -643,7 +650,6 @@ line-sync mechanism for screen rendering — Side-by-Side, Either-Or, resize,
 initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 (§2), the paseq scroll-removal fix.
 
-**Known broken on `main` right now:** see item 1 above (vowel-only break
-measurement leaves scroll without enough room in ~3,859 lines across the
-full Torah). Not visually catastrophic — affects a minority of lines — but
-real and already live, not hypothetical.
+**Nothing currently known to be broken on `main`** — the vowel-vs-scroll
+overflow (formerly listed here) is fixed, see "Done since last update"
+above.

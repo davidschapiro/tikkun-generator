@@ -633,6 +633,49 @@ function measureNaturalWidth(html, fontSpec) {
   return w;
 }
 
+// Surgical fix for AGENTS.md TODO item 1 (vowel-vs-scroll overflow):
+// only inserts an EXTRA break into a specific vowel-defined line if
+// scroll's natural width for that exact token range would actually
+// overflow the column — every other line is left completely untouched.
+//
+// A first attempt at this fix instead took the union of vowel's AND
+// scroll's independently-computed natural breaks everywhere. That was
+// provably safe (zero overflow) but rejected after visual review: it
+// broke far more lines than necessary, since whenever EITHER column's
+// own independent greedy-wrap wanted an earlier break — even on lines
+// that were never actually a problem — both columns got shortened. On
+// narrow/mobile widths this produced visibly sparse 1-2-word lines
+// stretched across the full column with huge gaps. The real problem was
+// tiny (max ~7.4px overflow, found in ~3,859 lines out of tens of
+// thousands across the whole Torah) and didn't justify that breadth of
+// visual change. This version only touches the lines that actually need it.
+function findScrollOverflowExtraBreaks(tokens, baseBreaks, targetWidth, scrollFontSpec) {
+  const boundaries = [0, ...baseBreaks, tokens.length];
+  const extraBreaks = [];
+  for (let s = 0; s < boundaries.length - 1; s++) {
+    const start = boundaries[s], end = boundaries[s + 1];
+    if (end <= start) continue;
+    let segStart = start;
+    while (segStart < end) {
+      let segEnd = end;
+      // Shrink from the end until scroll's natural width for this
+      // sub-range fits. Almost always needs at most one shrink step,
+      // since the original overflow was small (a handful of px) — but
+      // loop generally in case a rare line needs more than one extra
+      // break.
+      while (segEnd > segStart + 1) {
+        const text = tokens.slice(segStart, segEnd).map(t => t.scroll).join(' ');
+        const w = measureNaturalWidth(text, scrollFontSpec);
+        if (w <= targetWidth - JUSTIFY_SAFETY_MARGIN_PX) break;
+        segEnd--;
+      }
+      if (segEnd < end) extraBreaks.push(segEnd);
+      segStart = segEnd;
+    }
+  }
+  return extraBreaks;
+}
+
 // Block-justified format: stretch every line to the same visual width,
 // like a real tikkun korim — EXCEPT the last line of the column (classic
 // typesetting convention, confirmed: an open-paragraph's orphaned single
@@ -747,13 +790,24 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
 
   // Step 2: measure — detect line membership via offsetTop changes
   const spans = vowelEl.querySelectorAll('.ttok');
-  const breaks = [];
+  const vowelBreaks = [];
   let lastTop = null;
   spans.forEach((span, i) => {
     const top = span.offsetTop;
-    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
+    if (lastTop !== null && top > lastTop + 2) vowelBreaks.push(i);
     lastTop = top;
   });
+
+  // Step 2b: surgical fix for the vowel-vs-scroll overflow bug (AGENTS.md
+  // TODO item 1) — only adds an extra break to a specific line if
+  // scroll's natural width for that exact range would actually overflow
+  // this column. Every other line is untouched (a blanket union of both
+  // columns' independent breaks was tried and rejected — see
+  // findScrollOverflowExtraBreaks's comment for why).
+  const scrollFontForCheck = getComputedFontSpec(scrollEl);
+  const scrollWidthForCheck = getContentWidth(scrollEl);
+  const extraBreaks = findScrollOverflowExtraBreaks(tokens, vowelBreaks, scrollWidthForCheck, scrollFontForCheck);
+  const breaks = [...new Set([...vowelBreaks, ...extraBreaks])].sort((a, b) => a - b);
 
   // Step 3: rebuild both columns with identical explicit breaks, each
   // line individually stretched to fill the column width (block format).
@@ -835,6 +889,13 @@ function computeBreaksAtWidth(tokens, width) {
   probe.style.fontFamily = "'ShlomoSemiStam','Arimo',sans-serif";
   probe.style.fontSize = '1.05rem';
   probe.style.lineHeight = '2.3';
+  // Must match the real baseline word-spacing (see .col-*-print CSS) —
+  // without this the probe is slightly NARROWER than how the line will
+  // actually render, letting one too many tokens fit per line and
+  // causing a real, deterministic overflow on borderline lines. Found
+  // while investigating the vowel-vs-scroll overflow bug (AGENTS.md TODO
+  // item 1) — this is a separate, independent bug from that one.
+  probe.style.wordSpacing = '0.05em';
   document.body.appendChild(probe);
 
   probe.innerHTML = tokens.map((t,i) => {
@@ -878,7 +939,9 @@ const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fon
 
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
-  const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const vowelBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const extraBreaks = findScrollOverflowExtraBreaks(tokens, vowelBreaks, PRINT_REF_WIDTH, PRINT_FONT_SPEC);
+  const breaks = [...new Set([...vowelBreaks, ...extraBreaks])].sort((a, b) => a - b);
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }

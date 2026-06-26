@@ -24,7 +24,13 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
 (async () => {
   console.log('Loading full-torah-reference.json and building the full token stream...');
   const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'full-torah-reference.json'), 'utf8'));
-  const verses = raw.map(([v, he]) => ({ v, he }));
+  // IMPORTANT: v must be a bare integer (i+1), matching production
+  // exactly (index.html: verses.push({ch, v:i+1, he})) — NOT raw[i][0],
+  // the full reference string like "Exodus 26:2". Using the full string
+  // here previously produced a confirmed false impression of overflow
+  // (see AGENTS.md §5): the embedded space within "Exodus 26:2" gets
+  // counted as an extra stretchable gap that doesn't exist in real data.
+  const verses = raw.map(([v, he], i) => ({ v: i + 1, he }));
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -60,21 +66,13 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
   for (const width of WIDTHS) {
     console.log(`\n--- width ${width}px ---`);
     const result = await page.evaluate(({ tokens, width, fontSpec }) => {
-      // Real vowel-measured breaks (mirrors computeBreaksAtWidth exactly).
-      const probe = document.createElement('div');
-      probe.style.position = 'absolute'; probe.style.visibility = 'hidden';
-      probe.style.left = '-99999px'; probe.style.top = '0'; probe.style.width = width + 'px';
-      probe.dir = 'rtl';
-      probe.style.fontFamily = fontSpec.fontFamily; probe.style.fontSize = fontSpec.fontSize; probe.style.lineHeight = fontSpec.lineHeight;
-      document.body.appendChild(probe);
-      probe.innerHTML = tokens.map((t, i) => {
-        const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-        return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
-      }).join(' ');
-      const spans = probe.querySelectorAll('.ttok');
-      const breaks = []; let lastTop = null;
-      spans.forEach((span, i) => { const top = span.offsetTop; if (lastTop !== null && top > lastTop + 2) breaks.push(i); lastTop = top; });
-      document.body.removeChild(probe);
+      // Real, shipped break computation: vowel's own natural breaks,
+      // surgically patched with extra breaks only where scroll would
+      // actually overflow (AGENTS.md TODO item 1 — the targeted fix,
+      // not a blanket union of both columns' independent breaks).
+      const vowelBreaks = window.computeBreaksAtWidth(tokens, width);
+      const extraBreaks = window.findScrollOverflowExtraBreaks(tokens, vowelBreaks, width, fontSpec);
+      const breaks = [...new Set([...vowelBreaks, ...extraBreaks])].sort((a, b) => a - b);
 
       // Real justified HTML via the actual shipped function.
       const vowelHtml = window.buildJustifiedColumnHTML(tokens, breaks, 'vowel', width, fontSpec);
