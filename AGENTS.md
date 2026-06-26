@@ -628,23 +628,47 @@ this is *what*.
    sub-steps:
 
    **Step 1 — DONE: open parasha (petucha, פ) forces a new line.**
-   `addPetuchaBreaks(tokens, naturalBreaks)` adds break index
-   `(markerIndex + 1)` to the shared break set for every petucha token,
-   unless it's already the last token of the aliyah (the aliyah boundary
-   itself already provides the "new line" — no separate break needed
-   there). The marker token is identical in both columns (see
-   tokenizer.js `wordToHtml`), so one shared break list keeps both in
-   sync automatically — no extra column-specific logic needed. Wired
-   into both `renderSyncedColumns` (screen) and `refreshPrintColumns`
-   (print), right after the natural-break computation, before the
-   vowel-vs-scroll compression step in `buildJustifiedColumnHTML`.
-   Verified: all 289 petucha markers in the full Torah are followed by a
-   break, at all three realistic widths (300/400/530px); zero overflow
-   regressions (full-Torah check still 0); real visual check (injected
-   actual Genesis 1:1-9 tokens into the live rendering pipeline, not just
-   a unit-test assertion) confirms the petucha sits alone on its own
-   line and the next verse starts fresh below it, both on screen and via
-   the same code path used for print.
+   Implementation went through two versions — the second one is what
+   shipped, and the difference matters if this code is touched again:
+   - *First version (had a real bug, caught by the user on a live
+     screenshot)*: computed vowel's natural breaks first, then unioned
+     in an extra break right after each petucha marker
+     (`addPetuchaBreaks`, since removed). This looked correct in
+     automated testing (289/289 petucha markers followed by *a* break)
+     but produced a "rogue" single-word line immediately AFTER several
+     petuchot — e.g. "וַיֵּשֶׁב" alone, with the rest of that same verse
+     ("יִשְׂרָאֵל בַּשִּׁטִּים...") pushed to the line after. Root cause:
+     the segment after the inserted break was whatever tokens were LEFT
+     OVER from the original, un-split natural line — not a fresh
+     width-constrained wrap starting at that point. The existing
+     overflow-style check (does every line fit) had no way to flag this,
+     since the leftover segment obviously fits (it's short) — the
+     automated test simply wasn't checking the right thing.
+   - **Second version (shipped)**: the petucha rule is now baked
+     directly into the measurement phase itself — an actual `<br>` is
+     inserted right after the marker's span when building the
+     offsetTop-measurable token spans (both in `renderSyncedColumns` for
+     screen and `computeBreaksAtWidth` for print), instead of being
+     unioned in after natural breaks are already computed. The browser's
+     own line-wrapping engine then correctly continues a fresh,
+     width-constrained wrap for everything after the forced break — the
+     same way it already handles continuing after any other break.
+     `PETUCHA_HTML` constant + the `isPetucha` check are the only moving
+     parts now; no separate union/patching function exists anymore.
+   Verified (second version): all 289 petucha markers in the full Torah
+   still followed by a break at all three realistic widths; a dedicated
+   full-Torah scan specifically for "is the line right after any petucha
+   exactly 1 word" → zero everywhere; zero overflow regressions; real
+   visual check on the EXACT case the user flagged (Numbers 25:1, after
+   "...לְדַרְכּוֹ: פ") on screen (desktop + mobile) and in an actual
+   rendered print PDF.
+   **Lesson, worth repeating since it's now happened three times in this
+   project (print width, vowel-vs-scroll overflow, and now this): an
+   automated check that only verifies one property (here: "is there *a*
+   break after every petucha") can pass cleanly while something else
+   about the result still looks wrong. Get an actual visual — on a real
+   narrow viewport and via the real print path — before considering a
+   line-breaking change done, not just a passing test count.**
 
    **Still open — not yet built:**
    - **Petucha orphan-word handling**: if the line *before* a forced

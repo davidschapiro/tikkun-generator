@@ -66,12 +66,13 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
   for (const width of WIDTHS) {
     console.log(`\n--- width ${width}px ---`);
     const result = await page.evaluate(({ tokens, width, fontSpec }) => {
-      // Real, shipped break computation: vowel's own natural breaks
-      // only — the vowel-vs-scroll overflow (AGENTS.md TODO item) is now
-      // handled by per-line compression INSIDE buildJustifiedColumnHTML,
-      // not by patching the break list.
-      const naturalBreaks = window.computeBreaksAtWidth(tokens, width);
-      const breaks = window.addPetuchaBreaks(tokens, naturalBreaks);
+      // Real, shipped break computation. The vowel-vs-scroll overflow
+      // (AGENTS.md TODO item) is handled by per-line compression INSIDE
+      // buildJustifiedColumnHTML, not by patching the break list. The
+      // open-parasha (petucha) forced line break is baked directly into
+      // computeBreaksAtWidth's measurement (an actual <br> inserted
+      // after the marker), not unioned in afterward.
+      const breaks = window.computeBreaksAtWidth(tokens, width);
 
       // Real justified HTML via the actual shipped function.
       const vowelHtml = window.buildJustifiedColumnHTML(tokens, breaks, 'vowel', width, fontSpec);

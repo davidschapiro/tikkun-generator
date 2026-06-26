@@ -719,22 +719,20 @@ function countSpaceGaps(html) {
 // last token of this aliyah (in which case the aliyah boundary itself
 // already provides the "new line" — no separate break needed). The
 // marker is its own standalone token, identical in both columns (see
-// tokenizer.js wordToHtml: '<span class="pm">פ</span>'), so adding break
-// index (markerIndex + 1) to the shared break set affects both columns
-// consistently. Future steps (not yet built): pulling an orphaned last
-// word forward when the line before a petucha is already "full", and
-// the analogous closed-parasha (ס) mid-line-gap styling — see AGENTS.md
-// TODO.
+// tokenizer.js wordToHtml: '<span class="pm">פ</span>').
+//
+// Implementation note: this is baked directly into the measurement
+// phase (an actual <br> inserted right after the marker span, in both
+// renderSyncedColumns and computeBreaksAtWidth) rather than computed as
+// a separate natural-break pass and then unioned in afterward. An
+// earlier version did the latter and had a real, confirmed bug: the
+// segment after the post-hoc-inserted break was whatever was LEFT OVER
+// from the original un-split natural line, not a fresh width-constrained
+// wrap — producing a "rogue" single-word line immediately after the
+// petucha. Baking the <br> into the measurement itself lets the
+// browser's own line-wrapping engine correctly continue fresh after the
+// forced break, exactly as it already does after any other break point.
 const PETUCHA_HTML = '<span class="pm">פ</span>';
-function addPetuchaBreaks(tokens, breaks) {
-  const result = new Set(breaks);
-  tokens.forEach((t, i) => {
-    if (t.vowel === PETUCHA_HTML && i + 1 < tokens.length) {
-      result.add(i + 1);
-    }
-  });
-  return [...result].sort((a, b) => a - b);
-}
 
 function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
   const boundaries = [0, ...breaks, tokens.length];
@@ -810,22 +808,32 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   const scrollWasHidden = window.getComputedStyle(scrollEl).display === 'none';
   if (scrollWasHidden) scrollEl.style.display = 'block';
 
-  // Step 1: render vowel tokens as individually-measurable inline-blocks
+  // Step 1: render vowel tokens as individually-measurable inline-blocks.
+  // A forced <br> is inserted right after every open-parasha (petucha)
+  // marker — NOT as a post-hoc insertion into already-computed natural
+  // breaks (an earlier version did that and caused a real, confirmed
+  // bug: the segment after the forced break was whatever was LEFT OVER
+  // from the original un-split natural line, not a fresh width-
+  // constrained wrap — producing a "rogue" single-word line right after
+  // the petucha). Baking the <br> into the measurement itself lets the
+  // browser's own line-wrapping correctly continue fresh after the
+  // forced break, exactly as it already does after every other break.
   vowelEl.innerHTML = tokens.map((t,i) => {
     const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
-  }).join(' ');
+    const isPetucha = t.vowel === PETUCHA_HTML;
+    const sep = (isPetucha && i + 1 < tokens.length) ? '<br>' : ' ';
+    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>${sep}`;
+  }).join('').trimEnd();
 
   // Step 2: measure — detect line membership via offsetTop changes
   const spans = vowelEl.querySelectorAll('.ttok');
-  const naturalBreaks = [];
+  const breaks = [];
   let lastTop = null;
   spans.forEach((span, i) => {
     const top = span.offsetTop;
-    if (lastTop !== null && top > lastTop + 2) naturalBreaks.push(i);
+    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
     lastTop = top;
   });
-  const breaks = addPetuchaBreaks(tokens, naturalBreaks);
 
   // Step 3: rebuild both columns with identical explicit breaks, each
   // line individually stretched to fill the column width (block format).
@@ -922,8 +930,10 @@ function computeBreaksAtWidth(tokens, width) {
 
   probe.innerHTML = tokens.map((t,i) => {
     const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>`;
-  }).join(' ');
+    const isPetucha = t.vowel === PETUCHA_HTML;
+    const sep = (isPetucha && i + 1 < tokens.length) ? '<br>' : ' ';
+    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>${sep}`;
+  }).join('').trimEnd();
 
   const spans = probe.querySelectorAll('.ttok');
   const breaks = [];
@@ -961,8 +971,7 @@ const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fon
 
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
-  const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
-  const breaks = addPetuchaBreaks(tokens, naturalBreaks);
+  const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }
