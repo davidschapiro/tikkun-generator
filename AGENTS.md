@@ -88,6 +88,25 @@ columns, before any other processing.
 columns as a small gold `<span class="pm">`. Uses the same placeholder
 technique as everything above (`##PE##` / `##SAM##`).
 
+### Verse-number display format (chapter:verse vs. bare number)
+`buildTokens` (tokenizer.js) decides, per verse, whether to show a bare
+verse number (`15`) or the full `chapter:verse` form (`19:15`) as the
+`<sup class="vn">` content. Rule: full form at the start of every chapter
+(`v === 1` — Torah verses always restart at 1 for a new chapter, so this
+alone correctly catches every transition, including ones that happen
+mid-aliyah), every 15th verse as a periodic orientation aid (`v % 15 ===
+0`), and always for the very first verse of whatever `verses` array was
+passed in (even if it doesn't start at `v === 1` — e.g. an aliyah
+beginning mid-chapter at verse 10 still needs to tell the reader which
+chapter they're in, immediately, not wait for the next periodic mark).
+Bare number everywhere else. Requires the caller to supply `ch` per verse
+(`{ch, v, he}`, matching `index.html`'s real `fetchVerses` exactly) — if
+`ch` is omitted (as in some older test fixtures, see the `v: i+1` note
+below), it silently falls back to bare numbers throughout, same as
+before this feature existed. Verified: full-Torah scan confirms 492
+chapter-display + 5354 bare-display verse-number tokens = 5846 total,
+exactly the known total verse count in the Torah, zero malformed.
+
 ### The general pattern
 **Every one of the above bugs had the same shape**: a Sefaria HTML
 annotation that, if naively stripped or processed, either (a) leaks

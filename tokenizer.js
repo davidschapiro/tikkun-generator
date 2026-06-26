@@ -55,20 +55,36 @@ function wordToHtml(word, forScroll) {
 function buildTokens(verses) {
   const tokens = [];
   const mismatches = [];
-  for (const {v, he} of verses) {
+  let isFirstVerse = true;
+  verses.forEach(({ch, v, he}) => {
     const vowelWords  = processHeToWords(he, false);
     const scrollWords = processHeToWords(he, true);
     if (vowelWords.length !== scrollWords.length) {
       mismatches.push({v, vowelWords, scrollWords});
     }
+    // Verse-number display: full "chapter:verse" at the start of every
+    // chapter (v===1 — Torah verses always restart at 1 for a new
+    // chapter, so this alone correctly catches every chapter
+    // transition, including mid-aliyah ones), every 15th verse as a
+    // periodic orientation aid, and always for the very first verse
+    // shown in a reading (even if it doesn't start at v===1, e.g. an
+    // aliyah beginning mid-chapter) — otherwise a reader starting
+    // mid-chapter would have no idea which chapter they're in until the
+    // next periodic marker. Falls back to a bare verse number everywhere
+    // else. `ch` is optional — callers that don't supply it (some
+    // existing test fixtures) just get plain verse numbers throughout,
+    // same as before this feature existed.
+    const showChapter = ch !== undefined && (isFirstVerse || v === 1 || v % 15 === 0);
+    const verseNumDisplay = showChapter ? `${ch}:${v}` : String(v);
+    isFirstVerse = false;
     vowelWords.forEach((vw, i) => {
       tokens.push({
         vowel: wordToHtml(vw, false),
         scroll: wordToHtml(scrollWords[i] || '', true),
-        verseNum: i === 0 ? v : null
+        verseNum: i === 0 ? verseNumDisplay : null
       });
     });
-  }
+  });
   return {tokens, mismatches};
 }
 
