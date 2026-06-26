@@ -1281,7 +1281,13 @@ function rebuildDropdown() {
     Deuteronomy:'\u05d3\u05bc\u05b0\u05d1\u05b8\u05e8\u05b4\u05d9\u05dd'
   };
 
-  const pList = PARASHA_LISTS[locKey];
+  // Only show the current week onward — past parshiot have no reason to
+  // clutter the top of the chronological list. This makes the dropdown
+  // self-updating week to week with no separate "current" indicator
+  // needed: whatever the actual current week is just becomes the first
+  // real entry naturally, since everything before it is filtered out.
+  const currentDateStr = dateStr(toShabbat(new Date()));
+  const pList = PARASHA_LISTS[locKey].filter(p => p.date >= currentDateStr);
   const byYear = {};
   pList.forEach(p => {
     const y = p.date.slice(0,4);
@@ -1307,6 +1313,7 @@ function rebuildDropdown() {
   const hByYear = {};
   Object.entries(hData).forEach(([key]) => {
     const dt = key.split('|')[0];
+    if (dt < currentDateStr) return; // same past-filtering as parshiot above
     (hByYear[dt.slice(0,4)] = hByYear[dt.slice(0,4)]||[]).push({key, dt});
   });
   Object.keys(hByYear).sort().forEach(year => {
