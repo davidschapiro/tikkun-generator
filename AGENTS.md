@@ -690,31 +690,66 @@ this is *what*.
    line-breaking change done, not just a passing test count.**
 
    **Still open — not yet built:**
-   - **Petucha orphan-word handling**: if the line *before* a forced
-     petucha break is already a "full" line (same length as its
-     neighbors) and the break would leave only the line's last word
-     dangling alone right before the petucha's own (now also short)
-     line, pull that last word forward onto its own line by itself
-     first, still respecting block justification, *then* put the
-     petucha on the line after that. Not yet implemented — step 1 above
-     only handles the basic "force a break after פ" rule; this handles
-     the specific aesthetic edge case of two short lines colliding.
+   - **DONE since this note was written: petucha-never-alone rule.**
+     `pullPetuchaCompanion(tokens, breaks, containerWidthPx, fontSpec)`
+     ensures a petucha is never left as the sole occupant of its line —
+     if natural wrapping would otherwise push it onto an empty line by
+     itself (because the line before it was already full), the boundary
+     shifts back by one token so the previous line's last word joins the
+     petucha instead. Real, confirmed cases — NOT a hypothetical: 15
+     instances at the actual real screen width (~350px, measured
+     directly from the live site), 6 at 530px. (An earlier investigation
+     in this same conversation incorrectly "found" 76 cases at a
+     synthetic 300px-with-desktop-font combination that doesn't
+     correspond to any real screen or print rendering — that specific
+     claim was wrong and retracted; this fix is based on the corrected,
+     verified-real numbers instead.) Verified: 0 lone petuchas remain at
+     any of 300/350/400/530px after the fix (was 15-16 before, depending
+     on width); zero overflow regressions; real visual check on an
+     actual lone-petucha case (Genesis 30:34 area) on screen and in a
+     rendered print PDF — the previously-stranded word now sits beside
+     the petucha as intended.
+     **What this is NOT**: the original idea in this TODO item described
+     something more elaborate (pulling a word onto ITS OWN dedicated
+     line before the petucha, preserving full block-justification on
+     every resulting line). What shipped is simpler and was confirmed
+     sufficient by the user after reviewing real screenshots: just
+     guarantee at least one real word always accompanies the petucha — a
+     petucha sharing a short line with one word is fine; a petucha fully
+     alone is the only case that needed fixing.
    - **Closed parasha (ס, setuma):** insert a tab-like gap *within* a
      line (not a line break) — the line must end with at least one word
      from the paragraph before the gap and begin with at least one word
      from the paragraph after it. If a naive break would put the gap
      right at the line's end or start, shift the minimal number of words
      to/from the adjacent line so both conditions hold. Not started.
-   - **Dedicated test, still needed**: the petucha-break check done so
-     far (289/289 followed by a break) lives in an ad-hoc verification
-     script, not a permanent test alongside `tests/validate-tokenizer.js`
-     and `tests/validate-print-layout.js`. Should be written before the
-     remaining sub-steps (orphan-word, setuma) land, so regressions in
-     one don't slip past unnoticed while building the other — same
-     lesson as the overflow-fix saga just above: write the test
-     alongside the feature, not after, and always also check a real
-     screenshot since an automated assertion alone has already proven
-     insufficient twice in this exact area of the codebase.
+   - **Dedicated test, still needed — explicit ordering decision: build
+     after setuma, not before.** The petucha-break checks done so far
+     (289/289 followed by a break; 0 lone-petucha cases after the
+     companion-pull fix) live in ad-hoc verification scripts, not a
+     permanent test alongside `tests/validate-tokenizer.js` and
+     `tests/validate-print-layout.js`. User explicitly decided to write
+     the comprehensive test AFTER setuma lands too, so it can cover both
+     open and closed parasha behavior together in one pass, rather than
+     writing a petucha-only test now and a separate setuma-only test
+     later. Still applies regardless of timing: always also check a real
+     screenshot at a real device width — an automated assertion alone
+     has already proven insufficient multiple times in this exact area
+     of the codebase (print width, vowel-vs-scroll overflow, the
+     rogue-single-word bug, and the retracted "76 cases at an unrealistic
+     synthetic width" claim above).
+   - **Stated end goal (from the user, not yet started):** once the
+     visual paragraph layout (line-break for petucha, gap for setuma)
+     is solid for both open and closed parasha, the explicit gold "פ"/"ס"
+     glyphs should be removed from the SCROLL column entirely — a real
+     Torah scroll has no printed paragraph-marker characters; the
+     physical line-break/gap convention itself is what signals the
+     paragraph structure. (The vowel/tikkun column may keep the glyph —
+     not yet decided.) This depends on the line-break/gap mechanics
+     being fully correct first, hence the ordering: petucha line-break
+     (done) → petucha-never-alone (done) → setuma gap (not started) →
+     dedicated test (not started) → THEN revisit whether/how to drop the
+     glyph from scroll.
 
 2. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:

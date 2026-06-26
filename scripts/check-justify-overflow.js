@@ -72,7 +72,8 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
       // open-parasha (petucha) forced line break is baked directly into
       // computeBreaksAtWidth's measurement (an actual <br> inserted
       // after the marker), not unioned in afterward.
-      const breaks = window.computeBreaksAtWidth(tokens, width);
+      const naturalBreaks = window.computeBreaksAtWidth(tokens, width);
+      const breaks = window.pullPetuchaCompanion(tokens, naturalBreaks, width, fontSpec);
 
       // Real justified HTML via the actual shipped function.
       const vowelHtml = window.buildJustifiedColumnHTML(tokens, breaks, 'vowel', width, fontSpec);

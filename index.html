@@ -734,6 +734,51 @@ function countSpaceGaps(html) {
 // forced break, exactly as it already does after any other break point.
 const PETUCHA_HTML = '<span class="pm">פ</span>';
 
+// Ensures a petucha (פ) is never left completely alone on its line with
+// zero accompanying words. This can happen when the line BEFORE a
+// petucha is already "full" (uses all available width) and the marker
+// itself doesn't fit alongside it — natural wrapping then pushes the
+// petucha down to start a fresh line by itself, with the forced
+// after-petucha break (see addPetuchaBreaks history / PETUCHA_HTML
+// usage in renderSyncedColumns/computeBreaksAtWidth) immediately
+// following it. Confirmed via real user screenshots: a lone petucha
+// with a full line before it reads fine; what doesn't is acceptable
+// only as a fallback — the preferred result is the petucha always
+// shares its line with at least the one word that would otherwise have
+// been the full preceding line's last word.
+//
+// Fix: if a petucha token starts its own line (i.e. there's a break
+// immediately before it that ISN'T the forced after-petucha break),
+// shift that boundary back by one token — the previous line gives up
+// its last word, which joins the petucha on the line after. Verified
+// safe by construction for vowel (the word already fit within the full
+// original line, so "single word + tiny petucha glyph" is always
+// comfortably narrower — checked explicitly anyway, not just assumed,
+// given how many "obviously safe" assumptions in this exact area turned
+// out wrong earlier today) and for scroll (the existing per-line
+// compression in buildJustifiedColumnHTML already absorbs any
+// remaining slack as a safety net, same as it does for the unrelated
+// vowel-vs-scroll overflow case).
+function pullPetuchaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
+  const breakSet = new Set(breaks);
+  const sortedBreaks = [...breakSet].sort((a, b) => a - b);
+  tokens.forEach((t, i) => {
+    if (t.vowel !== PETUCHA_HTML || i === 0) return;
+    if (!breakSet.has(i)) return; // petucha already shares a line with something — nothing to do
+    // Find the break boundary just before i (0 if none) — the start of
+    // the line that currently ends right before the lone petucha.
+    let priorBoundary = 0;
+    for (const b of sortedBreaks) { if (b < i) priorBoundary = b; else break; }
+    if (i - 1 <= priorBoundary) return; // previous line itself has only 1 token — nothing safe to pull
+    const candidateText = tokenHtml(tokens[i - 1], 'vowel') + ' ' + tokenHtml(t, 'vowel');
+    const w = measureNaturalWidth(candidateText, fontSpec);
+    if (w > containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX) return; // pathological case — leave as-is rather than risk overflow
+    breakSet.delete(i);
+    breakSet.add(i - 1);
+  });
+  return [...breakSet].sort((a, b) => a - b);
+}
+
 function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
   const boundaries = [0, ...breaks, tokens.length];
   const lines = [];
@@ -845,8 +890,9 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   const scrollWidth = getContentWidth(scrollEl);
   const vowelFont = getComputedFontSpec(vowelEl);
   const scrollFont = getComputedFontSpec(scrollEl);
-  vowelEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', vowelWidth, vowelFont);
-  scrollEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', scrollWidth, scrollFont);
+  const finalBreaks = pullPetuchaCompanion(tokens, breaks, vowelWidth, vowelFont);
+  vowelEl.innerHTML = buildJustifiedColumnHTML(tokens, finalBreaks, 'vowel', vowelWidth, vowelFont);
+  scrollEl.innerHTML = buildJustifiedColumnHTML(tokens, finalBreaks, 'scroll', scrollWidth, scrollFont);
 
   if (vowelWasHidden) vowelEl.style.display = vowelHadInline; // restore CSS-driven visibility
   if (scrollWasHidden) scrollEl.style.display = scrollHadInline;
@@ -971,7 +1017,8 @@ const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fon
 
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
-  const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const breaks = pullPetuchaCompanion(tokens, naturalBreaks, PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }
