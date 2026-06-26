@@ -493,48 +493,86 @@ this is *what*.
   0.78rem → 0.9rem; verse-range label 0.7rem → 0.82rem. Verified no
   overflow at 360px across every real aliyah range string, checked in
   both light/dark color schemes and in an actual rendered print PDF.
-- **Vowel-vs-scroll width assumption — verified closed, not just
-  assumed.** Line-sync only ever measures the vowel column and trusts
-  scroll to fit the same break points; the open question was whether
-  maqaf-joined words (which render as a literal space in scroll,
-  potentially widening it locally) could ever make scroll the wider
-  column for some line. Wrote `scripts/check-vowel-vs-scroll-width.js`:
-  builds the full-Torah token stream, computes vowel's real line breaks
-  at four representative widths (300/400/530/680px), then checks whether
-  scroll's text ever overflows (needs an internal wrap) when confined to
-  each of those vowel-defined lines. **Result: zero overflows across
-  ~96,783 total vowel-defined lines spanning the whole Torah at all four
-  widths.** The assumption holds with high confidence — not proven for
-  literally every possible width, but covers the full realistic range
-  (mobile through generous desktop) end to end. (Note: an earlier version
-  of this script compared two *independently* greedy-wrapped break sets
-  between vowel and scroll and found thousands of "violations" — that
-  was testing the wrong thing; two texts with different per-token widths
-  throughout will essentially never choose the same break points by
-  chance even when one is uniformly wider everywhere. The correct test
-  constrains scroll to vowel's actual breaks and checks for overflow,
-  not whether the two columns' independent wrapping happens to agree.)
+- **Vowel-vs-scroll width assumption — RETRACTED, then reopened as a
+  confirmed real bug.** Originally claimed "verified closed, zero
+  overflows" via `scripts/check-vowel-vs-scroll-width.js` (still in
+  repo). **That result was invalid**: the script launched a blank
+  Playwright page and never loaded `index.html`, so it measured every
+  line using the browser's fallback font (Arimo/sans-serif), NOT the real
+  embedded ShlomoSemiStam font actually used in production. Caught while
+  building block-justify format (below): a line that the real font
+  measured at 688.77px natural width — genuinely wider than the 680px
+  container, no justify math involved at all — had been silently passing
+  the fallback-font version of the same check. **Re-verified properly**
+  (load the real `index.html`, use real fonts) via
+  `scripts/check-justify-overflow.js`, restricted to the three widths
+  that are actually reachable in production (300/400/530px — confirmed
+  empirically that `.content{max-width:1100px}` caps the real column
+  width at ~530px even on a 2400px-wide screen, so the earlier script's
+  680px test case was also testing an impossible scenario on top of using
+  the wrong font): **found ~3,859 real cases** across the full Torah
+  where vowel's break point does not leave scroll enough room, causing
+  scroll to silently wrap a second time on screen. This is a **live,
+  pre-existing bug already on `main`**, predating both the justify work
+  and this AGENTS.md entry's original (wrong) claim — promoted to item 1
+  of open work below. Lesson for next time: a Playwright check that
+  doesn't `page.goto()` the real file is not testing the real fonts —
+  always load the actual page, not just reimplement its logic
+  standalone, when the result depends on real glyph metrics.
+
+**Done since last update:**
+- Block-justify format. Every line in both columns now stretches to fill
+  the full column width (CSS `text-align:justify` was already set but
+  does NOTHING for our hard-`<br>`-broken lines — confirmed by direct
+  measurement that every major browser excludes forced-break lines from
+  justification, same exclusion as a block's true last line — so this
+  required manual per-line word-spacing computation in JS, not a CSS
+  fix). Last line of each column and any line with nothing to add space
+  between are left unstretched, per design. Two real bugs found and fixed
+  during full-Torah verification (see `scripts/check-justify-overflow.js`
+  history/commit message for both): (1) undercounting stretchable gaps —
+  CSS word-spacing affects every space character including ones INSIDE a
+  single token's HTML (maqaf-converted space in scroll, ketiv-annotation
+  space in vowel), not just inter-token boundaries; (2) wrapping a line
+  in a `word-spacing:calc(...)` span measurably widened it even at ~0
+  intended extra, enough to overflow an already-razor-thin natural fit —
+  fixed by skipping the wrapper entirely when there's nothing meaningful
+  to stretch. Confirmed both fixes via instrumentation: every remaining
+  test-script failure has zero stretch applied (see next item — it's a
+  separate, pre-existing bug, not caused by this work).
 
 **Open work, in priority order:**
 
-1. **Justified block format.** Lines are currently word-count-matched
-   between scroll/vowel columns (see §3, `buildTokens`/line-sync) but not
-   visually justified — on-screen line *lengths* vary, unlike a real
-   tikkun korim where every line in a block is the same physical width.
-   Needs inter-word spacing to stretch per line (CSS `text-align:
-   justify` / `text-justify` on the Hebrew columns, or manual per-line
-   space distribution if justify doesn't behave well with the `<br>`-based
-   line-sync approach already in place — verify which one is compatible
-   with the existing break-measurement code before committing to an
-   approach). Must hold for both scroll and vowel columns simultaneously,
-   without breaking token-index alignment.
+1. **REAL BUG, confirmed, already on `main`: vowel-only break
+   measurement does not always leave scroll enough room.** Found while
+   verifying block-justify with the real font loaded (see §5's retraction
+   note above for how the earlier "verified closed" claim was invalid).
+   ~3,859 lines across the full Torah, at realistic widths (300/400/530px
+   — 530px confirmed as the real maximum column width in production),
+   where scroll's natural width exceeds vowel's break point, causing
+   scroll to silently wrap a second time on screen. This predates and is
+   unrelated to today's justify work (confirmed: every failing case gets
+   zero stretch applied by the new justify code — pure pass-through of
+   the existing, already-broken `buildColumnHTML`-equivalent rendering).
+   **Likely fix direction:** `renderSyncedColumns`'s break computation
+   (§3) only ever measures the vowel column's `offsetTop` jumps and
+   trusts scroll to fit — it needs to measure BOTH columns and take
+   whichever break point is more constraining per line, not assume vowel
+   always wins. `scripts/check-justify-overflow.js` is a ready-made
+   verification harness for this — rerun it after any fix attempt; it
+   should report zero overflows in both columns at all three widths
+   before considering this closed. Do not reuse
+   `scripts/check-vowel-vs-scroll-width.js` for re-verification — it has
+   the blank-page/no-real-font bug described in §5 and should probably
+   just be deleted once this is fixed, to avoid future confusion with a
+   superficially similar but invalid script.
 
 2. **Paragraph style as visual line-breaking, not glyphs.** Currently
    open/closed parasha breaks (פ/ס) render as a small gold `<span
    class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
    physical-Torah-style visual layout, applied identically to *both*
-   scroll and vowel/tikkun columns, and compatible with justified block
-   format (#1) and the existing line-sync break logic (§3):
+   scroll and vowel/tikkun columns, and compatible with the now-shipped justified block
+   format and the existing line-sync break logic (§3):
    - **Open parasha (פ, petucha):** always start a new line. If the line
      before the break is already a "full" line (same length as other
      lines in the block), and a naive break would leave only the last
@@ -552,8 +590,9 @@ this is *what*.
    - This is the most structurally invasive item on this list — it
      changes how line-break decisions are made, not just how they're
      styled, and interacts directly with the line-sync break-index logic
-     in §3. Build and test in isolation from #1 first if both are in
-     flight, since debugging both at once will be hard to disentangle.
+     in §3. Build and verify against the real-bug fix (item 1) once that
+     lands — both touch break computation, so fixing item 1 first avoids
+     building this on top of the known-broken vowel-only measurement.
    - **Needs its own dedicated test**, separate from and in addition to
      the existing `tests/validate-tokenizer.js` (which only validates
      Hebrew text processing — ketiv/qere, paseq, maqaf, word-count
@@ -579,4 +618,7 @@ line-sync mechanism for screen rendering — Side-by-Side, Either-Or, resize,
 initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 (§2), the paseq scroll-removal fix.
 
-**Nothing is currently broken on `main`.** `extract-tokenizer` is merged.
+**Known broken on `main` right now:** see item 1 above (vowel-only break
+measurement leaves scroll without enough room in ~3,859 lines across the
+full Torah). Not visually catastrophic — affects a minority of lines — but
+real and already live, not hypothetical.
