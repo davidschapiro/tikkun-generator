@@ -597,14 +597,133 @@ function buildColumnHTML(tokens, breaks, key) {
   return html;
 }
 
+function tokenHtml(t, key) {
+  const vn = (key === 'vowel' && t.verseNum) ? `<sup class="vn">${t.verseNum}</sup>` : '';
+  return vn + t[key];
+}
+
+function getComputedFontSpec(el) {
+  const cs = window.getComputedStyle(el);
+  return { fontFamily: cs.fontFamily, fontSize: cs.fontSize, lineHeight: cs.lineHeight, wordSpacing: cs.wordSpacing };
+}
+
+function getContentWidth(el) {
+  const cs = window.getComputedStyle(el);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  return el.clientWidth - padL - padR;
+}
+
+function measureNaturalWidth(html, fontSpec) {
+  const probe = document.createElement('span');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.left = '-99999px';
+  probe.style.top = '0';
+  probe.style.whiteSpace = 'nowrap';
+  probe.style.fontFamily = fontSpec.fontFamily;
+  probe.style.fontSize = fontSpec.fontSize;
+  probe.style.lineHeight = fontSpec.lineHeight;
+  probe.style.wordSpacing = fontSpec.wordSpacing;
+  probe.dir = 'rtl';
+  document.body.appendChild(probe);
+  probe.innerHTML = html;
+  const w = probe.getBoundingClientRect().width;
+  document.body.removeChild(probe);
+  return w;
+}
+
+// Block-justified format: stretch every line to the same visual width,
+// like a real tikkun korim — EXCEPT the last line of the column (classic
+// typesetting convention, confirmed: an open-paragraph's orphaned single
+// word will eventually be its own short final-of-block line too, once
+// parasha line-breaking lands — see AGENTS.md TODO) and any line with
+// only one word (nothing to add space between).
+//
+// CSS text-align:justify alone CANNOT do this: browsers only justify
+// lines that wrap NATURALLY due to width overflow — a line terminated by
+// an explicit <br> (which is every line here, since we hard-compute
+// breaks ourselves) is specifically excluded from justification by every
+// major engine, the same way a block's true last line always is. So we
+// compute and apply the exact extra word-spacing needed per line
+// ourselves, in JS, rather than relying on the CSS property that's
+// already set (and silently doing nothing).
+//
+// JUSTIFY_SAFETY_MARGIN_PX: leave a few px of headroom between the
+// computed target and the actual container width. Sub-pixel rounding or
+// font-hinting differences between this measurement and the final
+// rendered line could otherwise push a "perfectly" stretched line a
+// fraction over, causing it to wrap a second time internally — which is
+// exactly the print-jumbling bug class already fixed once in this
+// project. Under-stretching by a couple px is invisible; overflowing is not.
+const JUSTIFY_SAFETY_MARGIN_PX = 8;
+
+function countSpaceGaps(html) {
+  // CSS word-spacing stretches EVERY space character, not just the
+  // (wordCount-1) inter-token boundaries we joined with ' '. Two sources
+  // of extra space characters inside a single token's rendered HTML:
+  // maqaf converted to a literal space in the scroll column (see
+  // tokenizer.js wordToHtml, \u05BE -> ' '), and the leading space before
+  // a ketiv annotation in the vowel column (wordToHtml's ' <span
+  // class="kt">...'). Both inflate the real gap count beyond wordCount-1,
+  // and using the wrong (too-low) gap count caused a real, confirmed
+  // overflow bug here: a line measured to overflow by exactly the ratio
+  // of (actual gaps / assumed gaps), e.g. 14 real gaps vs. 11 assumed —
+  // every one of those 14 CSS-affected gaps got the per-gap value
+  // computed for only 11, over-stretching the line by 14/11x. Counting
+  // the real space characters in the final rendered text (after
+  // stripping tags) instead of inferring from token count fixes this.
+  const text = html.replace(/<[^>]+>/g, '');
+  return (text.match(/ /g) || []).length;
+}
+
+function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
+  const boundaries = [0, ...breaks, tokens.length];
+  const lines = [];
+  for (let s = 0; s < boundaries.length - 1; s++) {
+    const start = boundaries[s], end = boundaries[s + 1];
+    if (end <= start) continue;
+    const isLastLine = (s === boundaries.length - 2);
+    const innerHtml = tokens.slice(start, end).map(t => tokenHtml(t, key)).join(' ');
+    const gaps = countSpaceGaps(innerHtml);
+    if (isLastLine || gaps === 0 || !containerWidthPx) {
+      lines.push(innerHtml); // never stretch the column's last line, or a line with nothing to add space between
+      continue;
+    }
+    const naturalWidth = measureNaturalWidth(innerHtml, fontSpec);
+    const extraTotal = Math.max(0, (containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX) - naturalWidth);
+    const extraPerGap = extraTotal / gaps;
+    if (extraPerGap < 0.5) {
+      // Nothing meaningful to stretch — output identical to the
+      // pre-justify rendering. Confirmed necessary: wrapping content in
+      // a word-spacing:calc(...) span, even when the computed extra is
+      // effectively zero, measurably widens the render versus plain
+      // unwrapped text (likely calc() floating-point/rounding behavior
+      // differing from a literal em value) — enough on its own to
+      // overflow an already-razor-thin natural fit. Skipping the
+      // wrapper here preserves the exact (already full-Torah-verified)
+      // baseline rendering for these lines.
+      lines.push(innerHtml);
+      continue;
+    }
+    const baseline = (fontSpec.wordSpacing && fontSpec.wordSpacing !== 'normal') ? fontSpec.wordSpacing : '0px';
+    lines.push(`<span style="word-spacing:calc(${baseline} + ${extraPerGap}px)">${innerHtml}</span>`);
+  }
+  return lines.join('<br>');
+}
+
 function renderSyncedColumns(tokens, vowelEl, scrollEl) {
-  // If the vowel column is currently hidden (Either-Or + Scroll-view mode
-  // hides it via CSS), offsetTop reads would be meaningless — there's no
-  // layout box. Temporarily force it visible (inline style wins over the
-  // body-class CSS rule) for the synchronous measurement, then restore.
-  const hadInlineDisplay = vowelEl.style.display;
-  const wasHidden = window.getComputedStyle(vowelEl).display === 'none';
-  if (wasHidden) vowelEl.style.display = 'block';
+  // If either column is currently hidden (Either-Or mode hides one of
+  // them via CSS), both offsetTop reads AND clientWidth reads would be
+  // meaningless — there's no layout box. Temporarily force visible
+  // (inline style wins over the body-class CSS rule) for measurement,
+  // then restore both at the end.
+  const vowelHadInline = vowelEl.style.display;
+  const vowelWasHidden = window.getComputedStyle(vowelEl).display === 'none';
+  if (vowelWasHidden) vowelEl.style.display = 'block';
+  const scrollHadInline = scrollEl.style.display;
+  const scrollWasHidden = window.getComputedStyle(scrollEl).display === 'none';
+  if (scrollWasHidden) scrollEl.style.display = 'block';
 
   // Step 1: render vowel tokens as individually-measurable inline-blocks
   vowelEl.innerHTML = tokens.map((t,i) => {
@@ -622,11 +741,17 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
     lastTop = top;
   });
 
-  // Step 3: rebuild both columns with identical explicit breaks
-  vowelEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
-  scrollEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
+  // Step 3: rebuild both columns with identical explicit breaks, each
+  // line individually stretched to fill the column width (block format).
+  const vowelWidth = getContentWidth(vowelEl);
+  const scrollWidth = getContentWidth(scrollEl);
+  const vowelFont = getComputedFontSpec(vowelEl);
+  const scrollFont = getComputedFontSpec(scrollEl);
+  vowelEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', vowelWidth, vowelFont);
+  scrollEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', scrollWidth, scrollFont);
 
-  if (wasHidden) vowelEl.style.display = hadInlineDisplay; // restore CSS-driven visibility
+  if (vowelWasHidden) vowelEl.style.display = vowelHadInline; // restore CSS-driven visibility
+  if (scrollWasHidden) scrollEl.style.display = scrollHadInline;
 }
 
 function syncAllPracticeColumns() {
@@ -735,11 +860,13 @@ async function ensurePrintProbeWarm() {
   __printProbeWarmed = true;
 }
 
+const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fontSize: '1.05rem', lineHeight: '2.3', wordSpacing: '0.05em' };
+
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
   const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
-  vowelPrintEl.innerHTML = buildColumnHTML(tokens, breaks, 'vowel');
-  scrollPrintEl.innerHTML = buildColumnHTML(tokens, breaks, 'scroll');
+  vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
+  scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }
 
 // Keeps the hidden .col-*-print twins current for every practice body.
