@@ -659,22 +659,22 @@ function measureNaturalWidth(html, fontSpec) {
 const JUSTIFY_SAFETY_MARGIN_PX = 8;
 
 function countSpaceGaps(html) {
-  // CSS word-spacing stretches EVERY space character, not just the
-  // (wordCount-1) inter-token boundaries we joined with ' '. Two sources
-  // of extra space characters inside a single token's rendered HTML:
-  // maqaf converted to a literal space in the scroll column (see
-  // tokenizer.js wordToHtml, \u05BE -> ' '), and the leading space before
-  // a ketiv annotation in the vowel column (wordToHtml's ' <span
-  // class="kt">...'). Both inflate the real gap count beyond wordCount-1,
-  // and using the wrong (too-low) gap count caused a real, confirmed
-  // overflow bug here: a line measured to overflow by exactly the ratio
-  // of (actual gaps / assumed gaps), e.g. 14 real gaps vs. 11 assumed —
-  // every one of those 14 CSS-affected gaps got the per-gap value
-  // computed for only 11, over-stretching the line by 14/11x. Counting
-  // the real space characters in the final rendered text (after
-  // stripping tags) instead of inferring from token count fixes this.
+  // CSS word-spacing stretches every COLLAPSED whitespace run, not every
+  // raw space character — consecutive space characters in the source
+  // collapse to a single rendered gap (standard HTML whitespace
+  // collapsing), and word-spacing only applies once per collapsed gap.
+  // This matters concretely: a token holding a paseq renders as an EMPTY
+  // string in the scroll column (paseq isn't written in an actual
+  // scroll, see tokenizer.js), but is still joined with a single space
+  // on each side — producing two consecutive space characters at that
+  // position. Counting raw characters (one per literal ' ') over-counts
+  // gaps wherever this happens, inflating the divisor and under-
+  // stretching the whole line (confirmed: every paseq line was visibly
+  // not flush). Counting whitespace RUNS instead matches what actually
+  // renders. Also covers the same case for any other source of adjacent
+  // empty tokens, not just paseq specifically.
   const text = html.replace(/<[^>]+>/g, '');
-  return (text.match(/ /g) || []).length;
+  return (text.match(/\s+/g) || []).length;
 }
 
 function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
