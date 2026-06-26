@@ -673,7 +673,21 @@ function countSpaceGaps(html) {
   // not flush). Counting whitespace RUNS instead matches what actually
   // renders. Also covers the same case for any other source of adjacent
   // empty tokens, not just paseq specifically.
-  const text = html.replace(/<[^>]+>/g, '');
+  //
+  // SECOND, separate bug from the same root cause, found later: when the
+  // empty token sits at the very START or END of a line (not just
+  // somewhere in the middle), the collapsed run becomes LEADING or
+  // TRAILING whitespace — and browsers never render edge whitespace as
+  // width at all (standard line-edge trimming), regardless of any
+  // word-spacing applied to it. Counting that edge run as a real,
+  // contributing gap still inflated the divisor by one, under-stretching
+  // the line by roughly 1/gapCount of the needed total (confirmed: a
+  // paseq at line-end in Numbers 19:2 measured 292px against neighbors'
+  // 304px — a ~12px shortfall, matching almost exactly one gap's worth
+  // of the per-gap extra that line was computing). .trim() removes any
+  // leading/trailing run before counting, leaving interior collapsed
+  // runs (the first bug fixed above) counted correctly.
+  const text = html.replace(/<[^>]+>/g, '').trim();
   return (text.match(/\s+/g) || []).length;
 }
 
