@@ -66,13 +66,11 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
   for (const width of WIDTHS) {
     console.log(`\n--- width ${width}px ---`);
     const result = await page.evaluate(({ tokens, width, fontSpec }) => {
-      // Real, shipped break computation: vowel's own natural breaks,
-      // surgically patched with extra breaks only where scroll would
-      // actually overflow (AGENTS.md TODO item 1 — the targeted fix,
-      // not a blanket union of both columns' independent breaks).
-      const vowelBreaks = window.computeBreaksAtWidth(tokens, width);
-      const extraBreaks = window.findScrollOverflowExtraBreaks(tokens, vowelBreaks, width, fontSpec);
-      const breaks = [...new Set([...vowelBreaks, ...extraBreaks])].sort((a, b) => a - b);
+      // Real, shipped break computation: vowel's own natural breaks
+      // only — the vowel-vs-scroll overflow (AGENTS.md TODO item) is now
+      // handled by per-line compression INSIDE buildJustifiedColumnHTML,
+      // not by patching the break list.
+      const breaks = window.computeBreaksAtWidth(tokens, width);
 
       // Real justified HTML via the actual shipped function.
       const vowelHtml = window.buildJustifiedColumnHTML(tokens, breaks, 'vowel', width, fontSpec);

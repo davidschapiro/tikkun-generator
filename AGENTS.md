@@ -563,38 +563,60 @@ this is *what*.
   separate, pre-existing bug, not caused by this work).
 
 **Done since last update:**
-- **Vowel-vs-scroll overflow — fixed, surgically.** Was ~3,859 lines
-  across the full Torah (max 7.4px overflow, see severity data below,
-  kept for historical context). Two real bugs fixed:
-  1. The actual targeted fix: `findScrollOverflowExtraBreaks()` checks
-     each vowel-defined line and, ONLY if scroll's natural width for that
-     exact range would overflow, inserts the minimal extra break(s)
-     needed — shrinking from the end of the segment until it fits.
-     Everywhere else is completely untouched.
-  2. Found while building #1: `computeBreaksAtWidth`'s probe never set
+- **Vowel-vs-scroll overflow — fixed, by compression, not re-breaking.**
+  Was ~3,859 lines across the full Torah (max ~7.4px overflow — genuinely
+  tiny). Two real bugs fixed, plus a three-stage design process worth
+  remembering in full:
+  1. The actual root bug: `computeBreaksAtWidth`'s probe never set
      `word-spacing` (defaulted to `normal`/0), while real rendering
      always applies a 0.05em baseline — making break-detection think
      lines were narrower than they'd actually render, letting one too
      many tokens onto borderline lines. A real, independent,
      deterministic bug (not flaky/timing-related) — fixed by setting
      `word-spacing:0.05em` on the probe to match.
-  - **A first attempt was tried and explicitly rejected**: taking the
-    full union of vowel's AND scroll's independently-computed natural
-    breaks (provably safe, zero overflow) instead of only the lines that
-    needed it. Visual review on a real device caught what testing
-    didn't: it broke far more lines than necessary — any line where
-    EITHER column's own greedy-wrap wanted an earlier break got
-    shortened, even when that line was never actually a problem. On
-    mobile this produced visibly sparse 1-2-word lines stretched across
-    the full width with huge gaps. Quantified: union added ~75% more
-    lines overall; the surgical version that shipped adds only 1-5%
-    (611/13267 at 300px, 248/9753 at 400px, 97/7256 at 530px). **If this
-    code is ever touched again: visually check a real narrow/mobile
-    screenshot, not just the overflow-count test — a fix can pass every
-    automated check and still look obviously wrong.**
-  - Verified: zero overflows across the full Torah at all three
-    realistic widths, full existing regression suite passes, visual
-    check at desktop/mobile/print all match the pre-bug-fix quality.
+  2. **The actual fix that shipped**: `buildJustifiedColumnHTML` now
+     allows `extraPerGap` to go NEGATIVE (slightly compress word-spacing
+     below baseline) when scroll's natural width for a line slightly
+     exceeds the column, floored at `COMPRESSION_FLOOR_PX = -3` (real
+     worst-case need confirmed empirically: ~1.6px/gap at the narrowest
+     width, 300px — the floor leaves ~2x headroom). No break list is
+     touched; no word ever moves to a different line. Applies to the
+     LAST line too (never stretched, but still protected from
+     overflowing) — see the `isLastLine && extraPerGap >= 0` check.
+  - **Two earlier attempts were built, tested, shown to the user, and
+    explicitly rejected** — both inserted extra line breaks instead of
+    compressing, and both looked wrong on a real device despite passing
+    every automated check:
+    - *Attempt A (blanket union)*: take the union of vowel's AND
+      scroll's independently-computed natural breaks, applied
+      everywhere. Provably zero-overflow, but broke far more lines than
+      necessary (~75% more lines overall) — any line where EITHER
+      column's own greedy-wrap wanted an earlier break got shortened,
+      producing visibly sparse 1-2-word lines on mobile.
+    - *Attempt B (surgical re-break)*: only insert an extra break where
+      a SPECIFIC line's scroll text would actually overflow (much more
+      targeted — only 1-5% of lines touched). Better, but still visibly
+      wrong: moving an entire word to a new line to fix an overflow
+      that's only ever a few pixels is wildly disproportionate, and
+      produces orphaned single-word "rogue" lines even where there's no
+      open-paragraph reason for one. The user caught this immediately on
+      a real device; the automated overflow-count test had no way to
+      flag it, since by its own metric (zero overflow) attempt B was a
+      complete success.
+    - The pattern across both rejections: **an automated test that only
+      checks "did it overflow" cannot tell you "does it look right."**
+      Both attempts needed an actual screenshot on a real narrow
+      viewport to reveal the problem. If touching this code again,
+      get a visual on mobile width before considering it done, no matter
+      how clean the numbers look.
+  - Verified (final, shipped version): zero overflows across the full
+    Torah at all three realistic widths, line counts at every width
+    EXACTLY match the original pre-fix counts (13267/9753/7256 — meaning
+    not one single line moved), full existing regression suite passes,
+    visual check at desktop/mobile/print all match the original
+    pre-bug-fix quality with no orphans, no sparse lines, nothing visibly
+    different at all except the (invisible, sub-2px) spacing compression
+    on the handful of lines that needed it.
 
 **Open work, in priority order:**
 
@@ -621,10 +643,10 @@ this is *what*.
    - This is the most structurally invasive item on this list — it
      changes how line-break decisions are made, not just how they're
      styled, and interacts directly with the line-sync break-index logic
-     in §3, which now includes the surgical scroll-overflow patching
-     (`findScrollOverflowExtraBreaks`, see above) — build and verify this
-     parasha work on top of that, not against the old vowel-only-only
-     measurement.
+     in §3, which now includes per-line compression for the
+     vowel-vs-scroll overflow fix (see "Done since last update" above) —
+     build and verify this parasha work on top of that compression
+     logic, not against the old, unfixed vowel-only measurement.
    - **Needs its own dedicated test**, separate from and in addition to
      the existing `tests/validate-tokenizer.js` (which only validates
      Hebrew text processing — ketiv/qere, paseq, maqaf, word-count
