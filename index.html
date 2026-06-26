@@ -714,6 +714,28 @@ function countSpaceGaps(html) {
   return (text.match(/\s+/g) || []).length;
 }
 
+// Open-parasha (petucha, פ) paragraph styling — step 1: force a new line
+// immediately after every petucha marker, unless it's already the very
+// last token of this aliyah (in which case the aliyah boundary itself
+// already provides the "new line" — no separate break needed). The
+// marker is its own standalone token, identical in both columns (see
+// tokenizer.js wordToHtml: '<span class="pm">פ</span>'), so adding break
+// index (markerIndex + 1) to the shared break set affects both columns
+// consistently. Future steps (not yet built): pulling an orphaned last
+// word forward when the line before a petucha is already "full", and
+// the analogous closed-parasha (ס) mid-line-gap styling — see AGENTS.md
+// TODO.
+const PETUCHA_HTML = '<span class="pm">פ</span>';
+function addPetuchaBreaks(tokens, breaks) {
+  const result = new Set(breaks);
+  tokens.forEach((t, i) => {
+    if (t.vowel === PETUCHA_HTML && i + 1 < tokens.length) {
+      result.add(i + 1);
+    }
+  });
+  return [...result].sort((a, b) => a - b);
+}
+
 function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
   const boundaries = [0, ...breaks, tokens.length];
   const lines = [];
@@ -796,13 +818,14 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
 
   // Step 2: measure — detect line membership via offsetTop changes
   const spans = vowelEl.querySelectorAll('.ttok');
-  const breaks = [];
+  const naturalBreaks = [];
   let lastTop = null;
   spans.forEach((span, i) => {
     const top = span.offsetTop;
-    if (lastTop !== null && top > lastTop + 2) breaks.push(i);
+    if (lastTop !== null && top > lastTop + 2) naturalBreaks.push(i);
     lastTop = top;
   });
+  const breaks = addPetuchaBreaks(tokens, naturalBreaks);
 
   // Step 3: rebuild both columns with identical explicit breaks, each
   // line individually stretched to fill the column width (block format).
@@ -938,7 +961,8 @@ const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fon
 
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
-  const breaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
+  const breaks = addPetuchaBreaks(tokens, naturalBreaks);
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }

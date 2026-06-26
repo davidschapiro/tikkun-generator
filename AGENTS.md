@@ -621,45 +621,57 @@ this is *what*.
 **Open work, in priority order:**
 
 1. **Paragraph style as visual line-breaking, not glyphs.** Currently
-   open/closed parasha breaks (פ/ס) render as a small gold `<span
-   class="pm">` glyph inline (§2, "Paragraph markers"). Replace with
-   physical-Torah-style visual layout, applied identically to *both*
-   scroll and vowel/tikkun columns, and compatible with the now-shipped justified block
-   format and the existing line-sync break logic (§3):
-   - **Open parasha (פ, petucha):** always start a new line. If the line
-     before the break is already a "full" line (same length as other
-     lines in the block), and a naive break would leave only the last
-     word of that line dangling, instead pull that last word forward onto
-     its own line by itself (still respecting block justification), *then*
-     start the new paragraph on the line after that.
-   - **Closed parasha (ס, setuma):** insert a tab-like gap within the
-     line (not a line break) — i.e. the line must end with at least one
-     word from the paragraph before the gap and begin with at least one
-     word from the paragraph after it. If a naive break would put the
-     closed-parasha gap right at the line's end (no trailing word after
-     it on that line) or right at the line's start (no leading word
-     before it), shift the minimal number of words to/from the adjacent
-     line so both conditions hold.
-   - This is the most structurally invasive item on this list — it
-     changes how line-break decisions are made, not just how they're
-     styled, and interacts directly with the line-sync break-index logic
-     in §3, which now includes per-line compression for the
-     vowel-vs-scroll overflow fix (see "Done since last update" above) —
-     build and verify this parasha work on top of that compression
-     logic, not against the old, unfixed vowel-only measurement.
-   - **Needs its own dedicated test**, separate from and in addition to
-     the existing `tests/validate-tokenizer.js` (which only validates
-     Hebrew text processing — ketiv/qere, paseq, maqaf, word-count
-     alignment — and has no coverage of line-break/layout logic). This
-     new test should assert, across a representative sample of every
-     petucha and setuma break in the full Torah: (a) every open-parasha
-     break actually starts a fresh line, with the one-word-dangling case
-     handled correctly; (b) every closed-parasha break has at least one
-     word before and after it on its line, with the line-end/line-start
-     edge cases handled correctly; (c) neither case breaks token-index
-     alignment between scroll and vowel columns. Write this alongside the
-     feature, not after — it's the only way to catch a regression in one
-     edge case while fixing another.
+   open/closed parasha breaks (פ/ס) still render as a small gold `<span
+   class="pm">` glyph inline (§2, "Paragraph markers") — that part is
+   unchanged. Replacing it with physical-Torah-style visual layout,
+   applied identically to *both* scroll and vowel/tikkun columns, in
+   sub-steps:
+
+   **Step 1 — DONE: open parasha (petucha, פ) forces a new line.**
+   `addPetuchaBreaks(tokens, naturalBreaks)` adds break index
+   `(markerIndex + 1)` to the shared break set for every petucha token,
+   unless it's already the last token of the aliyah (the aliyah boundary
+   itself already provides the "new line" — no separate break needed
+   there). The marker token is identical in both columns (see
+   tokenizer.js `wordToHtml`), so one shared break list keeps both in
+   sync automatically — no extra column-specific logic needed. Wired
+   into both `renderSyncedColumns` (screen) and `refreshPrintColumns`
+   (print), right after the natural-break computation, before the
+   vowel-vs-scroll compression step in `buildJustifiedColumnHTML`.
+   Verified: all 289 petucha markers in the full Torah are followed by a
+   break, at all three realistic widths (300/400/530px); zero overflow
+   regressions (full-Torah check still 0); real visual check (injected
+   actual Genesis 1:1-9 tokens into the live rendering pipeline, not just
+   a unit-test assertion) confirms the petucha sits alone on its own
+   line and the next verse starts fresh below it, both on screen and via
+   the same code path used for print.
+
+   **Still open — not yet built:**
+   - **Petucha orphan-word handling**: if the line *before* a forced
+     petucha break is already a "full" line (same length as its
+     neighbors) and the break would leave only the line's last word
+     dangling alone right before the petucha's own (now also short)
+     line, pull that last word forward onto its own line by itself
+     first, still respecting block justification, *then* put the
+     petucha on the line after that. Not yet implemented — step 1 above
+     only handles the basic "force a break after פ" rule; this handles
+     the specific aesthetic edge case of two short lines colliding.
+   - **Closed parasha (ס, setuma):** insert a tab-like gap *within* a
+     line (not a line break) — the line must end with at least one word
+     from the paragraph before the gap and begin with at least one word
+     from the paragraph after it. If a naive break would put the gap
+     right at the line's end or start, shift the minimal number of words
+     to/from the adjacent line so both conditions hold. Not started.
+   - **Dedicated test, still needed**: the petucha-break check done so
+     far (289/289 followed by a break) lives in an ad-hoc verification
+     script, not a permanent test alongside `tests/validate-tokenizer.js`
+     and `tests/validate-print-layout.js`. Should be written before the
+     remaining sub-steps (orphan-word, setuma) land, so regressions in
+     one don't slip past unnoticed while building the other — same
+     lesson as the overflow-fix saga just above: write the test
+     alongside the feature, not after, and always also check a real
+     screenshot since an automated assertion alone has already proven
+     insufficient twice in this exact area of the codebase.
 
 2. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:

@@ -70,7 +70,8 @@ const WIDTHS = [300, 400, 530]; // print/narrow-mobile, tablet, real maximum
       // only — the vowel-vs-scroll overflow (AGENTS.md TODO item) is now
       // handled by per-line compression INSIDE buildJustifiedColumnHTML,
       // not by patching the break list.
-      const breaks = window.computeBreaksAtWidth(tokens, width);
+      const naturalBreaks = window.computeBreaksAtWidth(tokens, width);
+      const breaks = window.addPetuchaBreaks(tokens, naturalBreaks);
 
       // Real justified HTML via the actual shipped function.
       const vowelHtml = window.buildJustifiedColumnHTML(tokens, breaks, 'vowel', width, fontSpec);
