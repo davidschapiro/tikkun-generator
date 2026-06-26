@@ -258,6 +258,21 @@ are exactly what wastes a future session's time if not written down.
   genuinely correct, push it directly as a content update rather than
   trying to force a clean git-level merge. (See §6 for the right way to
   avoid this happening again.)
+- **Test scripts must use `v: i+1` (bare integer) for verseNum, matching
+  production exactly — not the full English reference string.** Several
+  one-off verification scripts in `scripts/` build `verses` from
+  `full-torah-reference.json`, whose first element is a full reference
+  like `"Exodus 26:2"`. Passing that directly as `v` to `buildTokens`
+  (production passes a bare integer, see `index.html` line ~569:
+  `verses.push({ch, v:i+1, he:...})`) sets `verseNum` to the full string,
+  which itself contains a space ("Exodus" + " " + "26:2") — when stripped
+  of tags by `countSpaceGaps()`, that embedded space gets miscounted as
+  an inter-word gap that doesn't exist in real data. This produced a
+  convincing but entirely artifactual reproduction of a "paseq line still
+  broken after the fix" report — the real fix worked fine; only the debug
+  reproduction's fixture was wrong. Always construct test verses the same
+  way `index.html` actually does (`{ch, v: i+1, he}`), not by reusing a
+  reference-string field from an unrelated JSON fixture for convenience.
 - **GitHub Pages build occasionally errors transiently** (status:
   `errored`, generic "Page build failed" message, no useful detail) and
   then **succeeds on a retry with identical content** — this has happened
@@ -268,7 +283,13 @@ are exactly what wastes a future session's time if not written down.
   trigger a new commit (even a no-op one) rather than debugging the repo
   contents. The PAT used in this project does not have Pages-write scope,
   so manually requesting a rebuild via `/pages/builds` POST returns 403 —
-  the only available retry mechanism is a new commit.
+  the only available retry mechanism is a new commit. (New occurrence:
+  the paseq-fix commit 16dcbe2 never appeared in `/pages/builds` at all —
+  not even as an `errored` entry, just silently absent, with the build
+  list jumping straight from the prior commit to the next one after it.
+  Different failure shape than the previously-documented errored→retry
+  pattern, but the same fix worked: push another commit, e.g.
+  `git commit --allow-empty`.)
 - **Print-time reference width: 680px was wrong, badly, and the mistake
   shipped before being caught.** When building line-sync Step 4
   (print-time break computation, see §3/§9 history), the original
@@ -543,29 +564,33 @@ this is *what*.
 
 **Open work, in priority order:**
 
-1. **REAL BUG, confirmed, already on `main`: vowel-only break
-   measurement does not always leave scroll enough room.** Found while
-   verifying block-justify with the real font loaded (see §5's retraction
-   note above for how the earlier "verified closed" claim was invalid).
-   ~3,859 lines across the full Torah, at realistic widths (300/400/530px
-   — 530px confirmed as the real maximum column width in production),
-   where scroll's natural width exceeds vowel's break point, causing
-   scroll to silently wrap a second time on screen. This predates and is
-   unrelated to today's justify work (confirmed: every failing case gets
-   zero stretch applied by the new justify code — pure pass-through of
-   the existing, already-broken `buildColumnHTML`-equivalent rendering).
-   **Likely fix direction:** `renderSyncedColumns`'s break computation
-   (§3) only ever measures the vowel column's `offsetTop` jumps and
-   trusts scroll to fit — it needs to measure BOTH columns and take
-   whichever break point is more constraining per line, not assume vowel
-   always wins. `scripts/check-justify-overflow.js` is a ready-made
-   verification harness for this — rerun it after any fix attempt; it
-   should report zero overflows in both columns at all three widths
-   before considering this closed. Do not reuse
-   `scripts/check-vowel-vs-scroll-width.js` for re-verification — it has
-   the blank-page/no-real-font bug described in §5 and should probably
-   just be deleted once this is fixed, to avoid future confusion with a
-   superficially similar but invalid script.
+1. **Confirmed minor bug, already on `main`: vowel-only break
+   measurement occasionally leaves scroll slightly short of room.**
+   Found while verifying block-justify with the real font loaded (see
+   §5's retraction note above for how the earlier "verified closed" claim
+   was invalid). ~3,859 lines across the full Torah, at realistic widths
+   (300/400/530px), where scroll's natural width exceeds vowel's break
+   point. **Severity, checked directly — this matters for prioritization:**
+   max overflow found anywhere in the Torah is **7.4px** (Exodus 26:2, at
+   530px width), median ~2px, zero cases exceed 10px, zero cases reach a
+   full extra word (~30px+). In practice this is the last character or
+   two of a line's final word spilling a sliver past the edge — not a
+   dropped word, not a visibly broken layout. Confirmed unrelated to and
+   not worsened by the justify work (every failing case gets zero stretch
+   applied — pure pass-through of the pre-existing rendering).
+   **Recommendation: fix it, but treat as low-urgency given the severity
+   ceiling, and be careful** — `renderSyncedColumns`'s break computation
+   (§3) is central, shared, load-bearing code; today's session twice
+   introduced new regressions while touching adjacent logic (the gap-
+   counting bug and the calc()-wrapper bug, both in this same commit
+   range) despite real-Torah verification at every step. Build any fix on
+   a dedicated branch, never directly on `main`, and rerun
+   `scripts/check-justify-overflow.js` (zero overflows in both columns at
+   all three widths required) plus the full existing suite before
+   merging. **Likely fix direction:** measure both columns' `offsetTop`
+   jumps, not just vowel's, and take whichever break point is more
+   constraining per line. Do not reuse `scripts/check-vowel-vs-scroll-
+   width.js` — it has the blank-page/no-real-font bug described in §5.
 
 2. **Paragraph style as visual line-breaking, not glyphs.** Currently
    open/closed parasha breaks (פ/ס) render as a small gold `<span
