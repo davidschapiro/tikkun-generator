@@ -507,7 +507,24 @@ const HOLIDAY_COLORS = {
   '5':'#3a1a2a','6':'#2a3a1a','7':'#3a2a1a','maftir':'#3a1a1a'
 };
 
-function dateStr(d){ return d.toISOString().split('T')[0]; }
+function dateStr(d){
+  // Deliberately NOT d.toISOString().split('T')[0] — that converts to UTC,
+  // while toShabbat() finds "this Saturday" using getDay()/setDate(),
+  // which read LOCAL time. Those two disagree for anyone in a timezone
+  // ahead of UTC (e.g. CEST, UTC+2) between local midnight and 2am: the
+  // Saturday is correct in local terms, but toISOString rolls its
+  // calendar date back by one, sending FRIDAY's date to Hebcal instead.
+  // Confirmed live: Hebcal returns items:[] for that Friday (no
+  // "parashat" category on a non-Saturday), which then threw "Could not
+  // reach Hebcal" below — a connectivity-sounding message for what was
+  // actually an empty, correctly-answered query for the wrong date.
+  // Building the string from local Y/M/D keeps it in agreement with
+  // toShabbat() at every hour, not just outside this 2-hour window.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function toShabbat(d) {
   const r = new Date(d);
   const day = r.getDay();
