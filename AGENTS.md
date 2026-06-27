@@ -522,10 +522,124 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
-**Done since last update:**
+**Done since last update — shipped to `main`:**
+- **Mid-verse petucha token-gluing fixed** (Numbers 26:1, Genesis 35:22).
+  Root cause: source data embeds a literal `<br>` right after the
+  petucha span, with no surrounding whitespace, when the petucha falls
+  mid-verse and more text follows in the same string. The generic
+  tag-strip in `processHeToWords` dropped `<br>` with zero replacement
+  (unlike `&nbsp;`, which becomes a space), gluing the next word onto
+  `##PE##` into one token — silently breaking the `isPetucha` check
+  downstream and skipping the forced line-break. Fixed by treating
+  `<br>` as whitespace before the tag-strip. Confirmed via full-Torah
+  scan these were the only two real cases.
+- **Paragraph-final-line justification exemption.** A line ending in a
+  petucha marker is a paragraph's last line, not just any line — per
+  typesetting convention it should never be stretched to fill the
+  column, same as the column's true last line. Added
+  `isParagraphFinalLine`, detected via the existing forced-break
+  invariant (line whose last token is the petucha marker).
+- **Hebcal UTC/local date-boundary bug fixed.** `dateStr()` built the
+  API query date via `d.toISOString().split('T')[0]` (UTC), while
+  `toShabbat()` finds "this Saturday" via `getDay()`/`setDate()` (local
+  time). For anyone in a timezone ahead of UTC (e.g. CEST), between
+  local midnight and 2am the two disagreed: the Saturday was correct in
+  local terms, but the ISO conversion rolled its calendar date back by
+  one, sending FRIDAY's date to Hebcal. Hebcal answered correctly with
+  `items:[]` (no `parashat` category on a non-Saturday), which then
+  threw "Could not reach Hebcal" — a connectivity-sounding message for
+  what was actually an empty, correctly-answered query for the wrong
+  date. Explained a real user-reported symptom exactly: a ~2-hour
+  local-time window reproducing every day, not network flakiness. Fixed
+  by building the date string from local Y/M/D components.
+
+**In progress — on branch `setuma-edge-pull`, NOT yet merged:**
+
+Setuma (ס, closed parasha) visual treatment, attempted in two steps:
+
+- **Step 1 (working, validated):** give the setuma a gap sized in
+  samech-glyph-widths (3 per side — "as if 7 samechs sat in a row, only
+  the middle one drawn"), measured live per column/font via
+  `measureNaturalWidth` rather than a flat em/px guess, so it looks the
+  same shape regardless of column width, screen vs print, or font. This
+  surfaced a real bug: the break-DETECTION pass (offsetTop measurement
+  in `renderSyncedColumns`/`computeBreaksAtWidth`) was rendering the
+  bare, undersized setuma glyph while the RENDER pass
+  (`buildJustifiedColumnHTML`) separately swelled it to the full gap —
+  so a line that measured as "fits" during detection would then
+  overflow once the real margin was applied, and the browser silently
+  shoved the overflow word onto its own orphan line. Fixed by factoring
+  both passes through one shared function, `measurableTokenHtml`, so
+  detection and render always agree on the setuma's true width. Full
+  tokenizer suite still passes; visually confirmed fixed on the
+  Numbers 26:12/26:15 case from real user screenshots.
+
+- **Step 2 (implemented, but largely ineffective on narrow phone
+  widths — root cause understood, not yet fixed):** a setuma sitting as
+  the very first or last token of a line is visually indistinguishable
+  from a petucha (which always sits at a line edge by design), defeating
+  the point of a closed-paragraph marker looking different from an open
+  one. Added `pullSetumaCompanion`, modeled on the existing
+  `pullPetuchaCompanion` word-shift but bidirectional — pull the
+  previous line's last word forward if the setuma starts a line, pull
+  the next line's first word backward if it ends one, do both at once
+  (checked as ONE combined candidate, not two independent ones) if the
+  setuma is alone on a single-token line. Each shift is verified against
+  the REAL, FULL candidate line's natural width (not just the moved
+  pair, unlike the petucha version) before being applied, and bails out
+  — leaving the edge case as cosmetically imperfect rather than risking
+  an overflow regression — if there's no token safe to pull or the
+  result wouldn't fit.
+
+  **The bail-out fires almost every time on a narrow phone column**,
+  confirmed by direct instrumentation against real text (Numbers
+  20:11-13, Mei Merivah — reproduced via Playwright + the real
+  `renderSyncedColumns`, not guessed): at 3 samech-widths per side, the
+  measured gap was ~49.7px on EACH side at a 317px column width — very
+  roughly a third of the entire line's width consumed by the gap alone,
+  before a single Hebrew word is placed. Real Torah text routinely has
+  adjacent lines already near-full from natural wrapping (one
+  reproduction case was already using negative compression just to fit
+  as-is), so there's essentially never enough slack to pull a companion
+  word in without overflowing. The step-1 fix genuinely works (tested
+  and confirmed on Numbers 26); it's the step-2 gap SIZE itself that
+  defeats the edge-pull on realistically narrow columns — not a logic
+  bug in `pullSetumaCompanion`, confirmed by instrumenting the real
+  function and watching it correctly compute `candidateFits = false` at
+  both call sites in the repro.
+
+  Three honest paths forward, not yet chosen:
+  1. Shrink the gap (e.g. 3 samech-widths → 1.5–2) — less visually
+     distinct from petucha, but leaves real slack for the pull to
+     succeed almost everywhere.
+  2. Let the pull tolerate slight compression — reuse the existing
+     `COMPRESSION_FLOOR_PX` leniency (already used elsewhere for
+     ordinary justification) instead of `candidateFits` being a hard
+     pass/fail.
+  3. Accept the edge case remains on narrow phones, since it's a real
+     width constraint, not an error.
+
+  Leaning toward (1) first, since it addresses the actual root cause,
+  possibly combined with a touch of (2). Repro script for this exact
+  scenario (real tokens, real Playwright-measured `renderSyncedColumns`
+  against Numbers 20:7-21) is reusable for verifying whichever fix is
+  chosen — see chat history for the Playwright harness if not preserved
+  in `scripts/`.
+
+  Also still outstanding from before this session, deferred until the
+  above is resolved: a dedicated petucha+setuma test covering both
+  open and closed paragraph behavior together (one test, not two
+  separate passes — the repo's hard-won lesson, repeated multiple times
+  now: an automated pass/fail check is not sufficient, always also
+  eyeball a real screenshot at a real device width); and the end-goal of
+  removing the gold פ/ס glyphs from the scroll column entirely once both
+  are solid (real Torah scrolls don't print paragraph markers).
+
+**Done since last update (prior session):**
 - Step 4 of line-sync (print-time computation) — see prior note above.
 - Aesthetic fixes — aliyah heading restyled to a 3-column grid (English
   left, verse range centered, Hebrew right); Hebrew aliyah labels now use
+
   Arimo (bold) instead of ShlomoSemiStam, reserving the Torah-text font
   for actual Torah text; verse-number font-size bumped 0.58rem → 0.68rem
   → 0.7rem-equivalent contrast fix (color `--ink-pale` → `--ink-soft`,
