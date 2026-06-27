@@ -52,7 +52,7 @@ function wordToHtml(word, forScroll) {
   let s = word
     .replace(/\u2060/g, ' ')
     .replace(/##PE##/g,  '<span class="pm">פ</span>')
-    .replace(/##SAM##/g, '<span class="pm">ס</span>')
+    .replace(/##SAM##/g, '<span class="pm pm-samekh">ס</span>')
     .replace(/##KT_(.*?)_END##/g, ' <span class="kt">\u05db\u05f3 $1</span>');
   if (forScroll) {
     s = s.replace(/\u05BE/g, ' ');

@@ -750,6 +750,34 @@ function countSpaceGaps(html) {
 // browser's own line-wrapping engine correctly continue fresh after the
 // forced break, exactly as it already does after any other break point.
 const PETUCHA_HTML = '<span class="pm">פ</span>';
+const SETUMA_HTML = '<span class="pm pm-samekh">ס</span>'; // must match tokenizer.js wordToHtml exactly
+
+function setumaSpanWithGap(gapPx) {
+  return `<span class="pm pm-samekh" style="margin:0 ${gapPx}px">ס</span>`;
+}
+
+// Shared between the break-DETECTION pass (renderSyncedColumns step 1 /
+// computeBreaksAtWidth) and the final RENDER pass (buildJustifiedColumnHTML)
+// so both see the IDENTICAL setuma width. Bug this fixes: the detection
+// pass used to render the bare, undersized setuma glyph while the render
+// pass separately swelled it to 3 samech-widths each side — so a line
+// that measured as "fits" during detection would then overflow once the
+// real margin was applied, and the overflow word got silently shoved
+// onto its own orphan line by the browser. Baking the true width into
+// detection means a line that's actually too tight now gets a NATURAL
+// browser wrap at the right spot instead of an artificial overflow.
+function measurableTokenHtml(tokens, fontSpec) {
+  const setumaGapPx = measureNaturalWidth(SETUMA_HTML, fontSpec) * 3;
+  return tokens.map((t, i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    const isPetucha = t.vowel === PETUCHA_HTML;
+    const sep = (isPetucha && i + 1 < tokens.length) ? '<br>' : ' ';
+    const glyph = (t.vowel === SETUMA_HTML)
+      ? setumaSpanWithGap(setumaGapPx)
+      : t.vowel;
+    return `<span class="ttok" data-i="${i}">${vn}${glyph}</span>${sep}`;
+  }).join('').trimEnd();
+}
 
 // Ensures a petucha (פ) is never left completely alone on its line with
 // zero accompanying words. This can happen when the line BEFORE a
@@ -796,9 +824,93 @@ function pullPetuchaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
   return [...breakSet].sort((a, b) => a - b);
 }
 
+// Ensures a setuma (ס) never sits as the very first or very last token of
+// its line — at a line edge it's visually indistinguishable from a
+// petucha (which always sits at a line edge by design, via the forced
+// break), defeating the entire point of a closed-paragraph marker
+// looking different from an open one. Mirrors pullPetuchaCompanion's
+// word-shift approach, but bidirectional: pull the previous line's last
+// word forward if the setuma starts its line, and/or pull the next
+// line's first word backward if it ends its line. A setuma alone on a
+// single-token line needs both shifts at once, applied together (and
+// checked together) rather than independently, since they combine into
+// one bigger line, not two separately-validated ones.
+//
+// Unlike pullPetuchaCompanion's pair-only width check (safe there
+// because the absorbing line was already known near-full, by
+// construction, when the petucha became stranded alone), the line
+// absorbing a word here can be an ordinary natural-wrap line nowhere
+// near that edge case — so this checks the REAL, FULL candidate line's
+// natural width, setuma gap included, not just the moved pair. Bails
+// out and leaves the edge case as-is rather than risk an overflow
+// regression, same conservative philosophy as the rest of this file.
+function pullSetumaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
+  const breakSet = new Set(breaks);
+  const setumaGapPx = containerWidthPx ? measureNaturalWidth(SETUMA_HTML, fontSpec) * 3 : 0;
+
+  const lineBoundsFor = (i) => {
+    const sorted = [...new Set([0, ...breakSet, tokens.length])].sort((a, b) => a - b);
+    for (let k = 0; k < sorted.length - 1; k++) {
+      if (sorted[k] <= i && i < sorted[k + 1]) return [sorted[k], sorted[k + 1]];
+    }
+    return [0, tokens.length];
+  };
+
+  const candidateFits = (lo, hi) => {
+    if (!containerWidthPx) return true;
+    const html = tokens.slice(lo, hi).map(t => tokenHtml(t, 'vowel')).join(' ')
+      .split(SETUMA_HTML).join(setumaSpanWithGap(setumaGapPx));
+    return measureNaturalWidth(html, fontSpec) <= containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX;
+  };
+
+  tokens.forEach((t, i) => {
+    if (t.vowel !== SETUMA_HTML) return;
+    const [lo, hi] = lineBoundsFor(i);
+    const isAlone = (hi - lo === 1);
+    const startsLine = (i === lo) && lo > 0;
+    const endsLine = (i === hi - 1) && hi < tokens.length;
+    if (!startsLine && !endsLine) return; // already flanked on both sides
+
+    if (isAlone) {
+      if (lo === 0 || hi === tokens.length) return; // can't flank both sides — nothing safe
+      const priorStart = lineBoundsFor(lo - 1)[0];
+      const nextEnd = lineBoundsFor(hi)[1];
+      if (lo - 1 <= priorStart) return;  // previous line has only 1 token — nothing safe to pull
+      if (hi + 1 >= nextEnd) return;     // next line has only 1 token — nothing safe to pull
+      if (!candidateFits(lo - 1, hi + 1)) return; // combined line would overflow — leave as-is
+      breakSet.delete(lo); breakSet.add(lo - 1);
+      breakSet.delete(hi); breakSet.add(hi + 1);
+      return;
+    }
+
+    if (startsLine) {
+      const priorStart = lineBoundsFor(lo - 1)[0];
+      if (lo - 1 <= priorStart) return; // previous line has only 1 token — nothing safe to pull
+      if (!candidateFits(lo - 1, hi)) return; // would overflow — leave as-is
+      breakSet.delete(lo); breakSet.add(lo - 1);
+    } else if (endsLine) {
+      const nextEnd = lineBoundsFor(hi)[1];
+      if (hi + 1 >= nextEnd) return; // next line has only 1 token — nothing safe to pull
+      if (!candidateFits(lo, hi + 1)) return; // would overflow — leave as-is
+      breakSet.delete(hi); breakSet.add(hi + 1);
+    }
+  });
+  return [...breakSet].sort((a, b) => a - b);
+}
+
 function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpec) {
   const boundaries = [0, ...breaks, tokens.length];
   const lines = [];
+  // EXPERIMENTAL (visual test, not yet validated): give the setuma (ס)
+  // a fixed gap sized in samech-glyph-widths rather than a flat em/px
+  // margin, so it looks the same "shape" regardless of column width,
+  // screen vs print, or font. Spec from conversation: 3 samech-widths on
+  // each side of the visible one — i.e. as if 7 samechs sat in a row
+  // with only the middle one drawn. This is intentionally NOT a
+  // stretchable gap (no word-spacing effect): a real scribal gap is a
+  // fixed shape, not something that grows on a loose line.
+  const samechGlyphWidth = containerWidthPx ? measureNaturalWidth(SETUMA_HTML, fontSpec) : 0;
+  const setumaGapPx = samechGlyphWidth * 3;
   for (let s = 0; s < boundaries.length - 1; s++) {
     const start = boundaries[s], end = boundaries[s + 1];
     if (end <= start) continue;
@@ -812,7 +924,10 @@ function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpe
     // baked in right after it (see renderSyncedColumns/computeBreaksAtWidth),
     // so any line whose last token IS the petucha marker is paragraph-final.
     const isParagraphFinalLine = end < tokens.length && tokens[end - 1] && tokens[end - 1].vowel === PETUCHA_HTML;
-    const innerHtml = tokens.slice(start, end).map(t => tokenHtml(t, key)).join(' ');
+    let innerHtml = tokens.slice(start, end).map(t => tokenHtml(t, key)).join(' ');
+    if (setumaGapPx > 0 && innerHtml.includes(SETUMA_HTML)) {
+      innerHtml = innerHtml.split(SETUMA_HTML).join(setumaSpanWithGap(setumaGapPx));
+    }
     const gaps = countSpaceGaps(innerHtml);
     if (gaps === 0 || !containerWidthPx) {
       lines.push(innerHtml); // nothing to adjust spacing-wise
@@ -889,12 +1004,11 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   // the petucha). Baking the <br> into the measurement itself lets the
   // browser's own line-wrapping correctly continue fresh after the
   // forced break, exactly as it already does after every other break.
-  vowelEl.innerHTML = tokens.map((t,i) => {
-    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    const isPetucha = t.vowel === PETUCHA_HTML;
-    const sep = (isPetucha && i + 1 < tokens.length) ? '<br>' : ' ';
-    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>${sep}`;
-  }).join('').trimEnd();
+  // The setuma glyph is similarly baked in at its TRUE final width (see
+  // measurableTokenHtml) rather than measured small here and swelled
+  // later — see that function's comment for the overflow bug this fixes.
+  const vowelFont = getComputedFontSpec(vowelEl);
+  vowelEl.innerHTML = measurableTokenHtml(tokens, vowelFont);
 
   // Step 2: measure — detect line membership via offsetTop changes
   const spans = vowelEl.querySelectorAll('.ttok');
@@ -914,9 +1028,8 @@ function renderSyncedColumns(tokens, vowelEl, scrollEl) {
   // earlier break-patching approach was tried and rejected.
   const vowelWidth = getContentWidth(vowelEl);
   const scrollWidth = getContentWidth(scrollEl);
-  const vowelFont = getComputedFontSpec(vowelEl);
   const scrollFont = getComputedFontSpec(scrollEl);
-  const finalBreaks = pullPetuchaCompanion(tokens, breaks, vowelWidth, vowelFont);
+  const finalBreaks = pullSetumaCompanion(tokens, pullPetuchaCompanion(tokens, breaks, vowelWidth, vowelFont), vowelWidth, vowelFont);
   vowelEl.innerHTML = buildJustifiedColumnHTML(tokens, finalBreaks, 'vowel', vowelWidth, vowelFont);
   scrollEl.innerHTML = buildJustifiedColumnHTML(tokens, finalBreaks, 'scroll', scrollWidth, scrollFont);
 
@@ -1000,12 +1113,12 @@ function computeBreaksAtWidth(tokens, width) {
   probe.style.wordSpacing = '0.05em';
   document.body.appendChild(probe);
 
-  probe.innerHTML = tokens.map((t,i) => {
-    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    const isPetucha = t.vowel === PETUCHA_HTML;
-    const sep = (isPetucha && i + 1 < tokens.length) ? '<br>' : ' ';
-    return `<span class="ttok" data-i="${i}">${vn}${t.vowel}</span>${sep}`;
-  }).join('').trimEnd();
+  probe.innerHTML = measurableTokenHtml(tokens, {
+    fontFamily: probe.style.fontFamily,
+    fontSize: probe.style.fontSize,
+    lineHeight: probe.style.lineHeight,
+    wordSpacing: probe.style.wordSpacing
+  });
 
   const spans = probe.querySelectorAll('.ttok');
   const breaks = [];
@@ -1044,7 +1157,7 @@ const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fon
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
   const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
-  const breaks = pullPetuchaCompanion(tokens, naturalBreaks, PRINT_REF_WIDTH, PRINT_FONT_SPEC);
+  const breaks = pullSetumaCompanion(tokens, pullPetuchaCompanion(tokens, naturalBreaks, PRINT_REF_WIDTH, PRINT_FONT_SPEC), PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }
