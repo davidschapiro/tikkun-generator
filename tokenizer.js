@@ -27,6 +27,17 @@ function processHeToWords(raw, forScroll) {
   s = resolveKetivQere(s, forScroll);
   s = s.replace(/<span[^>]*mam-spi-pe[^>]*>\{פ\}<\/span>/g,     '##PE##');
   s = s.replace(/<span[^>]*mam-spi-samekh[^>]*>\{ס\}<\/span>/g, '##SAM##');
+  // Some source verses (e.g. Numbers 26:1, Genesis 35:22) embed a literal
+  // <br> right after the petucha span, with NO surrounding whitespace,
+  // when the petucha falls mid-verse and more Hebrew text follows in the
+  // same string. The generic tag-strip below has historically dropped
+  // <br> with zero replacement (unlike &nbsp;/&thinsp;, which become a
+  // space) — gluing the next word directly onto "##PE##" into a single
+  // token. That broke the petucha forced-line-break rule downstream: the
+  // merged token's HTML no longer equals PETUCHA_HTML exactly, so
+  // isPetucha was silently false and no break was ever forced. Treat
+  // <br> as whitespace, same as &nbsp;, before the blanket tag-strip.
+  s = s.replace(/<br\s*\/?>/gi, ' ');
   s = s.replace(/<[^>]+>/g, '');
   s = s.replace(/&nbsp;/g,' ').replace(/&thinsp;/g,' ').replace(/\u00a0/g,' ').trim();
   if (forScroll) {
