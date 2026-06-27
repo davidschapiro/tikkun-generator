@@ -636,6 +636,17 @@ this is *what*.
     pre-bug-fix quality with no orphans, no sparse lines, nothing visibly
     different at all except the (invisible, sub-2px) spacing compression
     on the handful of lines that needed it.
+- **Dropdown no longer shows past parshiot/holidays.**
+  `rebuildDropdown()` filters `PARASHA_LISTS`/`HOLIDAY_DATA` to only
+  entries `>= dateStr(toShabbat(new Date()))`, computed fresh on every
+  call — so the list is naturally self-updating week to week with no
+  extra state to maintain. **A first attempt added a separate pinned
+  "★ This week: ..." option at the top instead of filtering** — user
+  immediately called it redundant and asked for the actual filtering
+  instead, which is what shipped. Manual prev/next date navigation still
+  works for past dates (the filter only affects the dropdown's jump-
+  list, not navigation); verified both Diaspora and Israel calendars
+  correctly start at the current week's real parasha.
 
 **Open work, in priority order:**
 
