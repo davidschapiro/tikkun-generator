@@ -15,7 +15,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ### Core
 - Auto-generates on load and on every control change
-- **Parasha selector** grouped by year and book, ~2.5 years of upcoming Shabbatot
+- **Parasha selector** grouped by year and book, current week onward (~2.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant)
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Tisha B'Av, Yom Kippur Mincha; pre-baked, no extra API calls
 - **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
@@ -29,6 +29,9 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ### Reading & practice tools
 - **Line-synced columns** — scroll and vowelized columns wrap at identical points, so they align row-for-row in Side-by-Side mode and there's no visual jump switching between views in Either-Or mode. Recomputed live on resize; print uses its own fixed-width computation (deterministic `@page` margins) so printed output is identical regardless of the device or window size used to print.
+- **Justified block format** — every line stretches to fill the full column width, like a real tikkun korim, instead of ragged-edge text. The last line of each reading is left unstretched, per standard typesetting convention.
+- **Open-parasha (פ) paragraph breaks render as an actual line break**, not just an inline glyph — the marker always starts a fresh line and is never left stranded alone on its own line with nothing else on it. (Closed-parasha (ס) mid-line-gap styling is not yet implemented — see Known gaps.)
+- **Chapter:verse indicator** — verse numbers show the full `chapter:verse` form (e.g. `19:15`) at the start of every chapter, every 15th verse, and at the start of any reading that begins mid-chapter; a bare verse number everywhere else, so readers always know what chapter they're in without losing the lightweight numbering most of the time.
 - **Aliyah jump dropdown** — verse range shown inline, jump straight to any aliyah
 - **Side-by-Side / Either-Or layout toggle** for Tikkun Korim — Either-Or collapses to a single full-width column with its own **Scroll view / Tikkun view** sub-toggle, for cover-and-check practice
 - Both toggles live in a **floating widget** (bottom-right, always visible while scrolling, on both mobile and desktop) — no need to scroll back up mid-practice
@@ -52,6 +55,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ## Known gaps
 
+- Closed-parasha (ס) paragraph breaks still render as an inline glyph only, not yet as a visual mid-line gap (open-parasha (פ) line-breaking is done — see Reading & practice tools)
 - Yom Kippur Mincha is hardcoded (Leviticus 18:1–30); not in Hebcal
 - Simchat Torah Chatanim structure not included
 - Weekday fast day readings (Shacharit/Mincha) not included
