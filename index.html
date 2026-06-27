@@ -786,6 +786,15 @@ function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpe
     const start = boundaries[s], end = boundaries[s + 1];
     if (end <= start) continue;
     const isLastLine = (s === boundaries.length - 2);
+    // A line that ends right after a petucha (open-parasha) marker is the
+    // LAST line of that paragraph, not just any mid-column line — classic
+    // typesetting convention (and how a real tikkun looks) is that a
+    // paragraph's final line is never stretched to fill the column, same
+    // as the column's true last line already isn't. Detected via the
+    // forced-break invariant itself: PETUCHA_HTML always gets a break
+    // baked in right after it (see renderSyncedColumns/computeBreaksAtWidth),
+    // so any line whose last token IS the petucha marker is paragraph-final.
+    const isParagraphFinalLine = end < tokens.length && tokens[end - 1] && tokens[end - 1].vowel === PETUCHA_HTML;
     const innerHtml = tokens.slice(start, end).map(t => tokenHtml(t, key)).join(' ');
     const gaps = countSpaceGaps(innerHtml);
     if (gaps === 0 || !containerWidthPx) {
@@ -797,7 +806,7 @@ function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpe
     // (AGENTS.md TODO item, fixed below via compression, not re-breaking).
     let extraPerGap = ((containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX) - naturalWidth) / gaps;
 
-    if (isLastLine && extraPerGap >= 0) {
+    if ((isLastLine || isParagraphFinalLine) && extraPerGap >= 0) {
       // Last line of the column is never STRETCHED (classic typesetting
       // convention) — but still must not be allowed to overflow. Only
       // fall through to apply spacing below if compression (negative) is
