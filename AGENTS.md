@@ -553,87 +553,90 @@ this is *what*.
   local-time window reproducing every day, not network flakiness. Fixed
   by building the date string from local Y/M/D components.
 
-**In progress — on branch `setuma-edge-pull`, NOT yet merged:**
+**Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 
-Setuma (ס, closed parasha) visual treatment, attempted in two steps:
+Setuma (ס, closed parasha) visual treatment, in two steps plus a final
+tuning decision:
 
-- **Step 1 (working, validated):** give the setuma a gap sized in
-  samech-glyph-widths (3 per side — "as if 7 samechs sat in a row, only
-  the middle one drawn"), measured live per column/font via
-  `measureNaturalWidth` rather than a flat em/px guess, so it looks the
-  same shape regardless of column width, screen vs print, or font. This
-  surfaced a real bug: the break-DETECTION pass (offsetTop measurement
-  in `renderSyncedColumns`/`computeBreaksAtWidth`) was rendering the
-  bare, undersized setuma glyph while the RENDER pass
+- **Step 1: gap-width/overflow bug, fixed.** Gave the setuma a gap
+  sized in samech-glyph-widths rather than a flat em/px guess, measured
+  live per column/font via `measureNaturalWidth`, so it looks the same
+  shape regardless of column width, screen vs print, or font. This
+  surfaced a real bug along the way: the break-DETECTION pass (offsetTop
+  measurement in `renderSyncedColumns`/`computeBreaksAtWidth`) was
+  rendering the bare, undersized setuma glyph while the RENDER pass
   (`buildJustifiedColumnHTML`) separately swelled it to the full gap —
   so a line that measured as "fits" during detection would then
   overflow once the real margin was applied, and the browser silently
   shoved the overflow word onto its own orphan line. Fixed by factoring
   both passes through one shared function, `measurableTokenHtml`, so
-  detection and render always agree on the setuma's true width. Full
-  tokenizer suite still passes; visually confirmed fixed on the
-  Numbers 26:12/26:15 case from real user screenshots.
+  detection and render always agree on the setuma's true width.
 
-- **Step 2 (implemented, but largely ineffective on narrow phone
-  widths — root cause understood, not yet fixed):** a setuma sitting as
-  the very first or last token of a line is visually indistinguishable
-  from a petucha (which always sits at a line edge by design), defeating
-  the point of a closed-paragraph marker looking different from an open
-  one. Added `pullSetumaCompanion`, modeled on the existing
+- **Step 2: edge-pull, implemented, working better than not at all but
+  not 100%.** A setuma sitting as the very first or last token of a
+  line is visually indistinguishable from a petucha (which always sits
+  at a line edge by design) UNLESS the glyph itself disambiguates it —
+  see the gap-size decision below for why this stopped being a hard
+  blocker. Added `pullSetumaCompanion`, modeled on the existing
   `pullPetuchaCompanion` word-shift but bidirectional — pull the
   previous line's last word forward if the setuma starts a line, pull
   the next line's first word backward if it ends one, do both at once
-  (checked as ONE combined candidate, not two independent ones) if the
-  setuma is alone on a single-token line. Each shift is verified against
-  the REAL, FULL candidate line's natural width (not just the moved
-  pair, unlike the petucha version) before being applied, and bails out
-  — leaving the edge case as cosmetically imperfect rather than risking
-  an overflow regression — if there's no token safe to pull or the
-  result wouldn't fit.
+  if the setuma is alone on a single-token line. Each shift is verified
+  against the REAL, FULL candidate line's natural width (not just the
+  moved pair) before being applied, with a modest compression allowance
+  (reusing the existing `-3px/gap` `COMPRESSION_FLOOR_PX`, not a bigger
+  invented tolerance), and bails out — leaving the edge case
+  cosmetically imperfect rather than risking an overflow regression —
+  if there's no token safe to pull or the result wouldn't fit.
 
-  **The bail-out fires almost every time on a narrow phone column**,
-  confirmed by direct instrumentation against real text (Numbers
-  20:11-13, Mei Merivah — reproduced via Playwright + the real
-  `renderSyncedColumns`, not guessed): at 3 samech-widths per side, the
-  measured gap was ~49.7px on EACH side at a 317px column width — very
-  roughly a third of the entire line's width consumed by the gap alone,
-  before a single Hebrew word is placed. Real Torah text routinely has
-  adjacent lines already near-full from natural wrapping (one
-  reproduction case was already using negative compression just to fit
-  as-is), so there's essentially never enough slack to pull a companion
-  word in without overflowing. The step-1 fix genuinely works (tested
-  and confirmed on Numbers 26); it's the step-2 gap SIZE itself that
-  defeats the edge-pull on realistically narrow columns — not a logic
-  bug in `pullSetumaCompanion`, confirmed by instrumenting the real
-  function and watching it correctly compute `candidateFits = false` at
-  both call sites in the repro.
+- **Gap-size decision: settled on 1x samech-width per side** (down from
+  an initial 3x, then 1.5x as a midpoint). The original reasoning for a
+  wide gap was a "no-glyph" end-goal — make the gap itself wide enough
+  to read unambiguously as a setuma even with the gold פ/ס glyphs
+  eventually removed from the scroll column (real Torah scrolls don't
+  print paragraph markers). That end-goal is now SHELVED, not
+  abandoned outright but explicitly deprioritized: the glyph is staying
+  permanently as the real disambiguator, because removing it would mean
+  a setuma stuck at a line edge reads as an actual petucha with no way
+  to tell otherwise — not cosmetic at that point, genuinely wrong. Once
+  the glyph stays, the gap only needs to be visible breathing room, not
+  self-sufficient, so smaller became strictly better: more slack for
+  the edge-pull, less of the line's width consumed.
 
-  Three honest paths forward, not yet chosen:
-  1. Shrink the gap (e.g. 3 samech-widths → 1.5–2) — less visually
-     distinct from petucha, but leaves real slack for the pull to
-     succeed almost everywhere.
-  2. Let the pull tolerate slight compression — reuse the existing
-     `COMPRESSION_FLOOR_PX` leniency (already used elsewhere for
-     ordinary justification) instead of `candidateFits` being a hard
-     pass/fail.
-  3. Accept the edge case remains on narrow phones, since it's a real
-     width constraint, not an error.
+  Confirmed via a real Playwright reproduction against Numbers 20:11-13
+  (Mei Merivah) at a 320px phone column, instrumenting
+  `pullSetumaCompanion` directly rather than guessing: at 3x the gap
+  measured ~49.7px each side (~a third of the line's width before any
+  Hebrew word is placed) and both edge cases bailed out. At 1.5x
+  (~24.8px each side) both still bailed, but the shortfall on one case
+  dropped from ~36.5px to ~20px. At 1x (~16.6px each side) one of the
+  two cases now succeeds outright (needed 284.9px against a 285.8px
+  threshold); the other still falls short by ~20px. Accepted as a
+  residual edge case (not a bug to keep hunting) rather than loosening
+  the compression allowance further to force it through — a whole
+  extra Hebrew word's width will sometimes exceed what any reasonable
+  gap size leaves room for on a narrow column, and inflating the
+  compression tolerance to paper over that risks real overflow
+  elsewhere just to win one passage.
 
-  Leaning toward (1) first, since it addresses the actual root cause,
-  possibly combined with a touch of (2). Repro script for this exact
-  scenario (real tokens, real Playwright-measured `renderSyncedColumns`
-  against Numbers 20:7-21) is reusable for verifying whichever fix is
-  chosen — see chat history for the Playwright harness if not preserved
-  in `scripts/`.
+  Repro script for this exact scenario (real tokens, real
+  Playwright-measured `renderSyncedColumns` against Numbers 20:7-21,
+  with optional console.log instrumentation patched into
+  `pullSetumaCompanion`'s decision points) is reusable if this gets
+  revisited — see chat history for the harness if not preserved in
+  `scripts/`.
 
-  Also still outstanding from before this session, deferred until the
-  above is resolved: a dedicated petucha+setuma test covering both
-  open and closed paragraph behavior together (one test, not two
+  Still outstanding, deferred: a dedicated petucha+setuma test covering
+  both open and closed paragraph behavior together (one test, not two
   separate passes — the repo's hard-won lesson, repeated multiple times
   now: an automated pass/fail check is not sufficient, always also
-  eyeball a real screenshot at a real device width); and the end-goal of
-  removing the gold פ/ס glyphs from the scroll column entirely once both
-  are solid (real Torah scrolls don't print paragraph markers).
+  eyeball a real screenshot at a real device width). The "remove the
+  glyphs entirely" end-goal is shelved per above, not deferred to a
+  specific trigger — would need the edge-pull to work essentially
+  always, not just more often than before, which is a meaningfully
+  bigger problem than gap-tuning (possibly needs reserving slack near a
+  setuma DURING line-breaking itself, rather than hoping it's there
+  afterward) and isn't currently planned.
 
 **Done since last update (prior session):**
 - Step 4 of line-sync (print-time computation) — see prior note above.
