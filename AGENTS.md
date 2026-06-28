@@ -579,6 +579,21 @@ this is *what*.
   selection from last week, it's narrowing mid-session to check
   something and printing without remembering to widen back. Both tabs'
   print buttons update together, same reason as the filter being global.
+- **"Regular Maftir" toggle for Triennial mode.** Some communities read
+  the regular (full-kriyah) maftir even on a triennial week, rather
+  than the triennial cycle's own maftir — confirmed real and not
+  hypothetical against live Hebcal data for Parashat Pinchas: triennial
+  maftir is `Numbers 26:48-26:51` (just a repeat of the tail of
+  triennial aliyah 7), regular maftir is `Numbers 29:35-30:1` (the
+  special "occurring after 17 Tammuz" reading) — genuinely different
+  verses, not a no-op toggle. Checkbox shown only when Triennial mode
+  is active (meaningless under Full Kriyah, which already always uses
+  the regular maftir); persists via `localStorage` like the other
+  toggles. Known minor gap: visibility is tied only to Triennial/Full
+  mode, not to whether a holiday is currently selected, so Triennial +
+  holiday-selected shows the checkbox with no effect that week (holidays
+  already always use full readings regardless of mode) — harmless, just
+  inert in that one combination, not fixed.
 
 **Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 
