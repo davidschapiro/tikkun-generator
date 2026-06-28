@@ -87,6 +87,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   transition:all 0.12s;letter-spacing:0.03em;}
 .toggle-btn.active{background:var(--gold);color:#fff;}
 .toggle-group.tg-hidden{display:none;}
+.aliyah-chips{display:flex;flex-wrap:wrap;gap:0.35rem;}
+.chip-btn{padding:0.28rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--bg);color:inherit;cursor:pointer;font-size:0.78rem;}
+.chip-btn.active{background:var(--gold);color:#fff;border-color:var(--gold);}
 
 .gen-btn{background:var(--gold);color:#fff;border:none;border-radius:var(--radius);
   padding:0.35rem 1.1rem;font-weight:700;font-size:0.82rem;cursor:pointer;
@@ -416,9 +420,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="israel">Israel</button>
   </div>
 
-  <select class="parasha-select" id="aliyahFilter" style="display:none;min-width:130px;">
-    <option value="all">All Aliyot</option>
-  </select>
+  <div class="aliyah-chips" id="aliyahFilter" style="display:none;"></div>
 
 
 </div>
@@ -1237,26 +1239,35 @@ async function generate() {
 }
 
 function populateAliyahFilter(aliyotData) {
-  const sel = document.getElementById('aliyahFilter');
+  const wrap = document.getElementById('aliyahFilter');
   const keys = ['1','2','3','4','5','6','7','maftir'].filter(k => aliyotData[k]);
-  sel.innerHTML = '<option value="all">All Aliyot</option>';
+  wrap.innerHTML = '';
   keys.forEach(k => {
     const lbl = LABELS[k] || {he:k, en:k};
-    const displayRange = (aliyotData[k].range || '').split(' | ')[0];
-    const opt = document.createElement('option');
-    opt.value = k;
-    opt.textContent = `${lbl.en} \u00b7 ${lbl.he} \u00b7 ${displayRange}`;
-    sel.appendChild(opt);
+    const btn = document.createElement('button');
+    btn.className = 'chip-btn active'; // all selected by default = equivalent to old "All Aliyot"
+    btn.dataset.aliyah = k;
+    btn.textContent = `${lbl.en} \u00b7 ${lbl.he}`;
+    btn.addEventListener('click', () => {
+      const active = wrap.querySelectorAll('.chip-btn.active');
+      // Keep at least one aliyah visible — silently ignore a click that
+      // would deselect the last one, rather than allow an empty view
+      // (and an empty, confusing print job).
+      if (active.length === 1 && btn.classList.contains('active')) return;
+      btn.classList.toggle('active');
+      applyAliyahFilter();
+    });
+    wrap.appendChild(btn);
   });
-  sel.value = 'all';
-  sel.style.display = keys.length > 1 ? 'inline-block' : 'none';
+  wrap.style.display = keys.length > 1 ? 'flex' : 'none';
   applyAliyahFilter();
 }
 function applyAliyahFilter() {
-  const val = document.getElementById('aliyahFilter').value;
+  const activeKeys = new Set(
+    [...document.querySelectorAll('#aliyahFilter .chip-btn.active')].map(b => b.dataset.aliyah)
+  );
   document.querySelectorAll('.aliyah').forEach(sec => {
-    const key = sec.dataset.aliyah;
-    sec.style.display = (val === 'all' || key === val) ? '' : 'none';
+    sec.style.display = (activeKeys.size === 0 || activeKeys.has(sec.dataset.aliyah)) ? '' : 'none';
   });
 }
 function updateFloatingToggleVisibility(activeTab) {
@@ -1421,8 +1432,6 @@ function init() {
     });
   });
 
-  document.getElementById('aliyahFilter').addEventListener('change', applyAliyahFilter);
-
   // Layout toggle: Side-by-Side / Either-Or
   document.querySelectorAll('#layoutToggle .toggle-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -1457,6 +1466,14 @@ function init() {
       document.body.classList.add('show-' + btn.dataset.val);
     });
   });
+  // On mobile, Side-by-Side squeezes both columns into half-width each —
+  // barely usable. Default to Either-Or (Tikkun view) there instead;
+  // desktop keeps Side-by-Side as before. Reuses the real click handler
+  // above rather than duplicating its state changes.
+  if (window.matchMedia('(max-width:680px)').matches) {
+    document.querySelector('#layoutToggle .toggle-btn[data-val="either"]').click();
+  }
+
   syncDropdown();
   generate();
 
