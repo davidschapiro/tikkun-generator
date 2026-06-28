@@ -552,6 +552,33 @@ this is *what*.
   date. Explained a real user-reported symptom exactly: a ~2-hour
   local-time window reproducing every day, not network flakiness. Fixed
   by building the date string from local Y/M/D components.
+- **Mobile defaults to Either-Or / Tikkun view.** Side-by-Side squeezes
+  both columns to half-width each — cramped on a phone. Below 680px
+  (matching the existing mobile breakpoint elsewhere in this file),
+  defaults to Either-Or instead, via the real click handler rather than
+  a duplicated state change. Desktop default (Side-by-Side) unchanged.
+- **Aliyot filter: single-select dropdown → multi-select popover.**
+  Originally tried as an always-expanded chip row; user feedback was
+  that it took up visible header space and lost the verse range that
+  was in the old dropdown option text. Replaced with a closed-by-default
+  trigger button matching the old dropdown's exact footprint/styling,
+  opening a checkbox popover on tap (verse range restored in each row)
+  and closing on outside-click. A bold "All Aliyot" checkbox sits at
+  the top, above a divider — reflects reality (checked only when every
+  aliyah actually is selected, auto-unchecking the moment even one
+  isn't) and clicking it always restores every aliyah at once. The
+  filter is global across both tabs (Practice and Bima share the same
+  `.aliyah[data-aliyah]` keys), and reuses the exact same `display:none`
+  mechanism the print CSS already respects, so printing whatever's
+  currently selected needed zero extra plumbing. Guards against
+  deselecting the last remaining checkbox.
+- **Print buttons show selection count when narrowed**, e.g.
+  "Print (3/6)". Deliberately not a permanent on-screen notice — the
+  selection resets to "all" on every parasha/date change (rebuilt fresh
+  inside `generate()`), so the real risk isn't forgetting a narrowed
+  selection from last week, it's narrowing mid-session to check
+  something and printing without remembering to widen back. Both tabs'
+  print buttons update together, same reason as the filter being global.
 
 **Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 
