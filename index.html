@@ -87,10 +87,14 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   transition:all 0.12s;letter-spacing:0.03em;}
 .toggle-btn.active{background:var(--gold);color:#fff;}
 .toggle-group.tg-hidden{display:none;}
-.aliyah-chips{display:flex;flex-wrap:wrap;gap:0.35rem;}
-.chip-btn{padding:0.28rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius);
-  background:var(--bg);color:inherit;cursor:pointer;font-size:0.78rem;}
-.chip-btn.active{background:var(--gold);color:#fff;border-color:var(--gold);}
+.aliyah-ms{position:relative;}
+.aliyah-ms-panel{position:absolute;top:calc(100% + 0.3rem);left:0;z-index:20;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:0 4px 14px rgba(0,0,0,0.18);padding:0.4rem;min-width:240px;}
+.aliyah-ms-row{display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.4rem;
+  border-radius:var(--radius);cursor:pointer;font-size:0.82rem;white-space:nowrap;}
+.aliyah-ms-row:hover{background:var(--border);}
+.aliyah-ms-row input{cursor:pointer;}
 
 .gen-btn{background:var(--gold);color:#fff;border:none;border-radius:var(--radius);
   padding:0.35rem 1.1rem;font-weight:700;font-size:0.82rem;cursor:pointer;
@@ -420,7 +424,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="israel">Israel</button>
   </div>
 
-  <div class="aliyah-chips" id="aliyahFilter" style="display:none;"></div>
+  <div class="aliyah-ms" id="aliyahFilter" style="display:none;">
+    <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
+    <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
+  </div>
 
 
 </div>
@@ -1240,35 +1247,72 @@ async function generate() {
 
 function populateAliyahFilter(aliyotData) {
   const wrap = document.getElementById('aliyahFilter');
+  const trigger = document.getElementById('aliyahMsTrigger');
+  const panel = document.getElementById('aliyahMsPanel');
   const keys = ['1','2','3','4','5','6','7','maftir'].filter(k => aliyotData[k]);
-  wrap.innerHTML = '';
+  panel.innerHTML = '';
+
+  const allRow = document.createElement('label');
+  allRow.className = 'aliyah-ms-row';
+  allRow.style.fontWeight = '700';
+  allRow.style.borderBottom = '1px solid var(--border)';
+  allRow.style.marginBottom = '0.25rem';
+  allRow.innerHTML = `<input type="checkbox" id="aliyahAllCheckbox" checked><span>All Aliyot</span>`;
+  allRow.querySelector('input').addEventListener('change', (e) => {
+    // Selecting "All" always selects every aliyah. Unchecking it directly
+    // is meaningless on its own (which ones would it deselect?) — ignore
+    // that and leave selections as they were; it'll re-reflect reality
+    // (checked only when everything actually is) via applyAliyahFilter.
+    if (e.target.checked) {
+      panel.querySelectorAll('.aliyah-cb').forEach(cb => cb.checked = true);
+      applyAliyahFilter();
+    } else {
+      applyAliyahFilter(); // just resync its own checked state, no-op otherwise
+    }
+  });
+  panel.appendChild(allRow);
+
   keys.forEach(k => {
     const lbl = LABELS[k] || {he:k, en:k};
-    const btn = document.createElement('button');
-    btn.className = 'chip-btn active'; // all selected by default = equivalent to old "All Aliyot"
-    btn.dataset.aliyah = k;
-    btn.textContent = `${lbl.en} \u00b7 ${lbl.he}`;
-    btn.addEventListener('click', () => {
-      const active = wrap.querySelectorAll('.chip-btn.active');
-      // Keep at least one aliyah visible — silently ignore a click that
-      // would deselect the last one, rather than allow an empty view
-      // (and an empty, confusing print job).
-      if (active.length === 1 && btn.classList.contains('active')) return;
-      btn.classList.toggle('active');
+    const displayRange = (aliyotData[k].range || '').split(' | ')[0];
+    const row = document.createElement('label');
+    row.className = 'aliyah-ms-row';
+    row.innerHTML = `<input type="checkbox" class="aliyah-cb" data-aliyah="${k}" checked>
+      <span>${lbl.en} \u00b7 ${lbl.he} \u00b7 ${displayRange}</span>`;
+    row.querySelector('input').addEventListener('change', (e) => {
+      const stillChecked = [...panel.querySelectorAll('.aliyah-cb')].filter(c => c.checked);
+      if (stillChecked.length === 0) { e.target.checked = true; return; } // keep at least one visible
       applyAliyahFilter();
     });
-    wrap.appendChild(btn);
+    panel.appendChild(row);
   });
-  wrap.style.display = keys.length > 1 ? 'flex' : 'none';
+  wrap.style.display = keys.length > 1 ? 'inline-block' : 'none';
   applyAliyahFilter();
 }
 function applyAliyahFilter() {
-  const activeKeys = new Set(
-    [...document.querySelectorAll('#aliyahFilter .chip-btn.active')].map(b => b.dataset.aliyah)
-  );
+  const panel = document.getElementById('aliyahMsPanel');
+  const all = [...panel.querySelectorAll('.aliyah-cb')];
+  const checked = all.filter(c => c.checked);
+  const activeKeys = new Set(checked.map(c => c.dataset.aliyah));
+
+  document.getElementById('aliyahAllCheckbox').checked = (checked.length === all.length);
+
   document.querySelectorAll('.aliyah').forEach(sec => {
-    sec.style.display = (activeKeys.size === 0 || activeKeys.has(sec.dataset.aliyah)) ? '' : 'none';
+    sec.style.display = activeKeys.has(sec.dataset.aliyah) ? '' : 'none';
   });
+
+  const trigger = document.getElementById('aliyahMsTrigger');
+  if (checked.length === all.length) {
+    trigger.textContent = 'All Aliyot';
+  } else if (checked.length === 1) {
+    trigger.textContent = checked[0].parentElement.querySelector('span').textContent.split(' \u00b7 ')[0];
+  } else {
+    trigger.textContent = checked.length + ' Aliyot selected';
+  }
+}
+function toggleAliyahPanel() {
+  document.getElementById('aliyahMsPanel').style.display =
+    (document.getElementById('aliyahMsPanel').style.display === 'none') ? 'block' : 'none';
 }
 function updateFloatingToggleVisibility(activeTab) {
   // Either-Or / Scroll-Tikkun only applies to the two-column Tikkun Korim
@@ -1430,6 +1474,15 @@ function init() {
       // section was hidden (and thus skipped by syncAllPracticeColumns).
       if (tab === 'practice') requestAnimationFrame(syncAllPracticeColumns);
     });
+  });
+
+  document.getElementById('aliyahMsTrigger').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAliyahPanel();
+  });
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('aliyahFilter');
+    if (!wrap.contains(e.target)) document.getElementById('aliyahMsPanel').style.display = 'none';
   });
 
   // Layout toggle: Side-by-Side / Either-Or
