@@ -19,7 +19,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Tisha B'Av, Yom Kippur Mincha; pre-baked, no extra API calls
 - **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
-- **Regular Maftir override for Triennial mode** — some communities read the regular (full-kriyah) maftir even on a triennial week rather than the triennial cycle's own maftir; toggleable, only shown when Triennial is active
+- **Regular Maftir override for Triennial mode** — some communities read the regular (full-kriyah) maftir even on a triennial week rather than the triennial cycle's own maftir; toggleable, only shown when Triennial is active and no holiday is selected
 - **Diaspora / Israel** toggle — separate parasha and holiday schedules for each
 - Honors special maftirs: Arba Parashiot (Shekalim, Zachor, Para, HaChodesh), Shabbat Rosh Chodesh, Shabbat Chanukka
 
