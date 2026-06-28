@@ -760,6 +760,19 @@ function countSpaceGaps(html) {
 // forced break, exactly as it already does after any other break point.
 const PETUCHA_HTML = '<span class="pm">פ</span>';
 const SETUMA_HTML = '<span class="pm pm-samekh">ס</span>'; // must match tokenizer.js wordToHtml exactly
+// Gap width = this many samech-glyph-widths per side. Was 3 ("as if 7
+// samechs in a row, only the middle one drawn") — measured ~49.7px each
+// side on a 317px phone column, ~a third of the line's total width
+// before any Hebrew word is placed. That left almost no slack for
+// pullSetumaCompanion's word-pull to ever succeed without overflowing,
+// so the edge-pull (step 2) was bailing out almost every time on narrow
+// widths even though its logic was correct. Shrunk to 1.5x: still
+// visually distinct from petucha's plain ~0.12em margin, but leaves
+// real room for the pull to actually work.
+const SETUMA_GAP_SAMECH_MULTIPLIER = 1; // was 1.5, then 3 — glyph is staying permanently as the real
+// disambiguator (no-glyph goal shelved), so the gap is just breathing room now, not
+// something that needs to read unambiguously on its own. Smaller also means more
+// slack left over for pullSetumaCompanion's word-pull to actually succeed.
 
 function setumaSpanWithGap(gapPx) {
   return `<span class="pm pm-samekh" style="margin:0 ${gapPx}px">ס</span>`;
@@ -776,7 +789,7 @@ function setumaSpanWithGap(gapPx) {
 // detection means a line that's actually too tight now gets a NATURAL
 // browser wrap at the right spot instead of an artificial overflow.
 function measurableTokenHtml(tokens, fontSpec) {
-  const setumaGapPx = measureNaturalWidth(SETUMA_HTML, fontSpec) * 3;
+  const setumaGapPx = measureNaturalWidth(SETUMA_HTML, fontSpec) * SETUMA_GAP_SAMECH_MULTIPLIER;
   return tokens.map((t, i) => {
     const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
     const isPetucha = t.vowel === PETUCHA_HTML;
@@ -855,7 +868,7 @@ function pullPetuchaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
 // regression, same conservative philosophy as the rest of this file.
 function pullSetumaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
   const breakSet = new Set(breaks);
-  const setumaGapPx = containerWidthPx ? measureNaturalWidth(SETUMA_HTML, fontSpec) * 3 : 0;
+  const setumaGapPx = containerWidthPx ? measureNaturalWidth(SETUMA_HTML, fontSpec) * SETUMA_GAP_SAMECH_MULTIPLIER : 0;
 
   const lineBoundsFor = (i) => {
     const sorted = [...new Set([0, ...breakSet, tokens.length])].sort((a, b) => a - b);
@@ -869,7 +882,14 @@ function pullSetumaCompanion(tokens, breaks, containerWidthPx, fontSpec) {
     if (!containerWidthPx) return true;
     const html = tokens.slice(lo, hi).map(t => tokenHtml(t, 'vowel')).join(' ')
       .split(SETUMA_HTML).join(setumaSpanWithGap(setumaGapPx));
-    return measureNaturalWidth(html, fontSpec) <= containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX;
+    // A modest compression allowance — mirrors buildJustifiedColumnHTML's
+    // own COMPRESSION_FLOOR_PX (-3px per gap), which the renderer already
+    // applies to every line regardless, rather than inventing a separate,
+    // larger tolerance here. Deliberately small: this lets a candidate
+    // succeed when the renderer would have absorbed the difference via
+    // its existing compression anyway, not when it would visibly squeeze.
+    const compressionBudgetPx = countSpaceGaps(html) * 3;
+    return measureNaturalWidth(html, fontSpec) <= containerWidthPx - JUSTIFY_SAFETY_MARGIN_PX + compressionBudgetPx;
   };
 
   tokens.forEach((t, i) => {
@@ -919,7 +939,7 @@ function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpe
   // stretchable gap (no word-spacing effect): a real scribal gap is a
   // fixed shape, not something that grows on a loose line.
   const samechGlyphWidth = containerWidthPx ? measureNaturalWidth(SETUMA_HTML, fontSpec) : 0;
-  const setumaGapPx = samechGlyphWidth * 3;
+  const setumaGapPx = samechGlyphWidth * SETUMA_GAP_SAMECH_MULTIPLIER;
   for (let s = 0; s < boundaries.length - 1; s++) {
     const start = boundaries[s], end = boundaries[s + 1];
     if (end <= start) continue;
