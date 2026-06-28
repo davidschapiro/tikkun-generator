@@ -1136,7 +1136,7 @@ function renderOutput(p, aliyotData, isHoliday) {
       <div class="tikkun-section-header">
         <div><h2>Practice Tikkun · Tikkun Korim</h2>
           <div class="tikkun-meta">${meta}</div></div>
-        <button class="print-btn" onclick="printSection('practice')">🖨 Print</button>
+        <button class="print-btn" id="printBtnPractice" onclick="printSection('practice')">🖨 Print</button>
       </div>
       ${printHdr('Tikkun Korim')}${practiceHTML}
     </div>
@@ -1144,7 +1144,7 @@ function renderOutput(p, aliyotData, isHoliday) {
       <div class="tikkun-section-header">
         <div><h2>Bima Tikkun</h2>
           <div class="tikkun-meta">${meta}</div></div>
-        <button class="print-btn" onclick="printSection('bima')">🖨 Print</button>
+        <button class="print-btn" id="printBtnBima" onclick="printSection('bima')">🖨 Print</button>
       </div>
       ${printHdr('Bima Tikkun')}${bimaHTML}
     </div>`;
@@ -1309,6 +1309,20 @@ function applyAliyahFilter() {
   } else {
     trigger.textContent = checked.length + ' Aliyot selected';
   }
+
+  // Surface the narrowed selection right where it matters most — on the
+  // Print button itself, at the moment you'd actually act on it — rather
+  // than a permanent on-screen notice. Selection resets to "all" on every
+  // parasha/date change, so the real risk isn't "forgot from last week";
+  // it's narrowing mid-session to check something and printing without
+  // remembering to widen back. The filter is global across both tabs
+  // (Practice and Bima share the same .aliyah[data-aliyah] keys), so both
+  // print buttons need the same signal.
+  const printLabel = (checked.length === all.length) ? '\ud83d\udda8 Print' : `\ud83d\udda8 Print (${checked.length}/${all.length})`;
+  const practiceBtn = document.getElementById('printBtnPractice');
+  const bimaBtn = document.getElementById('printBtnBima');
+  if (practiceBtn) practiceBtn.textContent = printLabel;
+  if (bimaBtn) bimaBtn.textContent = printLabel;
 }
 function toggleAliyahPanel() {
   document.getElementById('aliyahMsPanel').style.display =
