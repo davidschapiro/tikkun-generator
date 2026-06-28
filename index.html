@@ -1339,6 +1339,13 @@ async function generate() {
 
     status.innerHTML='<div class="status"><div class="spinner"></div>Fetching text from Sefaria…</div>';
 
+    // Tied to the same isHoliday this block actually branches on, not just
+    // state.mode — a holiday always uses the regular reading regardless of
+    // Triennial/Full mode, so the checkbox would otherwise show but have
+    // no effect whenever Triennial is selected alongside a holiday.
+    document.getElementById('regularMaftirToggle').style.display =
+      (!isHoliday && state.mode === 'triennial') ? 'inline-flex' : 'none';
+
     const ranges = {};
     if (!isHoliday && state.mode==='triennial' && leyningData.triennial) {
       const t = leyningData.triennial;
@@ -1575,11 +1582,6 @@ function init() {
   state.refDate = toShabbat(new Date());
   rebuildDropdown();
 
-  function updateRegularMaftirVisibility() {
-    document.getElementById('regularMaftirToggle').style.display =
-      (state.mode === 'triennial') ? 'inline-flex' : 'none';
-  }
-
   document.getElementById('regularMaftirCheckbox').checked = state.regularMaftir;
   document.getElementById('regularMaftirCheckbox').addEventListener('change', (e) => {
     state.regularMaftir = e.target.checked;
@@ -1594,11 +1596,9 @@ function init() {
       btn.classList.add('active');
       state.mode=btn.dataset.val;
       localStorage.setItem('tikkunMode',state.mode);
-      updateRegularMaftirVisibility();
       if (!state.holidayKey) generate();
     });
   });
-  updateRegularMaftirVisibility();
 
   document.querySelectorAll('#locToggle .toggle-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{

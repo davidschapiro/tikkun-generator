@@ -587,13 +587,17 @@ this is *what*.
   triennial aliyah 7), regular maftir is `Numbers 29:35-30:1` (the
   special "occurring after 17 Tammuz" reading) — genuinely different
   verses, not a no-op toggle. Checkbox shown only when Triennial mode
-  is active (meaningless under Full Kriyah, which already always uses
-  the regular maftir); persists via `localStorage` like the other
-  toggles. Known minor gap: visibility is tied only to Triennial/Full
-  mode, not to whether a holiday is currently selected, so Triennial +
-  holiday-selected shows the checkbox with no effect that week (holidays
-  already always use full readings regardless of mode) — harmless, just
-  inert in that one combination, not fixed.
+  is active AND no holiday is currently selected (meaningless under
+  Full Kriyah or on a holiday, both of which already always use the
+  regular maftir regardless); persists via `localStorage` like the
+  other toggles. Visibility is set from inside `generate()` itself,
+  tied to the same `isHoliday` the rendering logic actually branches
+  on — not a separate, easier-to-drift check in `init()` keyed only off
+  `state.mode` (an earlier version of this had exactly that gap:
+  Triennial + holiday-selected showed the checkbox with no effect that
+  week; fixed and verified end-to-end against live Hebcal data,
+  including selecting an actual holiday from the real dropdown and
+  confirming the checkbox hides, then reappears switching back).
 
 **Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 
