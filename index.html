@@ -419,6 +419,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="full">Full Kriyah</button>
   </div>
 
+  <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
+    <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
+  </label>
+
   <div class="toggle-group" id="locToggle">
     <button class="toggle-btn active" data-val="diaspora">Diaspora</button>
     <button class="toggle-btn" data-val="israel">Israel</button>
@@ -496,6 +500,7 @@ const state = {
   refDate:    toShabbat(new Date()),
   israel:     false,
   mode:       localStorage.getItem('tikkunMode') || 'triennial',
+  regularMaftir: localStorage.getItem('regularMaftir') === 'true',
   chCache:    {},
   genId:      0,
   holidayKey: null
@@ -1337,7 +1342,14 @@ async function generate() {
     const ranges = {};
     if (!isHoliday && state.mode==='triennial' && leyningData.triennial) {
       const t = leyningData.triennial;
-      for (const k of ['1','2','3','4','5','6','7','maftir']) if(t[k]) ranges[k]=t[k];
+      for (const k of ['1','2','3','4','5','6','7']) if(t[k]) ranges[k]=t[k];
+      // Some communities read the regular (full-kriyah) maftir even on a
+      // triennial week, rather than the triennial cycle's own maftir —
+      // user-toggleable since this varies by community custom, not a
+      // universal rule. Falls back to the triennial maftir if the
+      // checkbox is off, or if there's no regular maftir to fall back to.
+      if (state.regularMaftir && leyningData.maftir) ranges['maftir'] = leyningData.maftir;
+      else if (t.maftir) ranges['maftir'] = t.maftir;
     } else {
       for (const k of ['1','2','3','4','5','6','7']) if(leyningData[k]) ranges[k]=leyningData[k];
       if(leyningData.maftir) ranges['maftir']=leyningData.maftir;
@@ -1563,6 +1575,18 @@ function init() {
   state.refDate = toShabbat(new Date());
   rebuildDropdown();
 
+  function updateRegularMaftirVisibility() {
+    document.getElementById('regularMaftirToggle').style.display =
+      (state.mode === 'triennial') ? 'inline-flex' : 'none';
+  }
+
+  document.getElementById('regularMaftirCheckbox').checked = state.regularMaftir;
+  document.getElementById('regularMaftirCheckbox').addEventListener('change', (e) => {
+    state.regularMaftir = e.target.checked;
+    localStorage.setItem('regularMaftir', state.regularMaftir);
+    if (!state.holidayKey) generate();
+  });
+
   document.querySelectorAll('#modeToggle .toggle-btn').forEach(btn=>{
     if(btn.dataset.val===state.mode) btn.classList.add('active');
     btn.addEventListener('click',()=>{
@@ -1570,9 +1594,11 @@ function init() {
       btn.classList.add('active');
       state.mode=btn.dataset.val;
       localStorage.setItem('tikkunMode',state.mode);
+      updateRegularMaftirVisibility();
       if (!state.holidayKey) generate();
     });
   });
+  updateRegularMaftirVisibility();
 
   document.querySelectorAll('#locToggle .toggle-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
