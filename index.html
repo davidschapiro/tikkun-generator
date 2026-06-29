@@ -622,18 +622,22 @@ async function fetchParasha() {
 // Chodesh), which already gives the correct halachic rule for free: the
 // weekday reading is just the upcoming Shabbat's own first aliyah, split
 // into three — Hebcal computes that, this function only has to ask for it.
-function nextWeekdayDate(fromDate) {
-  const d = new Date(fromDate);
+function weekdayDatesForShabbat(shabbatDate) {
+  // IMPORTANT: the weekday reading "belonging to" a given parasha falls
+  // in the week BEFORE that parasha's own Shabbat, not after — Monday
+  // and Thursday always read the UPCOMING Saturday's first aliyah. So if
+  // Pinchas is showing (Shabbat S), Pinchas's own weekday instances are
+  // the Thursday two days before S and the Monday five days before S,
+  // not the next Mon/Thu after S (which would belong to the FOLLOWING
+  // week's parasha instead — this was the original, wrong behavior).
+  // Content is identical on both days (same aliyot, same parasha), so
+  // either is fine to display; Thursday is tried first since it's
+  // closer to the Shabbat itself.
+  const d = new Date(shabbatDate);
   d.setHours(12,0,0,0); // avoid DST-boundary off-by-one when stepping by day
-  // Start the search from tomorrow even if today already is a Mon/Thu —
-  // "next" should mean genuinely upcoming, not the one already showing.
-  d.setDate(d.getDate() + 1);
-  for (let i = 0; i < 14; i++) {
-    const day = d.getDay(); // 1 = Monday, 4 = Thursday
-    if (day === 1 || day === 4) return d;
-    d.setDate(d.getDate() + 1);
-  }
-  throw new Error('Could not find an upcoming Monday/Thursday.'); // unreachable
+  const thursday = new Date(d); thursday.setDate(d.getDate() - 2);
+  const monday   = new Date(d); monday.setDate(d.getDate() - 5);
+  return [thursday, monday];
 }
 
 function flattenLeyningAliyot(obj) {
@@ -668,15 +672,30 @@ async function fetchWeekdayLeyning(dateObj) {
   const leyning = flattenLeyningAliyot(aliyotObj);
   if (item.haftara) leyning.haftarah = item.haftara;
   if (item.summary) leyning.torah = item.summary;
-  return { title: item.name.en, date: ds, leyning };
+  return { title: item.name.en, date: ds, leyning, itype: item.type };
+}
+
+async function fetchWeekdayReadingForShabbat(shabbatDate) {
+  const [thursday, monday] = weekdayDatesForShabbat(shabbatDate);
+  let thuResult = null, monResult = null, lastErr = null;
+  try { thuResult = await fetchWeekdayLeyning(thursday); } catch (e) { lastErr = e; }
+  if (thuResult && thuResult.itype === 'weekday') return thuResult;
+  try { monResult = await fetchWeekdayLeyning(monday); } catch (e) { lastErr = e; }
+  if (monResult && monResult.itype === 'weekday') return monResult;
+  // Neither landed on a plain weekday reading — rare (e.g. a holiday
+  // happens to override both days that particular week). Fall back to
+  // whichever request actually succeeded rather than failing outright.
+  if (thuResult) return thuResult;
+  if (monResult) return monResult;
+  throw lastErr || new Error('Could not find a weekday reading for this parasha.');
 }
 
 async function loadWeekdayReading() {
   state.holidayKey = null;
   state.chCache = {};
   try {
-    const d = nextWeekdayDate(state.refDate);
-    state.weekdayLeyning = await fetchWeekdayLeyning(d);
+    const shabbat = toShabbat(state.refDate);
+    state.weekdayLeyning = await fetchWeekdayReadingForShabbat(shabbat);
   } catch (e) {
     state.weekdayLeyning = null;
     syncReadingTypeToggle();
