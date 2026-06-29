@@ -746,6 +746,16 @@ tuning decision:
   pre-baked date list, since Monday/Thursday readings repeat the
   upcoming Shabbat's parasha rather than being individually scheduled.
 
+- **Audio integration/linking.** No audio at all right now — text only.
+  Would mean linking to (or embedding) actual chanting/trope recordings
+  for the relevant verses, so someone could listen while practicing.
+  Not investigated yet: Sefaria has some community-submitted audio for
+  Torah reading accessible via its API, but coverage is inconsistent
+  (not every verse/aliyah has a recording) and the actual API shape for
+  this hasn't been looked at. Would need a fallback for verses with no
+  recording available, and a decision on whether to embed inline or
+  just link out to Sefaria/another source.
+
 **Done since last update (prior session):**
 - Step 4 of line-sync (print-time computation) — see prior note above.
 - Aesthetic fixes — aliyah heading restyled to a 3-column grid (English

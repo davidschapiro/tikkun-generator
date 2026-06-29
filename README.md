@@ -63,6 +63,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - Yom Kippur Mincha and all five public fast days' Mincha are hardcoded (not exposed separately by Hebcal's API — same pattern: Hebcal only gives the Shacharit reading)
 - Simchat Torah Chatanim structure not included
 - **Weekday readings not yet supported** — only Shabbat parshiot and holiday readings are covered; Monday/Thursday Shacharit, Rosh Chodesh, and other weekday Torah readings are not (Hebcal does provide this data, same as everything else here — just not wired up yet)
+- **No audio** — text only right now; linking or embedding actual chanting/trope recordings (e.g. Sefaria has some, coverage inconsistent) is a planned idea, not yet investigated
 
 ## Deploy & maintenance
 
