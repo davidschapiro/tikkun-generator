@@ -732,6 +732,20 @@ tuning decision:
   setuma DURING line-breaking itself, rather than hoping it's there
   afterward) and isn't currently planned.
 
+**Not started / open:**
+- **Weekday readings.** Only Shabbat parshiot and holiday readings are
+  covered right now — Monday/Thursday Shacharit, Rosh Chodesh, and
+  other weekday Torah readings aren't. Hebcal provides this data the
+  same way it provides everything else already wired up here (likely
+  via the same `&leyning=1` mechanism, probably needs `&nx=on` or
+  similar for Rosh Chodesh specifically — not yet investigated). Would
+  need: a way to select/display a weekday date in the UI (current
+  dropdown is Shabbat-and-holiday-only), and the corresponding
+  `HOLIDAY_DATA`-equivalent generation in `refresh_data.py` covering
+  the recurring weekday/Rosh-Chodesh leyning cycle, not a fixed
+  pre-baked date list, since Monday/Thursday readings repeat the
+  upcoming Shabbat's parasha rather than being individually scheduled.
+
 **Done since last update (prior session):**
 - Step 4 of line-sync (print-time computation) — see prior note above.
 - Aesthetic fixes — aliyah heading restyled to a 3-column grid (English
