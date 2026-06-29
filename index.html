@@ -37,15 +37,21 @@
 body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-size:15px;line-height:1.6;}
 
 .app-title{background:var(--bg-card);border-bottom:2px solid var(--gold);
-  padding:1.1rem 1.5rem;display:flex;align-items:baseline;gap:0.8rem;}
+  padding:1.1rem 1.5rem;display:flex;align-items:baseline;justify-content:center;gap:0.8rem;}
 .app-title h1{font-size:1.25rem;font-weight:700;color:var(--gold);}
 .app-title span{font-size:0.78rem;color:var(--ink-soft);letter-spacing:0.05em;}
 
 .controls-bar{background:var(--bg-card);border-bottom:1px solid var(--border);
-  padding:0.8rem 1.5rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;
+  padding:0.8rem 1.5rem;display:flex;flex-direction:column;gap:0.6rem;align-items:center;
   position:sticky;top:0;z-index:50;box-shadow:var(--shadow);
   transition:transform 0.25s ease;}
 .controls-bar.hide-on-scroll{transform:translateY(-100%);}
+
+/* All three main toggles always sit together on one dedicated row, in a
+   fixed order, regardless of which buttons happen to be wider ("Weekday"
+   vs "Shabbat") -- previously these lived loose in controls-bar's own
+   flex-wrap and would visibly jump around as label widths changed. */
+.toggle-row{display:flex;flex-wrap:wrap;justify-content:center;gap:0.6rem;align-items:center;}
 
 .top-row{display:flex;align-items:center;gap:0.6rem;}
 .nav-group{display:flex;align-items:center;gap:0.35rem;flex-shrink:0;}
@@ -169,8 +175,9 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:va
 
 
 /* ── TAB SWITCHER ── */
+.tab-row{display:flex;align-items:center;flex-wrap:wrap;gap:0.8rem;margin-bottom:1.2rem;}
 .tab-bar{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);
-  overflow:hidden;width:fit-content;margin-bottom:1.2rem;}
+  overflow:hidden;width:fit-content;}
 .tab-btn{padding:0.35rem 1.1rem;border:none;background:var(--bg);cursor:pointer;
   font-size:0.78rem;font-weight:700;color:var(--ink-soft);font-family:'Arimo',sans-serif;
   transition:all 0.12s;letter-spacing:0.04em;}
@@ -443,39 +450,41 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </optgroup>
     </select>
 
-  <div class="toggle-group" id="modeToggle">
-    <button class="toggle-btn" data-val="triennial">Triennial</button>
-    <button class="toggle-btn" data-val="full">Full Kriyah</button>
-  </div>
+  <div class="toggle-row">
+    <div class="toggle-group" id="modeToggle">
+      <button class="toggle-btn" data-val="triennial">Triennial</button>
+      <button class="toggle-btn" data-val="full">Full Kriyah</button>
+    </div>
 
-  <div class="toggle-group" id="readingTypeToggle">
-    <button class="toggle-btn active" data-val="shabbat">Shabbat</button>
-    <button class="toggle-btn" data-val="weekday">Weekday</button>
+    <div class="toggle-group" id="readingTypeToggle">
+      <button class="toggle-btn active" data-val="shabbat">Shabbat</button>
+      <button class="toggle-btn" data-val="weekday">Weekday</button>
+    </div>
+
+    <div class="toggle-group" id="locToggle">
+      <button class="toggle-btn active" data-val="diaspora">Diaspora</button>
+      <button class="toggle-btn" data-val="israel">Israel</button>
+    </div>
   </div>
 
   <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
     <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
   </label>
 
-  <div class="toggle-group" id="locToggle">
-    <button class="toggle-btn active" data-val="diaspora">Diaspora</button>
-    <button class="toggle-btn" data-val="israel">Israel</button>
-  </div>
-
-  <div class="aliyah-ms" id="aliyahFilter" style="display:none;">
-    <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
-    <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
-  </div>
-
-
 </div>
 
 <main class="content">
   <div id="statusArea"></div>
   <div id="tabBar" style="display:none">
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="practice">Tikkun Korim</button>
-    <button class="tab-btn" data-tab="bima">Bima Tikkun</button>
+  <div class="tab-row">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="practice">Tikkun Korim</button>
+      <button class="tab-btn" data-tab="bima">Bima Tikkun</button>
+    </div>
+    <div class="aliyah-ms" id="aliyahFilter" style="display:none;">
+      <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
+      <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
+    </div>
   </div>
 </div>
 <div id="outputArea"></div>
