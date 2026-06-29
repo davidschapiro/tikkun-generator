@@ -598,6 +598,42 @@ this is *what*.
   week; fixed and verified end-to-end against live Hebcal data,
   including selecting an actual holiday from the real dropdown and
   confirming the checkbox hides, then reappears switching back).
+- **All four minor fast days added** (Tzom Gedaliah, Asara B'Tevet,
+  Ta'anit Esther, Tzom Tammuz) — previously entirely missing, root
+  cause: `refresh_data.py`'s Hebcal query used `mf=off`. Confusingly,
+  Hebcal's "minor holidays" flag is `min` (Chanukah candle nights,
+  Purim, Tu BiShvat — these WERE showing) and minor FASTS are a
+  separate flag, `mf` — easy to misread as the same thing, which is
+  presumably how `mf=off` went unnoticed this long. Flipped to `mf=on`.
+- **Mincha reading added for all five public fasts** (the four minor
+  fasts + Tisha B'Av), not just Tisha B'Av as initially requested —
+  added for all five since they share the identical Mincha structure,
+  confirmed against multiple halachic sources rather than assumed: the
+  "Vayechal Moshe" Torah portion (Exodus 32:11-14, 34:1-10) and the
+  haftarah "Dirshu Hashem" (Isaiah 55:6-56:8). Hebcal's API never
+  exposes a separate Mincha leyning object for these (same gap as Yom
+  Kippur, which `refresh_data.py` already hand-fixed) — generalized
+  that existing YK-Mincha special-case into a loop covering all five.
+  For the four minor fasts, Mincha is literally Shacharit's own reading
+  repeated (reused directly, not re-derived); Tisha B'Av's Shacharit is
+  a different portion (Devarim 4:25-40), so its Mincha Vayechal Moshe
+  needed supplying directly, using the exact same verse split Hebcal
+  itself uses for the minor fasts' Shacharit. Verified end-to-end
+  (not just the data): selected an actual minor fast and Tisha B'Av
+  (Mincha) from the real dropdown, confirmed both generate real text
+  starting "ויחל משה" with no errors.
+- **Separate dropdown bug found and fixed along the way**, distinct
+  from the missing data above: `rebuildDropdown()`'s holiday filter
+  reused `currentDateStr` (the UPCOMING Shabbat, via `toShabbat(new
+  Date())`) as its "is this in the past" cutoff — correct for parshiot,
+  which only ever fall on a Saturday, but wrong for holidays, which can
+  fall on any weekday. A fast falling between today and the coming
+  Shabbat (e.g. Tzom Tammuz, a Thursday, with this coming Saturday
+  being later than that) was wrongly excluded as "past" even though it
+  was still genuinely upcoming. Fixed by using today's actual date
+  (`dateStr(new Date())`) as the holiday-specific cutoff instead.
+  Confirmed live: Tzom Tammuz the week of this fix went from absent to
+  present in the dropdown and generated correctly once fixed.
 
 **Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 

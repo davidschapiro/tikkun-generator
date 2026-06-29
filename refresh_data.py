@@ -78,7 +78,7 @@ def build_holiday_data(israel=False):
     i = '&i=on' if israel else ''
     url = (f"https://www.hebcal.com/hebcal?v=1&cfg=json"
            f"&start={start_str}&end={end_str}"
-           f"&s=off&leyning=1&maj=on&min=off&mf=off&ss=off&mod=off{i}")
+           f"&s=off&leyning=1&maj=on&min=off&mf=on&ss=off&mod=off{i}")
     data = fetch(url)
     holidays = []
     for item in data['items']:
@@ -96,6 +96,32 @@ def build_holiday_data(israel=False):
             '2': 'Leviticus 18:22-18:25',
             '3': 'Leviticus 18:26-18:30',
         }})
+    # Add Mincha for the public fast days. Hebcal's leyning API only ever
+    # gives the Shacharit reading for these — there is no separate Mincha
+    # item, same gap as Yom Kippur above. All five public fasts (the four
+    # minor fasts plus Tisha B'Av) share the SAME Mincha structure: the
+    # "Vayechal Moshe" Torah portion (Exodus 32:11-14, 34:1-10) and the
+    # haftarah "Dirshu Hashem" (Isaiah 55:6-56:8) — confirmed against
+    # multiple halachic sources, not assumed. For the four minor fasts,
+    # Shacharit already IS Vayechal Moshe, so Mincha is literally the same
+    # reading repeated — reuse it directly rather than re-deriving it. For
+    # Tisha B'Av specifically, Shacharit reads a different portion
+    # (Devarim 4:25-40, "Ki Tashchit"), so Mincha's Vayechal Moshe needs to
+    # be supplied directly; verses match Hebcal's own minor-fast split.
+    VAYECHAL_MOSHE = {
+        '1': 'Exodus 32:11-32:14',
+        '2': 'Exodus 34:1-34:3',
+        '3': 'Exodus 34:4-34:10',
+    }
+    FAST_DAY_TITLES = {'Tzom Gedaliah', 'Asara B\u2019Tevet', 'Ta\u2019anit Esther',
+                        'Tzom Tammuz', 'Tish\u2019a B\u2019Av'}
+    for h in [x for x in holidays if x['title'] in FAST_DAY_TITLES]:
+        if h['title'] == 'Tish\u2019a B\u2019Av':
+            mincha_leyning = dict(VAYECHAL_MOSHE)
+        else:
+            mincha_leyning = {k: v for k, v in h['leyning'].items() if k in ('1', '2', '3')}
+        mincha_leyning['haftarah'] = 'Isaiah 55:6-56:8'
+        holidays.append({'date': h['date'], 'title': f"{h['title']} (Mincha)", 'leyning': mincha_leyning})
     holidays.sort(key=lambda x: (x['date'], x['title']))
     return {f"{h['date']}|{h['title']}": h['leyning'] for h in holidays}
 

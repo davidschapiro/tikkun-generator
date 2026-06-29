@@ -16,7 +16,8 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 ### Core
 - Auto-generates on load and on every control change
 - **Parasha selector** grouped by year and book, current week onward (~2.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant)
-- **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Tisha B'Av, Yom Kippur Mincha; pre-baked, no extra API calls
+- **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Yom Kippur Mincha; pre-baked, no extra API calls
+- **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own Mincha reading too (Vayechal Moshe + the haftarah Dirshu Hashem, shared by all five fasts — Tisha B'Av's Shacharit reading differs from the others, but its Mincha is the same as the rest)
 - **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
 - **Regular Maftir override for Triennial mode** — some communities read the regular (full-kriyah) maftir even on a triennial week rather than the triennial cycle's own maftir; toggleable, only shown when Triennial is active and no holiday is selected
@@ -59,9 +60,8 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 ## Known gaps
 
 - A setuma (ס) can occasionally still land as the first or last word of a line on a tight column — a word gets pulled in from the adjacent line where there's room, but a whole extra Hebrew word's width sometimes exceeds what's available, so it isn't guaranteed every time. Distinguishable from a petucha only by the glyph itself in that case; removing the glyph entirely (real Torah scrolls don't print paragraph markers) is a shelved end-goal, not currently planned, since it would need this to succeed essentially always rather than just most of the time
-- Yom Kippur Mincha is hardcoded (Leviticus 18:1–30); not in Hebcal
+- Yom Kippur Mincha and all five public fast days' Mincha are hardcoded (not exposed separately by Hebcal's API — same pattern: Hebcal only gives the Shacharit reading)
 - Simchat Torah Chatanim structure not included
-- Weekday fast day readings (Shacharit/Mincha) not included
 
 ## Deploy & maintenance
 
