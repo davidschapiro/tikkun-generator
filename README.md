@@ -62,6 +62,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - A setuma (ס) can occasionally still land as the first or last word of a line on a tight column — a word gets pulled in from the adjacent line where there's room, but a whole extra Hebrew word's width sometimes exceeds what's available, so it isn't guaranteed every time. Distinguishable from a petucha only by the glyph itself in that case; removing the glyph entirely (real Torah scrolls don't print paragraph markers) is a shelved end-goal, not currently planned, since it would need this to succeed essentially always rather than just most of the time
 - Yom Kippur Mincha and all five public fast days' Mincha are hardcoded (not exposed separately by Hebcal's API — same pattern: Hebcal only gives the Shacharit reading)
 - Simchat Torah Chatanim structure not included
+- **Weekday readings not yet supported** — only Shabbat parshiot and holiday readings are covered; Monday/Thursday Shacharit, Rosh Chodesh, and other weekday Torah readings are not (Hebcal does provide this data, same as everything else here — just not wired up yet)
 
 ## Deploy & maintenance
 
