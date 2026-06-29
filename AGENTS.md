@@ -883,6 +883,30 @@ tuning decision:
   list, not navigation); verified both Diaspora and Israel calendars
   correctly start at the current week's real parasha.
 
+**Decided closed, June 2026 — not being pursued further:**
+
+- **Setuma gap-edge residual cases: accepted as permanent, not a bug to
+  keep chasing.** `pullSetumaCompanion` already exists and works in the
+  common case; the remaining cases where a setuma still lands at a line's
+  start/end (123/100/66 lines at 300/400/530px respectively, per
+  `tests/validate-paragraph-breaks.js`) are staying as-is. No further
+  word-shifting, slack-reservation, or line-breaking work planned here.
+- **Glyph removal from the scroll column: will NOT happen.** The gold
+  פ/ס markers stay permanently in both columns. The earlier "remove the
+  glyph, rely on line-break/gap alone" end-goal (§11 history above) is
+  fully abandoned, not just shelved — the glyph is the disambiguator and
+  is staying.
+- **Dedicated petucha+setuma test: DONE.**
+  `tests/validate-paragraph-breaks.js` covers both together in one pass,
+  per the ordering decision recorded above. Checks, across the full Torah
+  at 300/400/530px: every petucha followed by a forced break (0
+  violations), no petucha ever alone on its line (0 violations), setuma
+  at a line edge (informational count, not a failure — see "accepted as
+  permanent" above), and zero internal line overflow in either column.
+  Run with `node tests/validate-paragraph-breaks.js`. All three widths
+  PASS as of this writing (69,563 tokens, 0 tokenizer mismatches, 291
+  petucha / 379 setuma markers).
+
 **Open work, in priority order:**
 
 1. **Paragraph style as visual line-breaking, not glyphs.** Currently
@@ -963,39 +987,13 @@ tuning decision:
      guarantee at least one real word always accompanies the petucha — a
      petucha sharing a short line with one word is fine; a petucha fully
      alone is the only case that needed fixing.
-   - **Closed parasha (ס, setuma):** insert a tab-like gap *within* a
-     line (not a line break) — the line must end with at least one word
-     from the paragraph before the gap and begin with at least one word
-     from the paragraph after it. If a naive break would put the gap
-     right at the line's end or start, shift the minimal number of words
-     to/from the adjacent line so both conditions hold. Not started.
-   - **Dedicated test, still needed — explicit ordering decision: build
-     after setuma, not before.** The petucha-break checks done so far
-     (289/289 followed by a break; 0 lone-petucha cases after the
-     companion-pull fix) live in ad-hoc verification scripts, not a
-     permanent test alongside `tests/validate-tokenizer.js` and
-     `tests/validate-print-layout.js`. User explicitly decided to write
-     the comprehensive test AFTER setuma lands too, so it can cover both
-     open and closed parasha behavior together in one pass, rather than
-     writing a petucha-only test now and a separate setuma-only test
-     later. Still applies regardless of timing: always also check a real
-     screenshot at a real device width — an automated assertion alone
-     has already proven insufficient multiple times in this exact area
-     of the codebase (print width, vowel-vs-scroll overflow, the
-     rogue-single-word bug, and the retracted "76 cases at an unrealistic
-     synthetic width" claim above).
-   - **Stated end goal (from the user, not yet started):** once the
-     visual paragraph layout (line-break for petucha, gap for setuma)
-     is solid for both open and closed parasha, the explicit gold "פ"/"ס"
-     glyphs should be removed from the SCROLL column entirely — a real
-     Torah scroll has no printed paragraph-marker characters; the
-     physical line-break/gap convention itself is what signals the
-     paragraph structure. (The vowel/tikkun column may keep the glyph —
-     not yet decided.) This depends on the line-break/gap mechanics
-     being fully correct first, hence the ordering: petucha line-break
-     (done) → petucha-never-alone (done) → setuma gap (not started) →
-     dedicated test (not started) → THEN revisit whether/how to drop the
-     glyph from scroll.
+   - **Closed parasha (ס, setuma) gap, petucha-never-alone, and the
+     dedicated test are all DONE — see "Decided closed, June 2026" above
+     for current status, including the explicit decision to accept the
+     remaining setuma edge-of-line cases as permanent rather than chase
+     them further, and to keep the gold glyphs in both columns
+     permanently (the scroll-glyph-removal idea below is no longer
+     planned).**
 
 2. **Lower priority, only if the project keeps growing** (see §7 and §9):
    CI workflow running the test on every push (the PAT now has `Actions:
