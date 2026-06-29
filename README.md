@@ -15,7 +15,7 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ### Core
 - Auto-generates on load and on every control change
-- **Parasha selector** grouped by year and book, current week onward (~2.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant)
+- **Parasha selector** grouped by year and book, current week onward (~2.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant); holidays grouped right alongside each year's parshiot, not dumped at the very end of the whole multi-year list
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Yom Kippur Mincha; pre-baked, no extra API calls
 - **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own Mincha reading too (Vayechal Moshe + the haftarah Dirshu Hashem, shared by all five fasts — Tisha B'Av's Shacharit reading differs from the others, but its Mincha is the same as the rest)
 - **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
