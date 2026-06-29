@@ -168,8 +168,7 @@ def build_static_opts(parasha_list, holiday_keyed):
     by_year = defaultdict(lambda: defaultdict(list))
     for p in parasha_list:
         by_year[p['date'][:4]][p['book']].append(p)
-    lines = ['<option value="">&#8595; Jump to parasha or holiday</option>',
-              '<option value="weekday">&#8594; Next Weekday Reading (Mon/Thu)</option>']
+    lines = ['<option value="">&#8595; Jump to parasha or holiday</option>']
     for year in sorted(by_year.keys()):
         books_sorted = sorted(
             by_year[year].keys(),

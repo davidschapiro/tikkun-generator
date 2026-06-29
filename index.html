@@ -264,7 +264,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   </div>
   <select class="parasha-select" id="parashaSelect">
     <option value="">&#8595; Jump to parasha or holiday</option>
-    <option value="weekday">&#8594; Next Weekday Reading (Mon/Thu)</option>
     <optgroup label="2026 · בַּמִּדְבָּר Numbers">
     <option value="2026-07-04">Pinchas · Jul 4, 2026</option>
     <option value="2026-07-11">Matot-Masei · Jul 11, 2026</option>
@@ -449,6 +448,11 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="full">Full Kriyah</button>
   </div>
 
+  <div class="toggle-group" id="readingTypeToggle">
+    <button class="toggle-btn active" data-val="shabbat">Shabbat</button>
+    <button class="toggle-btn" data-val="weekday">Weekday</button>
+  </div>
+
   <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
     <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
   </label>
@@ -586,6 +590,13 @@ function syncDropdown() {
     'Shabbat ' + shabbat.toLocaleDateString('en-GB', opts);
   if (!state.holidayKey) document.getElementById('parashaSelect').value = '';
 }
+function syncReadingTypeToggle() {
+  // Called whenever some OTHER control (dropdown, prev/next nav) takes
+  // the view out of weekday mode, so the toggle's visual state doesn't
+  // silently disagree with what's actually showing.
+  document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.val === 'shabbat'));
+}
 function updateParashaName(title) {
   const name = (title||'').replace('Parashat ','').replace('Parashas ','');
   document.getElementById('parashaName').textContent = name;
@@ -668,6 +679,7 @@ async function loadWeekdayReading() {
     state.weekdayLeyning = await fetchWeekdayLeyning(d);
   } catch (e) {
     state.weekdayLeyning = null;
+    syncReadingTypeToggle();
     document.getElementById('statusArea').innerHTML =
       `<div class="error-box">⚠ ${e.message}</div>`;
     return;
@@ -1631,8 +1643,7 @@ function formatHolidayTitle(title) {
 function rebuildDropdown() {
   const locKey = state.israel ? 'israel' : 'diaspora';
   const sel = document.getElementById('parashaSelect');
-  sel.innerHTML = '<option value="">\u2193 Jump to parasha or holiday</option>'
-    + '<option value="weekday">\u2192 Next Weekday Reading (Mon/Thu)</option>';
+  sel.innerHTML = '<option value="">\u2193 Jump to parasha or holiday</option>';
 
   const BOOK_HE_JS = {
     Genesis:'\u05d1\u05bc\u05b0\u05e8\u05b5\u05d0\u05e9\u05c1\u05b4\u05d9\u05ea',
@@ -1743,11 +1754,8 @@ function init() {
 
   document.getElementById('parashaSelect').addEventListener('change',function(){
     if (!this.value) return;
-    if (this.value === 'weekday') {
-      loadWeekdayReading();
-      return;
-    }
     state.weekdayLeyning = null;
+    syncReadingTypeToggle();
     if (this.value.startsWith('holiday|')) {
       state.holidayKey = this.value.slice(8);
       state.chCache={};
@@ -1761,12 +1769,29 @@ function init() {
   });
 
   document.getElementById('prevBtn').addEventListener('click',()=>{
-    state.holidayKey=null; state.weekdayLeyning=null; state.refDate=shiftWeeks(state.refDate,-1);
+    state.holidayKey=null; state.weekdayLeyning=null; syncReadingTypeToggle(); state.refDate=shiftWeeks(state.refDate,-1);
     state.chCache={}; syncDropdown(); generate();
   });
   document.getElementById('nextBtn').addEventListener('click',()=>{
-    state.holidayKey=null; state.weekdayLeyning=null; state.refDate=shiftWeeks(state.refDate,1);
+    state.holidayKey=null; state.weekdayLeyning=null; syncReadingTypeToggle(); state.refDate=shiftWeeks(state.refDate,1);
     state.chCache={}; syncDropdown(); generate();
+  });
+
+  document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if (btn.classList.contains('active')) return;
+      document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if (btn.dataset.val === 'weekday') {
+        loadWeekdayReading();
+      } else {
+        state.weekdayLeyning = null;
+        state.holidayKey = null;
+        state.chCache = {};
+        syncDropdown();
+        generate();
+      }
+    });
   });
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
