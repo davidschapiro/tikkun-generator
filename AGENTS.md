@@ -732,21 +732,47 @@ tuning decision:
   setuma DURING line-breaking itself, rather than hoping it's there
   afterward) and isn't currently planned.
 
-**Not started / open:**
-- **Weekday readings.** Only Shabbat parshiot and holiday readings are
-  covered right now — Monday/Thursday Shacharit, Rosh Chodesh, and
-  other weekday Torah readings aren't. Hebcal provides this data the
-  same way it provides everything else already wired up here (likely
-  via the same `&leyning=1` mechanism, probably needs `&nx=on` or
-  similar for Rosh Chodesh specifically — not yet investigated). Would
-  need: a way to select/display a weekday date in the UI (current
-  dropdown is Shabbat-and-holiday-only), and the corresponding
-  `HOLIDAY_DATA`-equivalent generation in `refresh_data.py` covering
-  the recurring weekday/Rosh-Chodesh leyning cycle, not a fixed
-  pre-baked date list, since Monday/Thursday readings repeat the
-  upcoming Shabbat's parasha rather than being individually scheduled.
+**Done, June 2026:**
+- **Weekday readings.** Shipped. Rosh Chodesh and all Mincha leyning
+  (5 public fasts + Yom Kippur) now come from a single rebuilt
+  `refresh_data.py` sourced entirely from the dedicated
+  `https://www.hebcal.com/leyning` endpoint — NOT `/hebcal`, which never
+  returns weekday data at all. `/leyning` returns Shabbat, holiday, and
+  Monday/Thursday weekday items together in one stream (disambiguated by
+  `item.type`), and gives Rosh Chodesh + Mincha for free with no separate
+  flags or hand-built fallback logic (the old `VAYECHAL_MOSHE` synthesis
+  block is gone entirely — deleted, not migrated).
+  Monday/Thursday readings are deliberately NOT embedded at build time —
+  embedding ~150 dates per 1.5-year window would only bloat the dropdown
+  for a reading that's always "the one belonging to whatever parasha is
+  currently open," never something worth scrolling a list to find.
+  Instead, `index.html` has a live `fetchWeekdayReadingForShabbat()` that
+  hits `/leyning?date=...` on demand, mirroring how `fetchParasha()`
+  already fetches a single Shabbat's leyning live. UI is a "Shabbat /
+  Weekday" toggle (same visual family as Triennial/Full Kriyah and
+  Diaspora/Israel) sitting in its own fixed-order row so its label-width
+  difference can't reflow other controls — that was a real, observed bug
+  in an earlier iteration (Diaspora/Israel and the Regular Maftir
+  checkbox visibly jumped position on every toggle click) before the
+  controls-bar layout was restructured into explicit stacked rows.
+  One non-obvious halachic fact this all hinges on: a parasha's own
+  Monday/Thursday instance falls in the week BEFORE its Shabbat, not
+  after — Mon/Thu always reads the UPCOMING Saturday's first aliyah.
+  Getting this backwards was the actual first bug in this feature: toggling
+  Weekday while viewing Pinchas initially showed Matot-Masei's reading
+  instead, because the date math walked forward from today instead of
+  backward from the open Shabbat. Fixed by computing both the Thursday
+  (Shabbat date − 2) and Monday (− 5) of that preceding week and trying
+  Thursday first (content is identical either day); falls back to
+  whichever day actually resolves to a real `weekday`-type item, in case
+  a holiday happens to override one of the two that particular week.
+  Also note: `refresh_data.py`'s fetch window dropped from ~3 years to
+  1.5 years (paginated in ≤175-day chunks, since `/leyning` truncates at
+  180 days per request) — the long dropdown was already a problem the
+  user wanted fixed, and 1.5 years still leaves a full year of buffer
+  before the next biannual (Jan 1 / Jul 1) refresh runs.
 
-- **Audio integration/linking.** No audio at all right now — text only.
+**Not started / open:**- **Audio integration/linking.** No audio at all right now — text only.
   Would mean linking to (or embedding) actual chanting/trope recordings
   for the relevant verses, so someone could listen while practicing.
   Not investigated yet: Sefaria has some community-submitted audio for
