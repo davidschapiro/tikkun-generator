@@ -634,6 +634,18 @@ this is *what*.
   (`dateStr(new Date())`) as the holiday-specific cutoff instead.
   Confirmed live: Tzom Tammuz the week of this fix went from absent to
   present in the dropdown and generated correctly once fixed.
+- **Dropdown now groups holidays alongside each year's parshiot**,
+  instead of every year's parshiot first followed by every year's
+  holidays dumped at the very end of the whole multi-year list — which
+  buried this year's own upcoming holidays behind 1-2 years of
+  unrelated future parshiot. `rebuildDropdown()` now computes the union
+  of years present in either the parasha or holiday data, and for each
+  year (sorted) appends that year's book-optgroups followed immediately
+  by that year's Holidays optgroup, rather than two fully separate
+  top-level loops. Confirmed via Playwright: optgroup order is now
+  `2026 · Numbers, 2026 · Deuteronomy, 2026 · Genesis, 2026 · Holidays,
+  2027 · Exodus, ...` etc., and a real selection from a regrouped
+  Holidays optgroup still generates correctly.
 
 **Done since last update — shipped to `main` (was: in progress on branch `setuma-edge-pull`):**
 
