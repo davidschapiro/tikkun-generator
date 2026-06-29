@@ -1,18 +1,40 @@
 #!/usr/bin/env python3
 """
 Refresh parasha and holiday schedule data in index.html.
-Run biannually via GitHub Actions (Jan 1 and Jul 1).
-Fetches ~2.5 years of data from Hebcal and updates the embedded JS.
+Run biannually via GitHub Actions (Jan 1 and Jul 1) -- see .github/workflows/refresh.yml.
+Fetches 1.5 years of data ahead of today.
+
+Architecture (changed June 2026 -- see AGENTS.md for the "why"):
+Single source of truth is https://www.hebcal.com/leyning, NOT /hebcal. This
+is a genuinely different Hebcal endpoint (same functionality as the
+JS @hebcal/leyning package's getLeyningOnDate) that returns Shabbat,
+holiday, AND Monday/Thursday weekday readings together in one stream,
+disambiguated by an item['type'] field ("shabbat" / "holiday" / "weekday").
+This replaced the old two-call /hebcal approach (one call for the parsha
+list with leyning=0, a second for holiday leyning with leyning=1&maj=on...)
+and, as a side effect, eliminated the need to hand-build Mincha leyning for
+the public fast days and Yom Kippur -- /leyning already returns those as
+separate "<Holiday> (Mincha)" items with correct haftarah, so that
+synthesis logic (previously here, see git history) is gone entirely.
+
+/leyning truncates any single request to 180 days, so the fetch is
+paginated in <=175-day chunks. Weekday (Monday/Thursday) items are NOT
+embedded here -- they're cheap to fetch live, on-demand, exactly the way
+fetchParasha() in index.html already fetches a single Shabbat's leyning
+at runtime. Embedding ~150 weekday dates here would only bloat the
+dropdown for no benefit, since the weekday reading is always either
+today's nearest Monday/Thursday or a button-triggered lookup, never
+something a person scrolls a dropdown to find.
 """
 
-import urllib.request, json, re, sys
-from datetime import date
+import urllib.request, json, re
+from datetime import date, timedelta
 from collections import defaultdict
 
 today      = date.today()
 start_str  = today.isoformat()
-end_str    = date(today.year + 2, 12, 31).isoformat()
-print(f"Fetching {start_str} → {end_str}")
+end_str    = (today + timedelta(days=547)).isoformat()  # ~1.5 years
+print(f"Fetching {start_str} -> {end_str} (1.5 years)")
 
 BOOK_MAP = {
     'Bereshit':'Genesis','Noach':'Genesis','Lech-Lecha':'Genesis','Vayera':'Genesis',
@@ -52,81 +74,81 @@ def fmt_date(d):
     # Cross-platform date formatting without %-d
     return d.strftime('%b %d, %Y').replace(' 0', ' ')
 
-def build_parasha_list(israel=False):
+def aliyah_range_str(a):
+    """Convert a /leyning aliyah object {k,b,e,v} to our flat
+    'Book ch:v-ch:v' string, matching the format the rest of index.html's
+    JS (parseRange) already expects."""
+    return f"{a['k']} {a['b']}-{a['e']}"
+
+def fetch_leyning_items(israel=False):
+    """Paginate /leyning in <=175-day chunks from today through end_str,
+    for one location (Diaspora or Israel). Returns the raw item list."""
     i = '&i=on' if israel else ''
     items = []
-    for year in range(today.year, today.year + 3):
-        url = (f"https://www.hebcal.com/hebcal?v=1&cfg=json&year={year}"
-               f"&maj=off&min=off&nx=off&mf=off&ss=off&mod=off&s=on&leyning=0{i}")
+    chunk_start = today
+    end_date = date.fromisoformat(end_str)
+    while chunk_start <= end_date:
+        chunk_end = min(chunk_start + timedelta(days=175), end_date)
+        url = (f"https://www.hebcal.com/leyning?cfg=json"
+               f"&start={chunk_start.isoformat()}&end={chunk_end.isoformat()}{i}")
         data = fetch(url)
-        items += [x for x in data.get('items', []) if x.get('category') == 'parashat']
-    seen, result = set(), []
-    for item in sorted(items, key=lambda x: x['date']):
-        if item['date'] < start_str:
-            continue
-        name = item['title'].replace('Parashat ', '').replace('Parashas ', '')
-        book = BOOK_MAP.get(name, 'Other')
-        d    = date.fromisoformat(item['date'])
-        key  = item['date'] + name
-        if key not in seen:
-            seen.add(key)
-            result.append({'name': name, 'date': item['date'],
-                           'book': book, 'label': f"{name} \u00b7 {fmt_date(d)}"})
-    return result
+        items += data.get('items', [])
+        chunk_start = chunk_end + timedelta(days=1)
+    return items
 
-def build_holiday_data(israel=False):
-    i = '&i=on' if israel else ''
-    url = (f"https://www.hebcal.com/hebcal?v=1&cfg=json"
-           f"&start={start_str}&end={end_str}"
-           f"&s=off&leyning=1&maj=on&min=off&mf=on&ss=off&mod=off{i}")
-    data = fetch(url)
-    holidays = []
-    for item in data['items']:
-        if item.get('category') != 'holiday':
-            continue
-        l = item.get('leyning', {})
-        keys = [k for k in l if k not in ('torah', 'haftarah', 'haftarah_sephardic', 'triennial')]
-        if not keys:
-            continue
-        holidays.append({'date': item['date'], 'title': item['title'], 'leyning': l})
-    # Add YK Mincha
-    for h in [x for x in holidays if x['title'] == 'Yom Kippur']:
-        holidays.append({'date': h['date'], 'title': 'Yom Kippur (Mincha)', 'leyning': {
-            '1': 'Leviticus 18:1-18:21',
-            '2': 'Leviticus 18:22-18:25',
-            '3': 'Leviticus 18:26-18:30',
-        }})
-    # Add Mincha for the public fast days. Hebcal's leyning API only ever
-    # gives the Shacharit reading for these — there is no separate Mincha
-    # item, same gap as Yom Kippur above. All five public fasts (the four
-    # minor fasts plus Tisha B'Av) share the SAME Mincha structure: the
-    # "Vayechal Moshe" Torah portion (Exodus 32:11-14, 34:1-10) and the
-    # haftarah "Dirshu Hashem" (Isaiah 55:6-56:8) — confirmed against
-    # multiple halachic sources, not assumed. For the four minor fasts,
-    # Shacharit already IS Vayechal Moshe, so Mincha is literally the same
-    # reading repeated — reuse it directly rather than re-deriving it. For
-    # Tisha B'Av specifically, Shacharit reads a different portion
-    # (Devarim 4:25-40, "Ki Tashchit"), so Mincha's Vayechal Moshe needs to
-    # be supplied directly; verses match Hebcal's own minor-fast split.
-    VAYECHAL_MOSHE = {
-        '1': 'Exodus 32:11-32:14',
-        '2': 'Exodus 34:1-34:3',
-        '3': 'Exodus 34:4-34:10',
-    }
-    FAST_DAY_TITLES = {'Tzom Gedaliah', 'Asara B\u2019Tevet', 'Ta\u2019anit Esther',
-                        'Tzom Tammuz', 'Tish\u2019a B\u2019Av'}
-    for h in [x for x in holidays if x['title'] in FAST_DAY_TITLES]:
-        if h['title'] == 'Tish\u2019a B\u2019Av':
-            mincha_leyning = dict(VAYECHAL_MOSHE)
-        else:
-            mincha_leyning = {k: v for k, v in h['leyning'].items() if k in ('1', '2', '3')}
-        mincha_leyning['haftarah'] = 'Isaiah 55:6-56:8'
-        holidays.append({'date': h['date'], 'title': f"{h['title']} (Mincha)", 'leyning': mincha_leyning})
+def build_parasha_and_holiday_data(israel=False):
+    """Single pass over /leyning's unified item stream, splitting into
+    the two structures index.html actually consumes: a bare parasha list
+    (name/date/book/label, no leyning -- that's fetched live at runtime by
+    fetchParasha()) and a keyed holiday-leyning map (full aliyot, used
+    for holidays/fasts/Rosh Chodesh, which ARE embedded since fetching
+    each one live on every page load would mean dozens of extra requests
+    just to populate the dropdown)."""
+    items = fetch_leyning_items(israel)
+
+    parashas, holidays = [], []
+    seen_parasha = set()
+
+    for item in items:
+        itype = item.get('type')
+        if itype == 'shabbat':
+            # Hebcal's /leyning uses a straight apostrophe ('); BOOK_MAP
+            # and every existing label use the curly one (\u2019) --
+            # normalize so names like "Beha'alotcha" actually match.
+            name = item['name']['en'].replace("'", '\u2019')
+            if (item['date'], name) in seen_parasha:
+                continue
+            seen_parasha.add((item['date'], name))
+            book = BOOK_MAP.get(name, 'Other')
+            d = date.fromisoformat(item['date'])
+            parashas.append({'name': name, 'date': item['date'],
+                              'book': book, 'label': f"{name} \u00b7 {fmt_date(d)}"})
+        elif itype == 'holiday':
+            fk = item.get('fullkriyah', {})
+            leyning = {}
+            for k, a in fk.items():
+                key = 'maftir' if k == 'M' else k
+                leyning[key] = aliyah_range_str(a)
+            if not leyning:
+                # Items like "Erev Tish'a B'Av" carry only a `megillah`
+                # reading (Lamentations), no Torah aliyot at all -- not a
+                # tikkun-practice case this tool handles, same exclusion
+                # the old /hebcal-based code applied.
+                continue
+            if 'summary' in item:
+                leyning['torah'] = item['summary']
+            if 'haftara' in item:
+                leyning['haftarah'] = item['haftara']
+            holidays.append({'date': item['date'], 'title': item['name']['en'].replace("'", '\u2019'), 'leyning': leyning})
+        # itype == 'weekday' deliberately not collected here -- see module
+        # docstring. Fetched live at runtime instead.
+
     holidays.sort(key=lambda x: (x['date'], x['title']))
-    return {f"{h['date']}|{h['title']}": h['leyning'] for h in holidays}
+    holiday_keyed = {f"{h['date']}|{h['title']}": h['leyning'] for h in holidays}
+    return parashas, holiday_keyed
 
 def replace_js_object(html, const_name, new_value):
-    """Replace 'const NAME = {...}' using brace counting — no regex backtracking."""
+    """Replace 'const NAME = {...}' using brace counting -- no regex backtracking."""
     marker     = f'const {const_name} = {{'
     start      = html.find(marker)
     if start == -1:
@@ -146,7 +168,8 @@ def build_static_opts(parasha_list, holiday_keyed):
     by_year = defaultdict(lambda: defaultdict(list))
     for p in parasha_list:
         by_year[p['date'][:4]][p['book']].append(p)
-    lines = ['<option value="">&#8595; Jump to parasha or holiday</option>']
+    lines = ['<option value="">&#8595; Jump to parasha or holiday</option>',
+              '<option value="weekday">&#8594; Next Weekday Reading (Mon/Thu)</option>']
     for year in sorted(by_year.keys()):
         books_sorted = sorted(
             by_year[year].keys(),
@@ -173,18 +196,16 @@ def build_static_opts(parasha_list, holiday_keyed):
         lines.append('</optgroup>')
     return '\n    '.join(lines)
 
-# ── Fetch ────────────────────────────────────────────────────────
-print("Building parasha lists...")
-pd = build_parasha_list(False)
-pi = build_parasha_list(True)
-print(f"  Diaspora: {len(pd)}, Israel: {len(pi)}")
+# -- Fetch ----------------------------------------------------------
+print("Fetching from /leyning (Diaspora)...")
+pd, hd = build_parasha_and_holiday_data(False)
+print(f"  Parshiot: {len(pd)}, Holiday/fast/Rosh Chodesh entries: {len(hd)}")
 
-print("Building holiday data...")
-hd = build_holiday_data(False)
-hi = build_holiday_data(True)
-print(f"  Diaspora: {len(hd)}, Israel: {len(hi)}")
+print("Fetching from /leyning (Israel)...")
+pi, hi = build_parasha_and_holiday_data(True)
+print(f"  Parshiot: {len(pi)}, Holiday/fast/Rosh Chodesh entries: {len(hi)}")
 
-# ── Patch index.html ─────────────────────────────────────────────
+# -- Patch index.html -------------------------------------------------
 with open('index.html', encoding='utf-8') as f:
     html = f.read()
 
