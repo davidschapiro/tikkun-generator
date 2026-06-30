@@ -171,10 +171,25 @@ body.layout-either.show-tikkun .col-scroll{display:none;}
   .col-vowel-print,.col-scroll-print{display:block!important;font-size:1.05rem;padding:0.8rem 0.9rem;}
   body.layout-either .practice-body{grid-template-columns:1fr 1fr!important;}
   body.layout-either .col-vowel-print,body.layout-either .col-scroll-print{display:block!important;}
+  /* Bug fix (June 2026): the practice-body grid previously used
+     grid-template-columns:1fr 1fr, which stretches each column to fill
+     whatever the actual printed page width happens to be (~327-360px
+     per column, depending on paper size) -- but the JS justify pass
+     stretches each LINE only up to PRINT_REF_WIDTH (300px, deliberately
+     conservative, see that constant's own comment). The text block
+     therefore sat flush to one edge of a box that was actually wider
+     than what it was justified against, leaving a consistent slab of
+     blank space on the other side -- the "off-center" symptom. Fixed
+     by pinning each print column's content-box width to PRINT_REF_WIDTH
+     via inline style (set in refreshPrintColumns(), so the two numbers
+     can never drift apart again) and centering the resulting
+     fixed-width two-column block as a unit on the page, instead of
+     letting the grid stretch the columns to fill the full page width. */
+  .practice-body{grid-template-columns:max-content max-content!important;justify-content:center;}
 }
 
 .bima-body{font-family:'ShlomoSemiStam','Arimo',sans-serif;font-size:1.8rem;line-height:2.5;
-  direction:rtl;text-align:right;padding:1.2rem 1.4rem 1.4rem;color:var(--ink);word-spacing:0.06em;}
+  direction:rtl;text-align:justify;text-align-last:right;padding:1.2rem 1.4rem 1.4rem;color:var(--ink);word-spacing:0.06em;}
 
 sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:var(--ink-soft);
   vertical-align:super;line-height:0;margin-left:0.12em;user-select:none;}
@@ -758,7 +773,35 @@ function buildBimaFlow(verses) {
   const {tokens} = buildTokens(verses);
   return tokens.map((t,i) => {
     const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    return (i>0 ? ' ' : '') + vn + t.vowel;
+    // Petucha (open-parasha) forces a real paragraph break here too, same
+    // halachic/typesetting rule as the practice columns (see
+    // measurableTokenHtml) -- previously this just dropped the bare
+    // glyph inline with no break at all, which (along with .bima-body
+    // never being text-align:justify in the first place) is what made
+    // Bima Tikkun visually diverge from Tikkun Korim's paragraph
+    // handling. CSS text-align-last:right (see .bima-body) then makes
+    // this forced-break line behave like the columns' "paragraph-final
+    // line is never stretched" convention, automatically, since browsers
+    // already treat the line right before a forced <br> as a last line
+    // for text-align-last purposes -- no JS-side line measurement
+    // needed here the way the dual-column print/screen code requires.
+    const isPetucha = t.vowel === PETUCHA_HTML;
+    const hasNext = i + 1 < tokens.length;
+    const sep = !hasNext ? '' : (isPetucha ? '<br>' : ' ');
+    // Setuma (closed-parasha) gets a visual gap too, same idea as the
+    // columns' setumaSpanWithGap but deliberately simpler: an em-based
+    // margin instead of a px value measured against a specific column
+    // width. Bima has no second column to keep pixel-synced with and no
+    // JS-computed line-break width to match (it's natural browser
+    // reflow, not the columns' measured-and-broken approach), so there's
+    // nothing for a px measurement to stay correct against here -- an em
+    // value scales correctly with screen vs. print font-size (1.8rem vs
+    // 1.5rem, see .bima-body print rule) automatically, with zero extra
+    // measurement code.
+    const glyph = (t.vowel === SETUMA_HTML)
+      ? '<span class="pm pm-samekh" style="margin:0 1em">ס</span>'
+      : t.vowel;
+    return vn + glyph + sep;
   }).join('');
 }
 
@@ -1344,6 +1387,22 @@ async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
   const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
   const breaks = pullSetumaCompanion(tokens, pullPetuchaCompanion(tokens, naturalBreaks, PRINT_REF_WIDTH, PRINT_FONT_SPEC), PRINT_REF_WIDTH, PRINT_FONT_SPEC);
+  // Content-box width pinned to the exact same PRINT_REF_WIDTH the lines
+  // were justified against (see @media print rule above for why this
+  // matters). The page uses a global box-sizing:border-box reset (*{...}
+  // near the top of <style>), so the CSS `width` property here would
+  // normally set the OUTER box width (content+padding+border) rather
+  // than content width -- we'd end up with LESS than PRINT_REF_WIDTH of
+  // actual text room, reintroducing a version of the same bug from the
+  // other direction. Reading the real padding/border off each element
+  // and adding it back compensates for that, so the resulting content
+  // width is exactly PRINT_REF_WIDTH regardless of box-sizing mode.
+  [vowelPrintEl, scrollPrintEl].forEach(el => {
+    const cs = window.getComputedStyle(el);
+    const extra = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+                + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+    el.style.width = (PRINT_REF_WIDTH + extra) + 'px';
+  });
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }
