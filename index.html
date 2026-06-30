@@ -1383,6 +1383,22 @@ async function ensurePrintProbeWarm() {
 
 const PRINT_FONT_SPEC = { fontFamily: "'ShlomoSemiStam','Arimo',sans-serif", fontSize: '1.05rem', lineHeight: '2.3', wordSpacing: '0.05em' };
 
+// These MUST stay in sync with the .col-vowel-print/.col-scroll-print
+// padding/border declared in the @media print CSS rule above. Cannot be
+// read via getComputedStyle() at the point refreshPrintColumns() runs --
+// that call happens during NORMAL (non-print) page viewing, where the
+// print-only padding rule isn't active and getComputedStyle reports 0,
+// not the real print-time value. This was a real bug, not theoretical:
+// it silently undercounted the compensation by the full padding amount
+// (28.8px), making the actual print content area narrower than
+// PRINT_REF_WIDTH by enough to visibly shorten every line and wrap text
+// far earlier than intended. See tests/validate-print-geometry.js,
+// added specifically because this exact class of "looks right on screen,
+// wrong only in print" bug isn't caught by anything else in the suite.
+const PRINT_COL_PADDING_H_PX = 0.9 * 16 * 2; // 0.9rem each side, both sides
+const PRINT_COL_BORDER_VOWEL_PX = 3;          // border-right only
+const PRINT_COL_BORDER_SCROLL_PX = 3 + 1;     // border-right + border-left
+
 async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   await ensurePrintProbeWarm();
   const naturalBreaks = computeBreaksAtWidth(tokens, PRINT_REF_WIDTH);
@@ -1394,15 +1410,11 @@ async function refreshPrintColumns(tokens, scrollPrintEl, vowelPrintEl) {
   // normally set the OUTER box width (content+padding+border) rather
   // than content width -- we'd end up with LESS than PRINT_REF_WIDTH of
   // actual text room, reintroducing a version of the same bug from the
-  // other direction. Reading the real padding/border off each element
-  // and adding it back compensates for that, so the resulting content
-  // width is exactly PRINT_REF_WIDTH regardless of box-sizing mode.
-  [vowelPrintEl, scrollPrintEl].forEach(el => {
-    const cs = window.getComputedStyle(el);
-    const extra = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
-                + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
-    el.style.width = (PRINT_REF_WIDTH + extra) + 'px';
-  });
+  // other direction. Adding the known real padding/border back in
+  // compensates for that, so the resulting content width is exactly
+  // PRINT_REF_WIDTH regardless of box-sizing mode.
+  vowelPrintEl.style.width = (PRINT_REF_WIDTH + PRINT_COL_PADDING_H_PX + PRINT_COL_BORDER_VOWEL_PX) + 'px';
+  scrollPrintEl.style.width = (PRINT_REF_WIDTH + PRINT_COL_PADDING_H_PX + PRINT_COL_BORDER_SCROLL_PX) + 'px';
   vowelPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'vowel', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
   scrollPrintEl.innerHTML = buildJustifiedColumnHTML(tokens, breaks, 'scroll', PRINT_REF_WIDTH, PRINT_FONT_SPEC);
 }

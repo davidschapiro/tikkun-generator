@@ -237,6 +237,31 @@ to locate the actual cause.
   class of false assumption (Either-Or used stale Side-by-Side breaks;
   Bima-tab-hidden broke measurement; resize-while-Scroll-view-active broke
   measurement).
+- **Reading `getComputedStyle()` from the wrong media-query context.**
+  Real bug, shipped to `main`, only caught by the user looking at an
+  actual printed PDF (June 2026): `refreshPrintColumns()` runs during
+  NORMAL page viewing (not inside `@media print`), so `getComputedStyle()`
+  on a `.col-vowel-print`/`.col-scroll-print` element at that point
+  reports whatever CSS applies OUTSIDE `@media print` — which, for a
+  property only declared INSIDE that media query (their padding), is the
+  unset default (0), not the real print-time value. The resulting width
+  compensation silently undercounted by the full padding amount, making
+  every printed line wrap far too early. `page.emulateMedia({media:
+  'print'})` in a Playwright test (or just generating a real PDF via
+  `page.pdf()` and looking at it) would have caught this; a unit-style
+  check of the JS logic in isolation would not have, since the bug was
+  entirely about WHICH CSS cascade was active at measurement time, not
+  the JS math itself. **Lesson: any JS that reads computed style for
+  values that differ between media-query contexts must either run with
+  that context actually active, or use a hardcoded constant proven to
+  match the relevant CSS rule — never read computed style from a context
+  where the rule in question isn't even applied.**
+  `tests/validate-print-geometry.js` (added specifically for this) uses
+  real `emulateMedia('print')` plus real DOM measurement of the actual
+  rendered print columns — not a synthetic probe at an assumed width —
+  to assert content width is pinned to `PRINT_REF_WIDTH`, the two columns
+  are centered (margins equal), and no real line overflows. Run it
+  alongside the other two test files for any future print-path change.
 
 ---
 
