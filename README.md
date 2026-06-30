@@ -15,9 +15,10 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ### Core
 - Auto-generates on load and on every control change
-- **Parasha selector** grouped by year and book, current week onward (~2.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant); holidays grouped right alongside each year's parshiot, not dumped at the very end of the whole multi-year list
-- **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Yom Kippur Mincha; pre-baked, no extra API calls
-- **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own Mincha reading too (Vayechal Moshe + the haftarah Dirshu Hashem, shared by all five fasts — Tisha B'Av's Shacharit reading differs from the others, but its Mincha is the same as the rest)
+- **Parasha selector** grouped by year and book, current week onward (~1.5 years of upcoming Shabbatot — past weeks aren't shown, so the list is always relevant); holidays grouped right alongside each year's parshiot, not dumped at the very end of the whole multi-year list
+- **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8", not raw candle counts), Purim, Rosh Chodesh, Yom Kippur Mincha; pre-baked, no extra API calls
+- **Monday/Thursday weekday Torah reading** — a "Shabbat / Weekday" toggle shows the open parasha's own weekday instance (Monday or Thursday, whichever resolves), fetched live on demand rather than embedded, since it's always the reading for whichever parasha is currently open
+- **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own correctly-sourced Mincha reading (Vayechal Moshe + the haftarah Dirshu Hashem for the four minor fasts and Tisha B'Av's Mincha; Tisha B'Av's own Shacharit reading differs from the others; Yom Kippur Mincha gets its own correct Jonah/Micah haftarah). All Mincha leyning now comes directly from Hebcal's `/leyning` endpoint, not hardcoded
 - **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
 - **Regular Maftir override for Triennial mode** — some communities read the regular (full-kriyah) maftir even on a triennial week rather than the triennial cycle's own maftir; toggleable, only shown when Triennial is active and no holiday is selected
@@ -48,28 +49,27 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 
 ### Technical
 - Hebrew text set in **Shlomo SemiStam** (SIL Open Font License), embedded — no external dependencies
+- Favicon rendered from that same embedded font (a tav, ת)
 - Dark mode support
 - No backend, no build step — `index.html` + a small `tokenizer.js` module, both static
 
 ## Sources
 
-- Leyning data: [Hebcal.com](https://hebcal.com) (Eisenberg/CJLS triennial system)
+- Leyning data: [Hebcal.com](https://hebcal.com)'s `/leyning` endpoint (Eisenberg/CJLS triennial system) — a single unified source for Shabbat, holiday, and Monday/Thursday weekday readings
 - Torah text: [Sefaria.org](https://sefaria.org)
 - Hebrew font: Shlomo SemiStam by Shlomo Orbach, based on Ezra SIL SR — [SIL Open Font License 1.1](https://scripts.sil.org/OFL)
 
 ## Known gaps
 
-- A setuma (ס) can occasionally still land as the first or last word of a line on a tight column — a word gets pulled in from the adjacent line where there's room, but a whole extra Hebrew word's width sometimes exceeds what's available, so it isn't guaranteed every time. Distinguishable from a petucha only by the glyph itself in that case; removing the glyph entirely (real Torah scrolls don't print paragraph markers) is a shelved end-goal, not currently planned, since it would need this to succeed essentially always rather than just most of the time
-- Yom Kippur Mincha and all five public fast days' Mincha are hardcoded (not exposed separately by Hebcal's API — same pattern: Hebcal only gives the Shacharit reading)
+- A setuma (ס) can occasionally still land as the first or last word of a line on a tight column — a word gets pulled in from the adjacent line where there's room, but a whole extra Hebrew word's width sometimes exceeds what's available, so it isn't guaranteed every time. This is accepted as a permanent characteristic rather than something actively being chased further. The glyph itself stays in both columns permanently for this reason (and others) — removing it entirely was an earlier idea, now abandoned, not planned
 - Simchat Torah Chatanim structure not included
-- **Weekday readings not yet supported** — only Shabbat parshiot and holiday readings are covered; Monday/Thursday Shacharit, Rosh Chodesh, and other weekday Torah readings are not (Hebcal does provide this data, same as everything else here — just not wired up yet)
 - **No audio** — text only right now; linking or embedding actual chanting/trope recordings (e.g. Sefaria has some, coverage inconsistent) is a planned idea, not yet investigated
 
 ## Deploy & maintenance
 
 Hosted on GitHub Pages. Any push to `main` auto-deploys. Static files — no build process.
 
-Schedule data (parasha and holiday listings) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1** each year. Can also be triggered manually from the Actions tab. No manual maintenance required.
+Schedule data (parasha and holiday listings) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1** each year, fetching ~1.5 years ahead each run (always at least a full year of buffer before the next refresh). Can also be triggered manually from the Actions tab. No manual maintenance required.
 
 ## Impressum
 
