@@ -46,9 +46,10 @@
 body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-size:15px;line-height:1.6;}
 
 .app-title{background:var(--bg-card);border-bottom:2px solid var(--gold);
-  padding:1.1rem 1.5rem;display:flex;align-items:baseline;justify-content:center;gap:0.8rem;}
+  padding:0.9rem 1.5rem;display:flex;flex-direction:column;align-items:center;gap:0.15rem;}
 .app-title h1{font-size:1.25rem;font-weight:700;color:var(--gold);}
-.app-title span{font-size:0.78rem;color:var(--ink-soft);letter-spacing:0.05em;}
+.app-title .subtitle-1{font-size:0.8rem;font-weight:600;color:var(--ink-mid);letter-spacing:0.03em;}
+.app-title .subtitle-2{font-size:0.72rem;color:var(--ink-soft);letter-spacing:0.04em;}
 
 .controls-bar{background:var(--bg-card);border-bottom:1px solid var(--border);
   padding:0.8rem 1.5rem;display:flex;flex-direction:column;gap:0.6rem;align-items:center;
@@ -62,7 +63,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
    flex-wrap and would visibly jump around as label widths changed. */
 .toggle-row{display:flex;flex-wrap:wrap;justify-content:center;gap:0.6rem;align-items:center;}
 
-.top-row{display:flex;align-items:center;gap:0.6rem;}
+.top-row{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;justify-content:center;}
 .nav-group{display:flex;align-items:center;gap:0.35rem;flex-shrink:0;}
 .date-display{font-size:0.8rem;font-weight:700;color:var(--ink);
   min-width:130px;text-align:center;letter-spacing:0.02em;}
@@ -76,7 +77,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .parasha-select{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
   background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
-  color:var(--ink);padding:0.28rem 0.5rem;cursor:pointer;min-width:220px;
+  color:var(--ink);padding:0.28rem 0.5rem;cursor:pointer;
 }
 .parasha-select optgroup{font-weight:700;color:var(--ink-soft);}
 .parasha-select option{font-weight:400;}
@@ -287,6 +288,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   
   .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
   .top-row{width:100%;justify-content:space-between;}
+  #parashaSelect{width:100%;}
 }
 </style>
 </head>
@@ -294,7 +296,8 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 
 <header class="app-title">
   <h1>Tikkun Generator</h1>
-  <span>Sefaria · Hebcal · Triennial &amp; Full Kriyah</span>
+  <span class="subtitle-1">Shabbat, Holidays &amp; Fast Days</span>
+  <span class="subtitle-2">from Sefaria, based on Hebcal</span>
 </header>
 
 <div class="controls-bar">
@@ -305,8 +308,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
     </div>
     <div class="parasha-name" id="parashaName">—</div>
-  </div>
-  <select class="parasha-select" id="parashaSelect">
+    <select class="parasha-select" id="parashaSelect">
     <option value="">&#8595; Jump to parasha or holiday</option>
     <optgroup label="2026 · בַּמִּדְבָּר Numbers">
     <option value="2026-07-04">Pinchas · Jul 4, 2026</option>
@@ -488,6 +490,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <option value="holiday|2027-12-30|Chanukah Day 6">Chanukah Day 6 · Dec 30, 2027</option>
     </optgroup>
     </select>
+  </div>
 
   <div class="toggle-row">
     <div class="toggle-group" id="modeToggle">
