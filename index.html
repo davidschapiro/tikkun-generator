@@ -213,7 +213,6 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:va
 
 
 /* ── TAB SWITCHER ── */
-.tab-row{display:flex;align-items:center;flex-wrap:wrap;gap:0.8rem;margin-bottom:1.2rem;justify-content:center;}
 .tab-bar{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;width:fit-content;}
 .tab-btn{padding:0.35rem 1.1rem;border:none;background:var(--bg);cursor:pointer;
@@ -507,16 +506,8 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </div>
   </div>
 
-  <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
-    <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
-  </label>
-
-</div>
-
-<main class="content">
-  <div id="statusArea"></div>
   <div id="tabBar" style="display:none">
-  <div class="tab-row">
+  <div class="toggle-row">
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="practice">Tikkun Korim</button>
       <button class="tab-btn" data-tab="bima">Bima Tikkun</button>
@@ -527,7 +518,16 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </div>
     <div id="aliyahJumpBar" class="aliyah-jump-bar" style="display:none;"></div>
   </div>
+  </div>
+
+  <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
+    <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
+  </label>
+
 </div>
+
+<main class="content">
+  <div id="statusArea"></div>
 <div id="outputArea"></div>
 </main>
 
