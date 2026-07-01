@@ -296,7 +296,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 
 <header class="app-title">
   <h1>Tikkun Generator</h1>
-  <span class="subtitle-1">Shabbat, Holidays &amp; Fast Days</span>
+  <span class="subtitle-1">Shabbat, Weekday, Holidays &amp; Fast Days</span>
   <span class="subtitle-2">from Sefaria, based on Hebcal</span>
 </header>
 
@@ -309,7 +309,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </div>
     <div class="parasha-name" id="parashaName">—</div>
     <select class="parasha-select" id="parashaSelect">
-    <option value="">&#8595; Jump to parasha or holiday</option>
+    <option value="">&#8595; Jump to Parasha or Holiday / Fast Day</option>
     <optgroup label="2026 · בַּמִּדְבָּר Numbers">
     <option value="2026-07-04">Pinchas · Jul 4, 2026</option>
     <option value="2026-07-11">Matot-Masei · Jul 11, 2026</option>
@@ -1818,7 +1818,7 @@ function formatHolidayTitle(title) {
 function rebuildDropdown() {
   const locKey = state.israel ? 'israel' : 'diaspora';
   const sel = document.getElementById('parashaSelect');
-  sel.innerHTML = '<option value="">\u2193 Jump to parasha or holiday</option>';
+  sel.innerHTML = '<option value="">\u2193 Jump to Parasha or Holiday / Fast Day</option>';
 
   const BOOK_HE_JS = {
     Genesis:'\u05d1\u05bc\u05b0\u05e8\u05b5\u05d0\u05e9\u05c1\u05b4\u05d9\u05ea',
