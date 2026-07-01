@@ -68,7 +68,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .date-display{font-size:0.8rem;font-weight:700;color:var(--ink);
   min-width:130px;text-align:center;letter-spacing:0.02em;}
 .parasha-name{font-size:0.95rem;font-weight:700;color:var(--ink);
-  min-width:160px;text-align:center;direction:ltr;}
+  flex:1;text-align:center;direction:ltr;}
 .nav-btn{background:none;border:1px solid var(--border);border-radius:var(--radius);
   padding:0.28rem 0.65rem;cursor:pointer;font-size:1rem;color:var(--ink-soft);line-height:1;
   transition:all 0.12s;}
@@ -509,12 +509,8 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </div>
   </div>
 
-  <div id="tabBar" style="display:none">
+  <div id="aliyahRow" style="display:none">
   <div class="toggle-row">
-    <div class="tab-bar">
-      <button class="tab-btn active" data-tab="practice">Tikkun Korim</button>
-      <button class="tab-btn" data-tab="bima">Bima Tikkun</button>
-    </div>
     <div class="aliyah-ms" id="aliyahFilter" style="display:none;">
       <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
       <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
@@ -531,6 +527,12 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 
 <main class="content">
   <div id="statusArea"></div>
+  <div id="tabBar" style="display:none">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="practice">Tikkun Korim</button>
+      <button class="tab-btn" data-tab="bima">Bima Tikkun</button>
+    </div>
+  </div>
 <div id="outputArea"></div>
 </main>
 
@@ -1575,6 +1577,8 @@ async function generate() {
   output.innerHTML='';
   const jumpBar = document.getElementById('aliyahJumpBar');
   if (jumpBar) { jumpBar.innerHTML = ''; jumpBar.style.display = 'none'; }
+  const aliyahRow = document.getElementById('aliyahRow');
+  if (aliyahRow) aliyahRow.style.display = 'none';
 
   try {
     let p, leyningData, isHoliday=false;
@@ -1672,6 +1676,7 @@ async function generate() {
 
     const tabBar = document.getElementById('tabBar');
     tabBar.style.display='block';
+    document.getElementById('aliyahRow').style.display='block';
     const savedTab = localStorage.getItem('tikkunTab') || 'practice';
     document.querySelectorAll('.tab-btn').forEach(b=>{
       b.classList.toggle('active', b.dataset.tab===savedTab);
