@@ -522,6 +522,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
       <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
     </div>
+    <div id="aliyahJumpBar" class="aliyah-jump-bar" style="display:none;"></div>
   </div>
 </div>
 <div id="outputArea"></div>
@@ -1508,20 +1509,38 @@ function renderOutput(p, aliyotData, isHoliday) {
     bimaHTML     += aliyahSection(k,range,verses,'bima',isHoliday);
   }
 
-  // Jump-to bar: one button per rendered aliyah, colored to match its
-  // header. Clicking scrolls to that aliyah AND selects ONLY that aliyah
-  // in the filter panel (so you don't have to open the dropdown at all
-  // for the common "I just need Chamishi" case). The aliyah panel stays
-  // in sync so Print still reflects what you're looking at.
+  // Populate the persistent jump bar in the tab-row. Done here (inside
+  // renderOutput) rather than in generate() because renderedKeys is
+  // naturally in scope here -- it would be out of scope in generate()
+  // since renderOutput returns a string, not an object.
+  const jumpBar = document.getElementById('aliyahJumpBar');
   const jumpColors = isHoliday ? HOLIDAY_COLORS : SHABBAT_COLORS;
-  const jumpBar = renderedKeys.map(k => {
-    const lbl = LABELS[k] || {en:k};
-    const col = jumpColors[k] || '#555';
-    return `<button class="aliyah-jump-btn" data-jump="${k}"
-      style="background:${col}">${lbl.en}</button>`;
-  }).join('');
-  const jumpBarHTML = renderedKeys.length > 1
-    ? `<div class="aliyah-jump-bar">${jumpBar}</div>` : '';
+  if (jumpBar && renderedKeys.length > 1) {
+    jumpBar.innerHTML = renderedKeys.map(k => {
+      const lbl = LABELS[k] || {en: k};
+      const col = jumpColors[k] || '#555';
+      return `<button class="aliyah-jump-btn" data-jump="${k}"
+        style="background:${col}">${lbl.en}</button>`;
+    }).join('');
+    jumpBar.style.display = 'flex';
+    jumpBar.querySelectorAll('.aliyah-jump-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.jump;
+        const visibleSection = document.querySelector('.tikkun-section.visible');
+        const target = visibleSection
+          ? visibleSection.querySelector(`.aliyah[data-aliyah="${key}"]`)
+          : document.querySelector(`.aliyah[data-aliyah="${key}"]`);
+        if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+      });
+    });
+  } else if (jumpBar) {
+    jumpBar.innerHTML = '';
+    jumpBar.style.display = 'none';
+  }
+
+  // Jump-to bar is now rendered into #aliyahJumpBar in the tab-row (see
+  // the jump-bar wiring block below, after output.innerHTML is set) —
+  // not injected into each tikkun section's HTML.
 
   return `
     <div class="tikkun-section practice-section visible">
@@ -1530,7 +1549,7 @@ function renderOutput(p, aliyotData, isHoliday) {
           <div class="tikkun-meta">${meta}</div></div>
         <button class="print-btn" id="printBtnPractice" onclick="printSection('practice')">🖨 Print</button>
       </div>
-      ${printHdr('Tikkun Korim')}${jumpBarHTML}${practiceHTML}
+      ${printHdr('Tikkun Korim')}${practiceHTML}
     </div>
     <div class="tikkun-section bima-section">
       <div class="tikkun-section-header">
@@ -1538,7 +1557,7 @@ function renderOutput(p, aliyotData, isHoliday) {
           <div class="tikkun-meta">${meta}</div></div>
         <button class="print-btn" id="printBtnBima" onclick="printSection('bima')">🖨 Print</button>
       </div>
-      ${printHdr('Bima Tikkun')}${jumpBarHTML}${bimaHTML}
+      ${printHdr('Bima Tikkun')}${bimaHTML}
     </div>`;
 }
 
@@ -1548,6 +1567,8 @@ async function generate() {
   const output = document.getElementById('outputArea');
   status.innerHTML='<div class="status"><div class="spinner"></div>Fetching…</div>';
   output.innerHTML='';
+  const jumpBar = document.getElementById('aliyahJumpBar');
+  if (jumpBar) { jumpBar.innerHTML = ''; jumpBar.style.display = 'none'; }
 
   try {
     let p, leyningData, isHoliday=false;
@@ -1642,29 +1663,6 @@ async function generate() {
     // the result — a same-tick double-call does NOT.
     setTimeout(syncAllPracticeColumns, 0);
     populateAliyahFilter(aliyotData);
-
-    // Wire jump-bar buttons (there may be two bars: one per tikkun section).
-    // Click → scroll to that aliyah's header in the CURRENTLY VISIBLE section
-    // AND solo-select only that aliyah in the filter (same as manually
-    // unchecking All and then checking just one -- two steps in one tap).
-    output.querySelectorAll('.aliyah-jump-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.jump;
-        // Solo-select in the filter panel (works for both sections since they
-        // share the same data-aliyah keys)
-        const panel = document.getElementById('aliyahMsPanel');
-        panel.querySelectorAll('.aliyah-cb').forEach(cb => {
-          cb.checked = (cb.dataset.aliyah === key);
-        });
-        applyAliyahFilter();
-        // Scroll to the aliyah section that's currently visible
-        const visibleSection = document.querySelector('.tikkun-section.visible');
-        const target = visibleSection
-          ? visibleSection.querySelector(`.aliyah[data-aliyah="${key}"]`)
-          : document.querySelector(`.aliyah[data-aliyah="${key}"]`);
-        if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
-      });
-    });
 
     const tabBar = document.getElementById('tabBar');
     tabBar.style.display='block';
