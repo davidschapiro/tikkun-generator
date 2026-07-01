@@ -147,11 +147,14 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
    instead it just stays at the top of the output area where it's easy
    to scroll back to). Hidden in print -- nobody needs to tap it on paper. */
 .aliyah-jump-bar{display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.8rem;}
-.aliyah-jump-btn{padding:0.25rem 0.7rem;border:none;border-radius:var(--radius);
-  font-family:'Arimo',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;
+.aliyah-jump-btn{padding:0.35rem 0.9rem;border:1px solid transparent;border-radius:var(--radius);
+  font-family:'Arimo',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;
   color:#fff;letter-spacing:0.04em;transition:opacity 0.12s;}
 .aliyah-jump-btn:hover{opacity:0.82;}
 @media print{.aliyah-jump-bar{display:none!important;}}
+/* In the tab-row the All Aliyot button doesn't need a wide min-width --
+   the chips already tell you what aliyot exist. Let it shrink to content. */
+#aliyahMsTrigger{min-width:unset;}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
