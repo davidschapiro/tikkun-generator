@@ -141,6 +141,17 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   overflow:hidden;background:var(--bg-card);box-shadow:var(--shadow);}
 .aliyah-hdr{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;
   gap:0.6rem;padding:0.5rem 1.2rem;color:#fff;}
+/* Jump-to strip: compact row of aliyah-label buttons sitting just above
+   the aliyah sections, always in view while scrolling (sticky would
+   fight the sticky controls-bar and cause double-sticky issues, so
+   instead it just stays at the top of the output area where it's easy
+   to scroll back to). Hidden in print -- nobody needs to tap it on paper. */
+.aliyah-jump-bar{display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.8rem;}
+.aliyah-jump-btn{padding:0.25rem 0.7rem;border:none;border-radius:var(--radius);
+  font-family:'Arimo',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;
+  color:#fff;letter-spacing:0.04em;transition:opacity 0.12s;}
+.aliyah-jump-btn:hover{opacity:0.82;}
+@media print{.aliyah-jump-bar{display:none!important;}}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
@@ -1488,12 +1499,29 @@ function renderOutput(p, aliyotData, isHoliday) {
 
   const keys = ['1','2','3','4','5','6','7','maftir'];
   let practiceHTML='', bimaHTML='';
+  const renderedKeys = [];
   for (const k of keys) {
     if (!aliyotData[k]) continue;
+    renderedKeys.push(k);
     const {range,verses} = aliyotData[k];
     practiceHTML += aliyahSection(k,range,verses,'practice',isHoliday);
     bimaHTML     += aliyahSection(k,range,verses,'bima',isHoliday);
   }
+
+  // Jump-to bar: one button per rendered aliyah, colored to match its
+  // header. Clicking scrolls to that aliyah AND selects ONLY that aliyah
+  // in the filter panel (so you don't have to open the dropdown at all
+  // for the common "I just need Chamishi" case). The aliyah panel stays
+  // in sync so Print still reflects what you're looking at.
+  const jumpColors = isHoliday ? HOLIDAY_COLORS : SHABBAT_COLORS;
+  const jumpBar = renderedKeys.map(k => {
+    const lbl = LABELS[k] || {en:k};
+    const col = jumpColors[k] || '#555';
+    return `<button class="aliyah-jump-btn" data-jump="${k}"
+      style="background:${col}">${lbl.en}</button>`;
+  }).join('');
+  const jumpBarHTML = renderedKeys.length > 1
+    ? `<div class="aliyah-jump-bar">${jumpBar}</div>` : '';
 
   return `
     <div class="tikkun-section practice-section visible">
@@ -1502,7 +1530,7 @@ function renderOutput(p, aliyotData, isHoliday) {
           <div class="tikkun-meta">${meta}</div></div>
         <button class="print-btn" id="printBtnPractice" onclick="printSection('practice')">🖨 Print</button>
       </div>
-      ${printHdr('Tikkun Korim')}${practiceHTML}
+      ${printHdr('Tikkun Korim')}${jumpBarHTML}${practiceHTML}
     </div>
     <div class="tikkun-section bima-section">
       <div class="tikkun-section-header">
@@ -1510,7 +1538,7 @@ function renderOutput(p, aliyotData, isHoliday) {
           <div class="tikkun-meta">${meta}</div></div>
         <button class="print-btn" id="printBtnBima" onclick="printSection('bima')">🖨 Print</button>
       </div>
-      ${printHdr('Bima Tikkun')}${bimaHTML}
+      ${printHdr('Bima Tikkun')}${jumpBarHTML}${bimaHTML}
     </div>`;
 }
 
@@ -1615,6 +1643,29 @@ async function generate() {
     setTimeout(syncAllPracticeColumns, 0);
     populateAliyahFilter(aliyotData);
 
+    // Wire jump-bar buttons (there may be two bars: one per tikkun section).
+    // Click → scroll to that aliyah's header in the CURRENTLY VISIBLE section
+    // AND solo-select only that aliyah in the filter (same as manually
+    // unchecking All and then checking just one -- two steps in one tap).
+    output.querySelectorAll('.aliyah-jump-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.jump;
+        // Solo-select in the filter panel (works for both sections since they
+        // share the same data-aliyah keys)
+        const panel = document.getElementById('aliyahMsPanel');
+        panel.querySelectorAll('.aliyah-cb').forEach(cb => {
+          cb.checked = (cb.dataset.aliyah === key);
+        });
+        applyAliyahFilter();
+        // Scroll to the aliyah section that's currently visible
+        const visibleSection = document.querySelector('.tikkun-section.visible');
+        const target = visibleSection
+          ? visibleSection.querySelector(`.aliyah[data-aliyah="${key}"]`)
+          : document.querySelector(`.aliyah[data-aliyah="${key}"]`);
+        if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+
     const tabBar = document.getElementById('tabBar');
     tabBar.style.display='block';
     const savedTab = localStorage.getItem('tikkunTab') || 'practice';
@@ -1646,16 +1697,17 @@ function populateAliyahFilter(aliyotData) {
   allRow.style.marginBottom = '0.25rem';
   allRow.innerHTML = `<input type="checkbox" id="aliyahAllCheckbox" checked><span>All Aliyot</span>`;
   allRow.querySelector('input').addEventListener('change', (e) => {
-    // Selecting "All" always selects every aliyah. Unchecking it directly
-    // is meaningless on its own (which ones would it deselect?) — ignore
-    // that and leave selections as they were; it'll re-reflect reality
-    // (checked only when everything actually is) via applyAliyahFilter.
+    const cbs = [...panel.querySelectorAll('.aliyah-cb')];
     if (e.target.checked) {
-      panel.querySelectorAll('.aliyah-cb').forEach(cb => cb.checked = true);
-      applyAliyahFilter();
+      // Check → select all
+      cbs.forEach(cb => cb.checked = true);
     } else {
-      applyAliyahFilter(); // just resync its own checked state, no-op otherwise
+      // Uncheck while all were selected → deselect all except none
+      // (we enforce the "at least one" rule only when toggling individual
+      // aliyot; unchecking All is an explicit "I want to pick" intent)
+      cbs.forEach(cb => cb.checked = false);
     }
+    applyAliyahFilter();
   });
   panel.appendChild(allRow);
 
