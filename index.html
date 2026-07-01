@@ -213,7 +213,7 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:va
 
 
 /* ── TAB SWITCHER ── */
-.tab-row{display:flex;align-items:center;flex-wrap:wrap;gap:0.8rem;margin-bottom:1.2rem;}
+.tab-row{display:flex;align-items:center;flex-wrap:wrap;gap:0.8rem;margin-bottom:1.2rem;justify-content:center;}
 .tab-bar{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;width:fit-content;}
 .tab-btn{padding:0.35rem 1.1rem;border:none;background:var(--bg);cursor:pointer;
@@ -1739,6 +1739,15 @@ function applyAliyahFilter() {
 
   document.querySelectorAll('.aliyah').forEach(sec => {
     sec.style.display = activeKeys.has(sec.dataset.aliyah) ? '' : 'none';
+  });
+
+  // Mirror the selection state onto the jump chips: hide chips for
+  // aliyot that aren't currently shown, so the bar only offers jumps
+  // to things actually visible. When everything is selected, show all
+  // chips (the normal full-parasha state).
+  document.querySelectorAll('#aliyahJumpBar .aliyah-jump-btn').forEach(btn => {
+    btn.style.display = (checked.length === all.length || activeKeys.has(btn.dataset.jump))
+      ? '' : 'none';
   });
 
   const trigger = document.getElementById('aliyahMsTrigger');
