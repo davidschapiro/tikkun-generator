@@ -160,15 +160,8 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 /* Congregation-repeat verses for fast-day readings (Vayechal Moshe) */
 .cong-note{font-size:0.72rem;color:var(--ink-soft);font-style:italic;
   text-align:center;padding:0.3rem 0.6rem 0.5rem;direction:ltr;}
-/* Text color only — no background. A steel-blue that's clearly distinct
-   from the gold used for פ/ס markers, and readable in both light/dark mode. */
-.cong-segment .col-vowel,.cong-segment .col-scroll,
-.cong-segment .col-vowel-print,.cong-segment .col-scroll-print{color:#3a6ea8;}
-.cong-verse-bima{color:#3a6ea8;}
-@media(prefers-color-scheme:dark){
-  .cong-segment .col-vowel,.cong-segment .col-scroll,
-  .cong-segment .col-vowel-print,.cong-segment .col-scroll-print{color:#7fb3e8;}
-  .cong-verse-bima{color:#7fb3e8;}}
+.cong-token{color:#3a6ea8;}
+@media(prefers-color-scheme:dark){.cong-token{color:#7fb3e8;}}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
@@ -1074,6 +1067,33 @@ function setumaSpanWithGap(gapPx) {
 // onto its own orphan line by the browser. Baking the true width into
 // detection means a line that's actually too tight now gets a NATURAL
 // browser wrap at the right spot instead of an artificial overflow.
+// Given a token array built from annotated pseudo-verses (with .cong flags),
+// mark each token with .cong=true if it came from a congregation pseudo-verse.
+// Uses t.verseNum transitions (non-null = first token of each pseudo-verse)
+// to walk through the congByIdx parallel array built from annotatedVerses.
+function markCongTokens(tokens, annotatedVerses) {
+  const congByIdx = annotatedVerses.map(v => !!v.cong); // one entry per pseudo-verse
+  let verseIdx = 0;
+  let first = true;
+  tokens.forEach(t => {
+    if (!first && t.verseNum !== null && t.verseNum !== undefined) verseIdx++;
+    first = false;
+    t.cong = !!congByIdx[verseIdx];
+  });
+  return tokens;
+}
+
+const CONG_COLOR_VOWEL = 'color:#3a6ea8';
+const CONG_COLOR_SCROLL = 'color:#3a6ea8';
+// Same color on both columns so they read as a matched pair.
+// Dark mode: handled via .cong-token CSS class (see the CSS block above).
+
+function congWrap(html, key) {
+  // Wrap token HTML in a colored span for congregation tokens.
+  // word-spacing on the outer justified span cascades through correctly.
+  return `<span class="cong-token">${html}</span>`;
+}
+
 function measurableTokenHtml(tokens, fontSpec) {
   const setumaGapPx = measureNaturalWidth(SETUMA_HTML, fontSpec) * SETUMA_GAP_SAMECH_MULTIPLIER;
   return tokens.map((t, i) => {
@@ -1083,7 +1103,8 @@ function measurableTokenHtml(tokens, fontSpec) {
     const glyph = (t.vowel === SETUMA_HTML)
       ? setumaSpanWithGap(setumaGapPx)
       : t.vowel;
-    return `<span class="ttok" data-i="${i}">${vn}${glyph}</span>${sep}`;
+    const raw = `<span class="ttok" data-i="${i}">${vn}${glyph}</span>`;
+    return (t.cong ? `<span class="cong-token">${raw}</span>` : raw) + sep;
   }).join('').trimEnd();
 }
 
@@ -1239,7 +1260,10 @@ function buildJustifiedColumnHTML(tokens, breaks, key, containerWidthPx, fontSpe
     // baked in right after it (see renderSyncedColumns/computeBreaksAtWidth),
     // so any line whose last token IS the petucha marker is paragraph-final.
     const isParagraphFinalLine = end < tokens.length && tokens[end - 1] && tokens[end - 1].vowel === PETUCHA_HTML;
-    let innerHtml = tokens.slice(start, end).map(t => tokenHtml(t, key)).join(' ');
+    let innerHtml = tokens.slice(start, end).map(t => {
+      const h = tokenHtml(t, key);
+      return t.cong ? `<span class="cong-token">${h}</span>` : h;
+    }).join(' ');
     if (setumaGapPx > 0 && innerHtml.includes(SETUMA_HTML)) {
       innerHtml = innerHtml.split(SETUMA_HTML).join(setumaSpanWithGap(setumaGapPx));
     }
@@ -1540,35 +1564,15 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
     const annotatedVerses = injectCongregationMarkers(verses);
     const hasCong = annotatedVerses.some(v => v.cong);
     const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
-
-    // Split at cong-property transitions. Each congregation span (v.cong===true)
-    // gets its own practice-body grid with the cong-segment CSS class, which
-    // applies text color to all its columns. Non-congregation segments are
-    // rendered normally. Empty segments (e.g. split at verse start) are skipped.
-    const segments = [];
-    let cur = [], isCong = false;
-    for (const v of annotatedVerses) {
-      const thisCong = !!v.cong;
-      if (thisCong !== isCong) {
-        if (cur.length) segments.push({verses: cur, isCong});
-        cur = []; isCong = thisCong;
-      }
-      cur.push(v);
-    }
-    if (cur.length) segments.push({verses: cur, isCong});
-
-    body = noteHTML + segments.map(({verses: sv, isCong: cong}) => {
-      if (!sv.length) return ''; // skip empty segments
-      const {tokens} = buildTokens(sv);
-      const tokenId = 'tk' + (__aliyahTokenCounter++);
-      window.__aliyahTokenRegistry[tokenId] = tokens;
-      const cls = cong ? 'practice-body cong-segment' : 'practice-body';
-      return `<div class="${cls}" data-token-id="${tokenId}">
-           <div class="col-scroll" dir="rtl"></div>
-           <div class="col-vowel"  dir="rtl"></div>
-           <div class="col-scroll-print" dir="rtl"></div>
-           <div class="col-vowel-print"  dir="rtl"></div></div>`;
-    }).join('');
+    const {tokens} = buildTokens(annotatedVerses);
+    markCongTokens(tokens, annotatedVerses);
+    const tokenId = 'tk' + (__aliyahTokenCounter++);
+    window.__aliyahTokenRegistry[tokenId] = tokens;
+    body = noteHTML + `<div class="practice-body" data-token-id="${tokenId}">
+         <div class="col-scroll" dir="rtl"></div>
+         <div class="col-vowel"  dir="rtl"></div>
+         <div class="col-scroll-print" dir="rtl"></div>
+         <div class="col-vowel-print"  dir="rtl"></div></div>`;
   } else {
     const annotatedVerses = injectCongregationMarkers(verses);
     const hasCong = annotatedVerses.some(v => v.cong);
