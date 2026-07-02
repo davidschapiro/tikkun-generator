@@ -130,16 +130,28 @@ def build_parasha_and_holiday_data(israel=False):
                 key = 'maftir' if k == 'M' else k
                 leyning[key] = aliyah_range_str(a)
             if not leyning:
-                # Items like "Erev Tish'a B'Av" carry only a `megillah`
-                # reading (Lamentations), no Torah aliyot at all -- not a
-                # tikkun-practice case this tool handles, same exclusion
-                # the old /hebcal-based code applied.
                 continue
             if 'summary' in item:
                 leyning['torah'] = item['summary']
             if 'haftara' in item:
                 leyning['haftarah'] = item['haftara']
-            holidays.append({'date': item['date'], 'title': item['name']['en'].replace("'", '\u2019'), 'leyning': leyning})
+            # Store Hebrew date so the UI can show it in the meta line --
+            # without this, holidays show the secular date twice since
+            # HOLIDAY_DATA had no hdate and the fallback was the ISO date.
+            if 'hdate' in item:
+                leyning['hdate'] = item['hdate']
+            title = item['name']['en'].replace("'", '\u2019')
+            # Deduplicate 2-day Rosh Chodesh: both days have identical readings
+            # (Numbers 28:1-15). When a month has 30 days, Rosh Chodesh is:
+            #   day 1 = 30th of the outgoing month (hdate: "30 PrevMonth")
+            #   day 2 = 1st of the new month      (hdate: "1 NewMonth")
+            # The canonical entry to keep is the 1st of the new month, since
+            # that's what people think of as Rosh Chodesh. Drop day 1 (30th).
+            # Exception: "Chanukah Day N (on Rosh Chodesh)" — keep those as-is.
+            hdate_str = item.get('hdate', '')
+            if 'Rosh Chodesh' in title and 'Chanukah' not in title and hdate_str.startswith('30 '):
+                continue
+            holidays.append({'date': item['date'], 'title': title, 'leyning': leyning})
         # itype == 'weekday' deliberately not collected here -- see module
         # docstring. Fetched live at runtime instead.
 
