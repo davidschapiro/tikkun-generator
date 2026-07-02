@@ -160,7 +160,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 /* Congregation-repeat verses for fast-day readings (Vayechal Moshe) */
 .cong-note{font-size:0.72rem;color:var(--ink-soft);font-style:italic;
   text-align:center;padding:0.3rem 0.6rem 0.5rem;direction:ltr;}
-.cong-token{color:#3a6ea8;}
+.cong-token{color:#2a5298;}
 @media(prefers-color-scheme:dark){.cong-token{color:#7fb3e8;}}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
@@ -1072,21 +1072,34 @@ function setumaSpanWithGap(gapPx) {
 // Uses t.verseNum transitions (non-null = first token of each pseudo-verse)
 // to walk through the congByIdx parallel array built from annotatedVerses.
 function markCongTokens(tokens, annotatedVerses) {
-  const congByIdx = annotatedVerses.map(v => !!v.cong); // one entry per pseudo-verse
+  const congByIdx = annotatedVerses.map(v => !!v.cong);
+  const seenVerse = new Set(); // track ch:v pairs already encountered
   let verseIdx = 0;
   let first = true;
   tokens.forEach(t => {
     if (!first && t.verseNum !== null && t.verseNum !== undefined) verseIdx++;
     first = false;
     t.cong = !!congByIdx[verseIdx];
+    // Suppress verseNum when this pseudo-verse is a sub-verse split (same
+    // ch:v as a pseudo-verse that already contributed tokens). The tokenizer
+    // sets verseNum on the first token of every pseudo-verse it receives,
+    // but a mid-verse congregation split isn't a real verse boundary.
+    if (t.verseNum !== null && t.verseNum !== undefined) {
+      const pv = annotatedVerses[verseIdx];
+      const key = pv ? `${pv.ch}:${pv.v}` : null;
+      if (key && seenVerse.has(key)) {
+        t.verseNum = null; // already shown for this verse — suppress
+      } else if (key) {
+        seenVerse.add(key);
+      }
+    }
   });
   return tokens;
 }
 
-const CONG_COLOR_VOWEL = 'color:#3a6ea8';
-const CONG_COLOR_SCROLL = 'color:#3a6ea8';
-// Same color on both columns so they read as a matched pair.
-// Dark mode: handled via .cong-token CSS class (see the CSS block above).
+const CONG_COLOR_VOWEL = 'color:#2a5298';
+const CONG_COLOR_SCROLL = 'color:#2a5298';
+// Dark royal blue — clearly not black, distinct from the gold פ/ס markers.
 
 function congWrap(html, key) {
   // Wrap token HTML in a colored span for congregation tokens.
