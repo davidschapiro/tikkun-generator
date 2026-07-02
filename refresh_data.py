@@ -141,15 +141,16 @@ def build_parasha_and_holiday_data(israel=False):
             if 'hdate' in item:
                 leyning['hdate'] = item['hdate']
             title = item['name']['en'].replace("'", '\u2019')
-            # Deduplicate 2-day Rosh Chodesh: both days have identical readings
-            # (Numbers 28:1-15). When a month has 30 days, Rosh Chodesh is:
-            #   day 1 = 30th of the outgoing month (hdate: "30 PrevMonth")
-            #   day 2 = 1st of the new month      (hdate: "1 NewMonth")
-            # The canonical entry to keep is the 1st of the new month, since
-            # that's what people think of as Rosh Chodesh. Drop day 1 (30th).
-            # Exception: "Chanukah Day N (on Rosh Chodesh)" — keep those as-is.
-            hdate_str = item.get('hdate', '')
-            if 'Rosh Chodesh' in title and 'Chanukah' not in title and hdate_str.startswith('30 '):
+            # All Rosh Chodesh readings are identical (Numbers 28:1-15) so
+            # the whole month list is redundant. Collect only ONE generic
+            # entry under a synthetic dateless key; drop all subsequent ones.
+            # Exception: "Chanukah Day N (on Rosh Chodesh)" has a different
+            # reading and is kept as a normal dated entry.
+            if 'Rosh Chodesh' in title and 'Chanukah' not in title:
+                if any(h['title'] == 'Rosh Chodesh' for h in holidays):
+                    continue  # already have the generic entry
+                # First occurrence: store as a generic dateless entry
+                holidays.append({'date': 'rosh-chodesh', 'title': 'Rosh Chodesh', 'leyning': leyning})
                 continue
             holidays.append({'date': item['date'], 'title': title, 'leyning': leyning})
         # itype == 'weekday' deliberately not collected here -- see module
@@ -193,15 +194,27 @@ def build_static_opts(parasha_list, holiday_keyed):
                 lines.append(f'<option value="{p["date"]}">{p["label"]}</option>')
             lines.append('</optgroup>')
     h_by_year = defaultdict(list)
+    generic_entries = []
     for key in holiday_keyed:
         dt = key.split('|')[0]
-        h_by_year[dt[:4]].append({'key': key, 'dt': dt})
+        if dt == 'rosh-chodesh':
+            generic_entries.append({'key': key, 'dt': dt})
+        else:
+            h_by_year[dt[:4]].append({'key': key, 'dt': dt})
+    # Generic (dateless) entries first — currently just Rosh Chodesh
+    for h in generic_entries:
+        title = h['key'].split('|', 1)[1]
+        val = 'holiday|' + h['key']
+        lines.append(f'<option value="{val}">\U0001f54d {title}</option>')
     for year in sorted(h_by_year.keys()):
         lines.append(f'<optgroup label="{year} \u00b7 \U0001f54d Holidays">')
         for h in sorted(h_by_year[year], key=lambda x: (x['dt'], x['key'])):
             title = h['key'].split('|', 1)[1]
-            d     = date.fromisoformat(h['dt'])
-            label = f"{title} \u00b7 {fmt_date(d)}"
+            if h['dt'] == 'rosh-chodesh':
+                label = title  # no date — reading is identical every month
+            else:
+                d     = date.fromisoformat(h['dt'])
+                label = f"{title} \u00b7 {fmt_date(d)}"
             val   = 'holiday|' + h['key']
             lines.append(f'<option value="{val}">{label}</option>')
         lines.append('</optgroup>')
