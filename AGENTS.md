@@ -277,6 +277,40 @@ to locate the actual cause.
   any reference inside `renderOutput()` to data that might only exist in
   `generate()`, immediately check whether that variable is actually in
   scope — "it works on Shabbat" is not evidence it's in scope.**
+- **Sub-verse annotation requires word-level splits, not verse-level marks.**
+  The congregation-repeat coloring for Vayechal Moshe went through three
+  failed approaches before the right architecture was found. The wrong ones,
+  in order:
+  1. *Verse-level markers (`__marker` pseudo-objects in the verse array,
+     segment-split into separate `.practice-body` grids)* — colored whole
+     verses instead of the required sub-verse word spans, and the `isCong`
+     flag was placed on the wrong segment (the pre-marker one, not the
+     post-marker congregation content), causing an empty first grid and a
+     banner/color appearing before the wrong text.
+  2. *Banner divs between segments* — visual blocks the user explicitly
+     rejected; abandoned in favor of text color.
+  3. *Segment-split grids with `.cong-segment` CSS class* — the gaps
+     between block-level grid divs were the problem: even with no banner,
+     each congregation span becoming its own block element creates a visible
+     paragraph break that simply cannot be avoided with block layout.
+  The correct approach: call `injectCongregationMarkers` to split verse
+  `he` strings at specific word boundaries (using `stripHe()` to match
+  stripped Hebrew patterns), tag the resulting pseudo-verse objects with
+  `v.cong = true`, then call `buildTokens` on the full annotated array and
+  post-process with `markCongTokens()` to stamp `.cong = true` on individual
+  tokens. The rendering functions (`measurableTokenHtml`,
+  `buildJustifiedColumnHTML`, `buildBimaFlow`) then wrap congregation tokens
+  in `<span class="cong-token">` inline — `word-spacing` on the outer
+  justified span cascades correctly through nested spans, so justification
+  is unaffected. No separate grids, no gaps, no paragraph breaks.
+  One more sub-lesson: `buildTokens` sets `verseNum` on the first token of
+  every input pseudo-verse, including sub-verse congregation splits — which
+  produces a spurious mid-verse number. Fix in `markCongTokens`: track which
+  `ch:v` pairs have already emitted a verse number and suppress repeats.
+  The flag `v.cong` on the pseudo-verse is the source of truth; the parallel
+  `congByIdx` array (built in `markCongTokens` from `annotatedVerses`) maps
+  verse-index transitions (tracked via `t.verseNum !== null`) to `t.cong`
+  on individual tokens.
 
 ---
 
