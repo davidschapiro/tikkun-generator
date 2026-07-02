@@ -156,16 +156,6 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 /* In the tab-row the All Aliyot button doesn't need a wide min-width --
    the chips already tell you what aliyot exist. Let it shrink to content. */
 #aliyahMsTrigger{min-width:120px;}
-
-/* Congregation-repeat verses for fast-day readings (Vayechal Moshe) */
-.cong-note{font-size:0.72rem;color:var(--ink-soft);font-style:italic;
-  text-align:center;padding:0.3rem 0.6rem 0.5rem;direction:ltr;}
-.cong-segment{background:rgba(196,154,32,0.10);border-radius:4px;margin:0.15rem 0;}
-.cong-verse-bima{background:rgba(196,154,32,0.13);border-radius:3px;
-  padding:0.05em 0;display:inline;}
-@media(prefers-color-scheme:dark){
-  .cong-segment{background:rgba(196,154,32,0.14);}
-  .cong-verse-bima{background:rgba(196,154,32,0.18);}}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
@@ -765,45 +755,6 @@ function parseRange(str) {
   if (!m) return null;
   return {book:m[1],sc:+m[2],sv:+m[3],ec:+m[4],ev:+m[5]};
 }
-// Verses where the congregation reads aloud first, then the Ba'al Kriyah
-// repeats — the three-verse block specific to Shacharit of public fast days
-// (Vayechal Moshe, Exodus 32:11-14 + 34:1-10). Both the congregation
-// reading and the Ba'al Kriyah's repetition cover identical text, so only
-// a banner at the START of each block is needed; the block ends when the
-// next banner (or the aliyah end) is reached.
-// Key format: "Book chapter:verse" — the banner appears BEFORE that verse.
-// The value is the text to show on the banner.
-const CONGREGATION_READER_ANNOTATIONS = {
-  'Exodus 32:12': { type: 'kahal-start' },   // "שׁוּב" — community reads from here
-  'Exodus 34:6':  { type: 'kahal-start' },   // י״י י״י — Thirteen Attributes
-  'Exodus 34:9':  { type: 'kahal-start' },   // וְסָלַחְתָּ — final verse
-};
-
-function injectCongregationMarkers(verses) {
-  if (!verses.length) return verses;
-  // Verse objects are {ch, v, he} with no book property. Detect Vayechal
-  // Moshe by chapter range: Exodus 32 and 34. Bail fast for everything else.
-  const firstCh = verses[0].ch;
-  if (firstCh !== 32 && firstCh !== 34) return verses;
-  // Confirm it's actually this reading by checking a verse in ch 32 or 34
-  // exists (not e.g. some other book that happens to have these chapters).
-  // Since this tool only serves Torah, ch 32/34 unambiguously means Exodus.
-
-  const result = [];
-  for (const v of verses) {
-    const ref = `Exodus ${v.ch}:${v.v}`;
-    if (CONGREGATION_READER_ANNOTATIONS[ref]) {
-      result.push({ __marker: 'congregation-reader', ref });
-    }
-    result.push(v);
-  }
-  return result;
-}
-
-function buildCongregationNoteHTML() {
-  return `<div class="cong-note">Highlighted sections are customary to be read aloud first by the congregation, then repeated by the reader.</div>`;
-}
-
 async function fetchVerses(rangeStr) {
   const p = parseRange(rangeStr);
   if (!p) return [];
@@ -820,49 +771,38 @@ async function fetchVerses(rangeStr) {
 }
 
 function buildBimaFlow(verses) {
-  const realVerses = verses.filter(v => !v.__marker);
-  const {tokens} = buildTokens(realVerses);
-
-  // Which real-verse indices (0-based into realVerses) should have a
-  // congregation banner inserted immediately before them?
-  const bannerBeforeIdx = new Set();
-  let pending = false, rIdx = 0;
-  for (const v of verses) {
-    if (v.__marker) { pending = true; continue; }
-    if (pending) { bannerBeforeIdx.add(rIdx); pending = false; }
-    rIdx++;
-  }
-
-  const bannerHTML_unused = null; // banners removed — congregation verses now use cong-verse-bima CSS class
-  // Walk tokens and track which real-verse index we're at.
-  // t.verseNum is non-null only at the FIRST token of each verse.
-  let verseIdx = 0;
-  let firstToken = true;
-  let inCong = false;
-  return tokens.map((t, i) => {
-    const vn = t.verseNum !== null && t.verseNum !== undefined
-      ? `<sup class="vn">${t.verseNum}</sup>` : '';
-    let prefix = '';
-    if (!firstToken && t.verseNum !== null && t.verseNum !== undefined) {
-      verseIdx++;
-      if (bannerBeforeIdx.has(verseIdx)) {
-        // Start congregation highlighting: close any open wrapper, open colored span
-        prefix = inCong ? '' : '<span class="cong-verse-bima">';
-        inCong = true;
-      } else if (inCong) {
-        // End of congregation section — close the span
-        prefix = '</span>';
-        inCong = false;
-      }
-    }
-    firstToken = false;
+  const {tokens} = buildTokens(verses);
+  return tokens.map((t,i) => {
+    const vn = t.verseNum ? `<sup class="vn">${t.verseNum}</sup>` : '';
+    // Petucha (open-parasha) forces a real paragraph break here too, same
+    // halachic/typesetting rule as the practice columns (see
+    // measurableTokenHtml) -- previously this just dropped the bare
+    // glyph inline with no break at all, which (along with .bima-body
+    // never being text-align:justify in the first place) is what made
+    // Bima Tikkun visually diverge from Tikkun Korim's paragraph
+    // handling. CSS text-align-last:right (see .bima-body) then makes
+    // this forced-break line behave like the columns' "paragraph-final
+    // line is never stretched" convention, automatically, since browsers
+    // already treat the line right before a forced <br> as a last line
+    // for text-align-last purposes -- no JS-side line measurement
+    // needed here the way the dual-column print/screen code requires.
     const isPetucha = t.vowel === PETUCHA_HTML;
     const hasNext = i + 1 < tokens.length;
-    const sep = !hasNext ? (inCong ? '</span>' : '') : (isPetucha ? '<br>' : ' ');
+    const sep = !hasNext ? '' : (isPetucha ? '<br>' : ' ');
+    // Setuma (closed-parasha) gets a visual gap too, same idea as the
+    // columns' setumaSpanWithGap but deliberately simpler: an em-based
+    // margin instead of a px value measured against a specific column
+    // width. Bima has no second column to keep pixel-synced with and no
+    // JS-computed line-break width to match (it's natural browser
+    // reflow, not the columns' measured-and-broken approach), so there's
+    // nothing for a px measurement to stay correct against here -- an em
+    // value scales correctly with screen vs. print font-size (1.8rem vs
+    // 1.5rem, see .bima-body print rule) automatically, with zero extra
+    // measurement code.
     const glyph = (t.vowel === SETUMA_HTML)
       ? '<span class="pm pm-samekh" style="margin:0 1em">ס</span>'
       : t.vowel;
-    return prefix + vn + glyph + sep;
+    return vn + glyph + sep;
   }).join('');
 }
 
@@ -1512,43 +1452,18 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday) {
 
   let body;
   if (tikkun === 'practice') {
-    const annotatedVerses = injectCongregationMarkers(verses);
-    const hasCong = annotatedVerses.some(v => v.__marker);
-    const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
-
-    // Split at markers. isCong=true means this segment's verses are the
-    // ones the congregation reads first, then the reader repeats.
-    // Bug-fix from the banner attempt: the flag belongs on the segment
-    // AFTER the marker (congregation verses), not the one before it.
-    const segments = [];
-    let cur = [], isCong = false;
-    for (const v of annotatedVerses) {
-      if (v.__marker) {
-        segments.push({verses: cur, isCong});
-        cur = []; isCong = true;
-      } else {
-        cur.push(v);
-      }
-    }
-    segments.push({verses: cur, isCong});
-
-    body = noteHTML + segments.map(({verses: sv, isCong: cong}) => {
-      if (!sv.length) return ''; // skip empty segments
-      const {tokens} = buildTokens(sv);
-      const tokenId = 'tk' + (__aliyahTokenCounter++);
-      window.__aliyahTokenRegistry[tokenId] = tokens;
-      const cls = cong ? 'practice-body cong-segment' : 'practice-body';
-      return `<div class="${cls}" data-token-id="${tokenId}">
-           <div class="col-scroll" dir="rtl"></div>
-           <div class="col-vowel"  dir="rtl"></div>
-           <div class="col-scroll-print" dir="rtl"></div>
-           <div class="col-vowel-print"  dir="rtl"></div></div>`;
-    }).join('');
+    const {tokens} = buildTokens(verses);
+    const tokenId = 'tk' + (__aliyahTokenCounter++);
+    window.__aliyahTokenRegistry[tokenId] = tokens;
+    // Columns start empty — populated by renderSyncedColumns() once this
+    // HTML is actually in the live DOM (measurement requires real layout).
+    body = `<div class="practice-body" data-token-id="${tokenId}">
+         <div class="col-scroll" dir="rtl"></div>
+         <div class="col-vowel"  dir="rtl"></div>
+         <div class="col-scroll-print" dir="rtl"></div>
+         <div class="col-vowel-print"  dir="rtl"></div></div>`;
   } else {
-    const annotatedVerses = injectCongregationMarkers(verses);
-    const hasCong = annotatedVerses.some(v => v.__marker);
-    const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
-    body = noteHTML + `<div class="bima-body" dir="rtl">${buildBimaFlow(annotatedVerses)}</div>`;
+    body = `<div class="bima-body" dir="rtl">${buildBimaFlow(verses)}</div>`;
   }
   return `<section class="aliyah" data-aliyah="${key}">${hdr}${body}</section>`;
 }
