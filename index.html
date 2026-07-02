@@ -1481,7 +1481,7 @@ function renderOutput(p, aliyotData, isHoliday) {
   // Weekday readings use the secular date only (no Hebrew date in the API
   // response for weekday items at the moment).
   const hebrewDate = p.hdate && !p.hdate.match(/^\d{4}-/) ? p.hdate
-    : (isHoliday && leyningData && leyningData.hdate) ? leyningData.hdate
+    : (isHoliday && p.leyning && p.leyning.hdate) ? p.leyning.hdate
     : null;
   const dateLabel = hebrewDate ? `${hebrewDate} · ${p.date||''}` : (p.date||'');
   const meta = `${dateLabel} · ${modeLbl} · ${state.israel?'Israel':'Diaspora'}`;
