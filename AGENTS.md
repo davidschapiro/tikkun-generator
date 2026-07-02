@@ -262,6 +262,21 @@ to locate the actual cause.
   to assert content width is pinned to `PRINT_REF_WIDTH`, the two columns
   are centered (margins equal), and no real line overflows. Run it
   alongside the other two test files for any future print-path change.
+- **Accessing `generate()`-scoped variables from `renderOutput()`.**
+  `renderOutput()` is a standalone function defined outside `generate()`.
+  It has no closure access to variables declared inside `generate()` like
+  `leyningData`, `isHoliday` (only as a parameter), etc. Any time
+  `renderOutput()` needs data that originates in `generate()`, it must
+  receive it via parameter or via the `p` object — never by assuming the
+  variable is accessible by name. The specific bug: `leyningData.hdate`
+  was referenced inside `renderOutput()`, but `leyningData` lives in
+  `generate()`'s scope. Silent in normal flow (Shabbat parashiot don't
+  trigger that branch), only crashes on holiday/fast-day selection.
+  The fix was to read `p.leyning.hdate` instead, which is always present
+  on the `p` object passed into `renderOutput()`. **Lesson: when adding
+  any reference inside `renderOutput()` to data that might only exist in
+  `generate()`, immediately check whether that variable is actually in
+  scope — "it works on Shabbat" is not evidence it's in scope.**
 
 ---
 
