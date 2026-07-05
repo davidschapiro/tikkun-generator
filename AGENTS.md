@@ -846,28 +846,52 @@ tuning decision:
   user wanted fixed, and 1.5 years still leaves a full year of buffer
   before the next biannual (Jan 1 / Jul 1) refresh runs.
 
-**Not started / open:**- **Audio integration/linking.** No audio at all right now — text only.
-  Would mean linking to (or embedding) actual chanting/trope recordings
-  for the relevant verses, so someone could listen while practicing.
-  Not investigated yet: Sefaria has some community-submitted audio for
-  Torah reading accessible via its API, but coverage is inconsistent
-  (not every verse/aliyah has a recording) and the actual API shape for
-  this hasn't been looked at. Would need a fallback for verses with no
-  recording available, and a decision on whether to embed inline or
-  just link out to Sefaria/another source.
+**Not started / open:**
+- **Audio integration/linking.** No audio at all right now — text only.
+  Not investigated; coverage inconsistent across Sefaria's community audio.
 
-**Done since last update (prior session):**
-- Step 4 of line-sync (print-time computation) — see prior note above.
-- Aesthetic fixes — aliyah heading restyled to a 3-column grid (English
-  left, verse range centered, Hebrew right); Hebrew aliyah labels now use
+**Done, July 2026 session (this is now the current state of main):**
+- **Data source rewrite:** `refresh_data.py` now uses `/leyning` as the
+  single source for Shabbat, holiday, and weekday data (replaced dual
+  `/hebcal` calls). 1.5-year window, paginated in ≤175-day chunks. Biannual
+  GitHub Action (Jan 1 / Jul 1) unchanged.
+- **Weekday Mon/Thu reading:** live Shabbat/Weekday toggle in the UI;
+  fetches the open parasha's own weekday instance (S−2 Thursday, S−5 Monday)
+  on demand. Not embedded — no reason to pre-bake something that's always
+  "whichever one is currently open."
+- **Rosh Chodesh:** single generic entry in dropdown (reading is always
+  identical; listing every month was noise). No date shown in meta.
+- **Hebrew dates in meta line** for all holidays/fast days. Previously
+  showed the secular date twice; fix was storing `item.hdate` from `/leyning`
+  in `HOLIDAY_DATA` at build time and reading from `p.leyning.hdate` in
+  `renderOutput()` (not from the out-of-scope `leyningData` variable —
+  see §4 for that scope-trap lesson).
+- **Aliyah jump chips:** colored row of buttons in the sticky header,
+  one per aliyah, matching header colors. Pure scroll anchors — no filter
+  side-effect. Chips for deselected aliyot hide automatically.
+- **"All Aliyot" uncheck deselects all** — previously a no-op.
+- **UI restructuring:** centered sticky header with three rows (nav+dropdown
+  on one line on desktop; toggles row; aliyah row). Tikkun/Bima tab switcher
+  moved back above the output area. All controls centered on mobile too.
+- **Print column centering fix** (+ regression test `validate-print-geometry.js`):
+  the `getComputedStyle()` read-outside-print-media bug; replaced with
+  explicit constants. See §4 for the documented lesson.
+- **Bima Tikkun** fully justified with petucha/setuma paragraph handling
+  (was plain ragged-right with no paragraph awareness).
+- **Favicon:** tav (ת) in ShlomoSemiStam, gold-on-dark.
+- **Congregation-repeat coloring (Vayechal Moshe):** word-level blue
+  coloring for the three spans in Ex 32:12, 34:6–7, 34:9 that the
+  congregation reads first then the Ba'al Kriyah repeats. Inline token
+  coloring (`.cong-token` span) — no segment grids, no gaps. See §4 for
+  the documented wrong turns (verse-level markers, banner divs, block grids).
+- **Three-test suite:** tokenizer, paragraph-breaks, print-geometry. All
+  passing. Run all three before any change to the rendering pipeline.
 
-  Arimo (bold) instead of ShlomoSemiStam, reserving the Torah-text font
-  for actual Torah text; verse-number font-size bumped 0.58rem → 0.68rem
-  → 0.7rem-equivalent contrast fix (color `--ink-pale` → `--ink-soft`,
-  darker in light mode / lighter in dark mode); English aliyah labels
-  0.78rem → 0.9rem; verse-range label 0.7rem → 0.82rem. Verified no
-  overflow at 360px across every real aliyah range string, checked in
-  both light/dark color schemes and in an actual rendered print PDF.
+**Nothing currently known to be broken on `main`.**
+
+2. **Lower priority, only if the project keeps growing:**
+   CI workflow running the test on every push (the PAT now has `Actions:
+   write`); moving embedded schedule data to separate fetched JSON files.
 - **Vowel-vs-scroll width assumption — RETRACTED, then reopened as a
   confirmed real bug.** Originally claimed "verified closed, zero
   overflows" via `scripts/check-vowel-vs-scroll-width.js` (still in
@@ -1095,17 +1119,7 @@ tuning decision:
      permanently (the scroll-glyph-removal idea below is no longer
      planned).**
 
-2. **Lower priority, only if the project keeps growing** (see §7 and §9):
-   CI workflow running the test on every push (the PAT now has `Actions:
-   write`, so unlike the earlier note in §6/§9, the workflow YAML *can* be
-   pushed via the API directly — no need to paste it through the GitHub
-   web UI); moving embedded schedule data to separate fetched JSON files.
-
-**Already done, don't redo:** tokenizer extraction (§9), the full
-line-sync mechanism for screen rendering — Side-by-Side, Either-Or, resize,
+**Already done, don't redo:** tokenizer extraction, the full line-sync
+mechanism for screen rendering — Side-by-Side, Either-Or, resize,
 initial-load timing fix (§3), all the Hebrew-text-processing edge cases
-(§2), the paseq scroll-removal fix.
-
-**Nothing currently known to be broken on `main`** — the vowel-vs-scroll
-overflow (formerly listed here) is fixed, see "Done since last update"
-above.
+(§2), the paseq scroll-removal fix, petucha/setuma (§11 above).
