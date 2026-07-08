@@ -496,7 +496,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="toggle-btn" data-val="israel">Israel</button>
     </div>
 
-    <button class="toggle-btn" id="themeToggle" title="Toggle dark/light mode">☀︎</button>
+    <button class="toggle-btn" id="themeToggle" title="Toggle dark/light mode">Dark</button>
   </div>
 
   <div id="aliyahRow" style="display:none">
@@ -2042,14 +2042,14 @@ function init() {
   const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
   if (savedTheme) document.documentElement.dataset.theme = savedTheme;
   const themeBtn = document.getElementById('themeToggle');
-  themeBtn.textContent = isDark ? '☀︎' : '☾';
+  themeBtn.textContent = isDark ? 'Light' : 'Dark';
   themeBtn.addEventListener('click', () => {
     const nowDark = document.documentElement.dataset.theme === 'dark'
       || (!document.documentElement.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const next = nowDark ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     localStorage.setItem('theme', next);
-    themeBtn.textContent = next === 'dark' ? '☀︎' : '☾';
+    themeBtn.textContent = next === 'dark' ? 'Light' : 'Dark';
   });
 
   document.getElementById('regularMaftirCheckbox').checked = state.regularMaftir;
