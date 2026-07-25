@@ -509,6 +509,11 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="toggle-btn" data-val="israel">Israel</button>
     </div>
 
+    <div class="toggle-group" id="layoutToggle">
+      <button class="toggle-btn active" data-val="side">Side-by-Side</button>
+      <button class="toggle-btn" data-val="either">Either-Or</button>
+    </div>
+
     <button class="toggle-btn" id="themeToggle" title="Toggle dark/light mode">Dark</button>
   </div>
 
@@ -540,10 +545,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </main>
 
 <div id="floatingViewToggle" class="floating-toggle" style="display:none">
-  <div class="toggle-group" id="layoutToggle">
-    <button class="toggle-btn active" data-val="side">Side-by-Side</button>
-    <button class="toggle-btn" data-val="either">Either-Or</button>
-  </div>
   <div class="toggle-group tg-hidden" id="columnToggle">
     <button class="toggle-btn" data-val="scroll">Scroll view</button>
     <button class="toggle-btn active" data-val="tikkun">Tikkun view</button>
@@ -1921,10 +1922,11 @@ function toggleAliyahPanel() {
     (document.getElementById('aliyahMsPanel').style.display === 'none') ? 'block' : 'none';
 }
 function updateFloatingToggleVisibility(activeTab) {
-  // Either-Or / Scroll-Tikkun only applies to the two-column Tikkun Korim
-  // view — hide the floating control entirely on the single-column Bima tab.
+  // The floating widget (Scroll/Tikkun view) only applies to Either-Or mode
+  // on the Tikkun Korim tab. In Side-by-Side mode or on the Bima tab, hide it.
   const widget = document.getElementById('floatingViewToggle');
-  widget.style.display = (activeTab === 'practice') ? 'flex' : 'none';
+  const isEitherOr = document.body.classList.contains('layout-either');
+  widget.style.display = (activeTab === 'practice' && isEitherOr) ? 'flex' : 'none';
 }
 async function printSection(which) {
   document.body.classList.add(`print-${which}`);
@@ -2178,9 +2180,11 @@ function init() {
       btn.classList.add('active');
       const mode = btn.dataset.val;
       const columnToggle = document.getElementById('columnToggle');
+      const widget = document.getElementById('floatingViewToggle');
       if (mode === 'either') {
         document.body.classList.add('layout-either');
         columnToggle.classList.remove('tg-hidden');
+        widget.style.display = '';
         // Default to Tikkun view when entering Either-Or mode
         document.querySelectorAll('#columnToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
         document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').classList.add('active');
@@ -2189,6 +2193,7 @@ function init() {
       } else {
         document.body.classList.remove('layout-either','show-scroll','show-tikkun');
         columnToggle.classList.add('tg-hidden');
+        widget.style.display = 'none';
       }
       // The available column width just changed (half-width <-> full-width)
       // — recompute line breaks against the new width, not the old one.
