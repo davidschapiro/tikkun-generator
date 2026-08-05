@@ -2334,6 +2334,7 @@ function init() {
     state.chCache = {};
     syncDropdown();
     syncReadingTypeToggle();
+    document.getElementById('verseLookupDialog').close();
     generate().then(() => {
       // Show all aliyot, then scroll to the one containing the verse
       setTimeout(() => {
