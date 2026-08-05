@@ -95,7 +95,8 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .verse-lookup-btn:hover{color:var(--gold);border-color:var(--gold);}
 #verseLookupDialog{border:1px solid var(--border);border-radius:10px;
   background:var(--bg-card);color:var(--ink);padding:1.4rem 1.6rem;
-  box-shadow:0 4px 24px rgba(0,0,0,0.22);max-width:360px;width:90vw;}
+  box-shadow:0 4px 24px rgba(0,0,0,0.22);max-width:360px;width:90vw;
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
 #verseLookupDialog::backdrop{background:rgba(0,0,0,0.45);}
 #verseLookupDialog h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
 .vl-row{display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem;}
@@ -2316,16 +2317,13 @@ function init() {
     syncDropdown();
     syncReadingTypeToggle();
     generate().then(() => {
-      // After render, filter to just the aliyah that contains the verse
-      // and scroll to it
-      const panel = document.getElementById('aliyahMsPanel');
-      if (panel) {
-        panel.querySelectorAll('.aliyah-cb').forEach(cb => {
-          cb.checked = (cb.dataset.aliyah === found.aliyahKey);
-        });
-        applyAliyahFilter();
-      }
+      // Show all aliyot, then scroll to the one containing the verse
       setTimeout(() => {
+        const panel = document.getElementById('aliyahMsPanel');
+        if (panel) {
+          panel.querySelectorAll('.aliyah-cb').forEach(cb => cb.checked = true);
+          applyAliyahFilter();
+        }
         const section = document.querySelector(`.tikkun-section.visible .aliyah[data-aliyah="${found.aliyahKey}"]`);
         if (section) section.scrollIntoView({behavior: 'smooth', block: 'start'});
       }, 400);
