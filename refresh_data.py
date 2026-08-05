@@ -121,8 +121,18 @@ def build_parasha_and_holiday_data(israel=False):
             seen_parasha.add((item['date'], name))
             book = BOOK_MAP.get(name, 'Other')
             d = date.fromisoformat(item['date'])
+            # Store fullkriyah and triennial ranges so the verse-lookup
+            # feature can find which parasha+aliyah contains any given
+            # verse without a runtime API call.
+            def extract_ranges(kriyah):
+                out = {}
+                for k, a in (kriyah or {}).items():
+                    out['maftir' if k == 'M' else k] = f"{a['k']} {a['b']}-{a['e']}"
+                return out
             parashas.append({'name': name, 'date': item['date'],
-                              'book': book, 'label': f"{name} \u00b7 {fmt_date(d)}"})
+                              'book': book, 'label': f"{name} \u00b7 {fmt_date(d)}",
+                              'ranges': extract_ranges(item.get('fullkriyah', {})),
+                              'triennial': extract_ranges(item.get('triennial', {}))})
         elif itype == 'holiday':
             fk = item.get('fullkriyah', {})
             leyning = {}
