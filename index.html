@@ -520,6 +520,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
     <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">🔍 Verse</button>
   </div>
+  <div class="toggle-row">
     <div class="toggle-group" id="modeToggle">
       <button class="toggle-btn" data-val="triennial">Triennial</button>
       <button class="toggle-btn" data-val="full">Full Kriyah</button>
@@ -540,7 +541,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="toggle-btn" data-val="either">Either-Or</button>
     </div>
   </div>
-
   <div id="aliyahRow" style="display:none">
   <div class="toggle-row">
     <div class="aliyah-ms" id="aliyahFilter" style="display:none;">
@@ -2298,8 +2298,17 @@ function init() {
       result.textContent = `${book} ${ch}:${v} was not found in the current 1.5-year parasha schedule.`;
       return;
     }
-    // Navigate to the found parasha
-    document.getElementById('verseLookupDialog').close();
+    // Always use Full Kriyah for verse lookup — triennial aliyot are smaller
+    // ranges and a verse in the Full Kriyah Rishon may not appear in any
+    // triennial aliyah for the currently-shown year.
+    state.mode = 'full';
+    localStorage.setItem('tikkunMode', 'full');
+    document.querySelectorAll('#modeToggle .toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === 'full');
+    });
+    state.regularMaftir = false;
+    document.getElementById('regularMaftirCheckbox').checked = false;
+
     state.holidayKey = null;
     state.weekdayLeyning = null;
     state.refDate = new Date(found.parasha.date + 'T12:00:00');
