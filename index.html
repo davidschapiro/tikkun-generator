@@ -2360,15 +2360,14 @@ function init() {
         const section = document.querySelector(`.tikkun-section.visible .aliyah[data-aliyah="${found.aliyahKey}"]`);
         if (section) {
           section.scrollIntoView({behavior: 'smooth', block: 'start'});
-          // Poll until the column is populated, then highlight the verse number.
-          // Can't use a fixed timeout because syncAllPracticeColumns is async.
           const verseLabels = [`${ref.ch}:${ref.v}`, String(ref.v)];
           let attempts = 0;
           const tryHighlight = () => {
             const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn')];
             const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
             if (match) {
-              // Wait for smooth scroll to settle before highlighting
+              // Scroll to the actual verse, centered in the viewport
+              match.scrollIntoView({behavior: 'smooth', block: 'center'});
               setTimeout(() => {
                 match.style.transition = 'color 0.3s, font-size 0.3s';
                 match.style.color = 'var(--gold)';
