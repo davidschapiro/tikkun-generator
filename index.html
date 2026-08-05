@@ -88,7 +88,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 
 /* ── VERSE LOOKUP MODAL ── */
 /* Verse lookup — brief flash to highlight the found verse */
-@keyframes verseFlash{0%,100%{background:transparent;}25%,65%{background:rgba(196,154,32,0.3);}}
+@keyframes verseFlash{
+  0%,100%{box-shadow:none;color:inherit;}
+  25%,65%{box-shadow:0 0 0 3px rgba(196,154,32,0.6);color:var(--gold);}
+}
 .verse-highlight{animation:verseFlash 1.8s ease;border-radius:3px;}
 
 .verse-lookup-btn{
@@ -2199,6 +2202,13 @@ function init() {
       syncThemeToggle();
     });
   });
+  // Follow system preference live when the user hasn't set a manual preference
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!localStorage.getItem('theme')) {
+      delete document.documentElement.dataset.theme;
+      syncThemeToggle();
+    }
+  });
 
   document.getElementById('regularMaftirCheckbox').checked = state.regularMaftir;
   document.getElementById('regularMaftirCheckbox').addEventListener('change', (e) => {
@@ -2360,11 +2370,8 @@ function init() {
           const sups = [...section.querySelectorAll('.col-vowel .vn,.col-vowel-print .vn')];
           const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
           if (match) {
-            // The sup sits inside a <span style="word-spacing:..."> line span.
-            // Highlight the closest ancestor span that wraps a full line.
-            const lineSpan = match.closest('span[style*="word-spacing"]') || match.parentElement;
-            lineSpan.classList.add('verse-highlight');
-            setTimeout(() => lineSpan.classList.remove('verse-highlight'), 2000);
+            match.classList.add('verse-highlight');
+            setTimeout(() => match.classList.remove('verse-highlight'), 2000);
           }
         }
       }, 400);
