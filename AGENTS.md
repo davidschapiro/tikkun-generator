@@ -311,6 +311,48 @@ to locate the actual cause.
   `congByIdx` array (built in `markCongTokens` from `annotatedVerses`) maps
   verse-index transitions (tracked via `t.verseNum !== null`) to `t.cong`
   on individual tokens.
+- **Event listeners dropped during restructuring are silent failures.**
+  The `layoutToggle` (Side-by-Side/Either-Or) click handler was completely
+  lost when the toggle was moved from the floating widget into the header
+  controls bar. The button existed in the DOM, rendered fine, and caused
+  no JS errors — it just did nothing when clicked. This class of bug
+  ("element is there, but has no listener") is invisible to syntax checks
+  and integration tests. The only detection method is an explicit behavioral
+  test: click the button, assert the expected state change happened.
+  Lesson: any time a control moves between containers, explicitly verify its
+  event listener is still wired.
+- **CSS merge can silently drop selector lines.** When two branches both
+  touch the same CSS area and get merged, the opening selector of a rule
+  (e.g. `.verse-lookup-btn{`) can be swallowed while the property block
+  survives. The result is properties that apply to the wrong rule, which
+  is a visual regression that passes all JS tests. Always screenshot the
+  affected UI element after a non-trivial merge, not just after individual
+  commits.
+- **Numeric range comparison doesn't validate verse existence.** The
+  verse-lookup range check converts `ch:v` to `ch*1000+v` and tests
+  whether it falls between the aliyah start and end. This correctly
+  finds ranges across chapter boundaries, but also accepts impossible
+  references: `Deuteronomy 10:50` converts to `10050` which falls between
+  `10001` (10:1) and `11025` (11:25), even though Deuteronomy 10 only has
+  22 verses. Fix: validate `ch:v` against a hardcoded Torah verse-count
+  table (5 books, 187 chapters — tiny) before the range search.
+- **CSS animation on inline sup elements is unreliable; use inline style.**
+  Three attempts at animating a `<sup>` element with a CSS class
+  (`box-shadow`, `background`, `@keyframes`) produced no visible effect,
+  even with `display:inline-block` on the class and explicit `!important`.
+  The root cause is layout context: `<sup>` inside a justified word-spacing
+  span can have its box-model effects clipped or ignored by the browser's
+  inline rendering. Direct `element.style.color/fontSize/fontWeight`
+  changes cannot be clipped and always render correctly. Use inline style
+  manipulation for programmatic highlights on deeply nested inline elements.
+- **Scroll timing: `section.scrollIntoView()` then `match.scrollIntoView()`.**
+  Scrolling to the aliyah section first (so the lazy-rendered columns start
+  populating) then polling for the specific `vn` sup and scrolling to IT
+  once found is the correct two-phase approach for long aliyot. Scrolling
+  only to the section top leaves the target verse off-screen if it's deep
+  in the aliyah. The poll itself needs a scroll to the match element with
+  `block: 'center'`, plus a ~600ms delay before the highlight fires so the
+  smooth scroll has time to settle before the highlight draws attention.
 
 ---
 
@@ -879,6 +921,13 @@ tuning decision:
 - **Bima Tikkun** fully justified with petucha/setuma paragraph handling
   (was plain ragged-right with no paragraph awareness).
 - **Favicon:** tav (ת) in ShlomoSemiStam, gold-on-dark.
+- **Verse lookup:** "🔍 Verse" button opens a modal (Book/Chapter/Verse).
+  Validates against a hardcoded Torah verse-count table; finds the parasha
+  and aliyah from the pre-baked fullkriyah range index in `PARASHA_LISTS`
+  (ranges/triennial now stored there since July 2026 — `refresh_data.py`
+  was updated to persist them). Always navigates in Full Kriyah mode.
+  Scrolls to and highlights the specific verse `vn` element via inline style
+  (not CSS animation — see §4 lesson). Mobile: full-width "Look up a verse".
 - **Congregation-repeat coloring (Vayechal Moshe):** word-level blue
   coloring for the three spans in Ex 32:12, 34:6–7, 34:9 that the
   congregation reads first then the Ba'al Kriyah repeats. Inline token
