@@ -94,7 +94,13 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 }
 .verse-highlight{animation:verseFlash 2s ease;border-radius:3px;display:inline-block;}
 
-.verse-lookup-btn{
+.vl-mobile{display:none;}
+.vl-desktop{display:inline;}
+@media(max-width:680px){
+  .vl-desktop{display:none;}
+  .vl-mobile{display:inline;}
+  #verseLookupBtn{width:100%;text-align:center;}
+}
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
   background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
   color:var(--ink-soft);padding:0.28rem 0.6rem;cursor:pointer;white-space:nowrap;
@@ -341,8 +347,9 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .gen-btn{margin-left:0;width:100%;}
   
   .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
-  .top-row{width:100%;justify-content:space-between;}
+  .top-row{width:100%;justify-content:space-between;flex-wrap:wrap;}
   #parashaSelect{width:100%;}
+  #verseLookupBtn{order:3;}
 }
 </style>
 </head>
@@ -526,7 +533,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <option value="holiday|2028-01-09|Asara B’Tevet (Mincha)">Asara B’Tevet (Mincha) · Jan 9, 2028</option>
     </optgroup>
     </select>
-    <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">🔍 Verse</button>
+    <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">
+      <span class="vl-desktop">🔍 Verse</span>
+      <span class="vl-mobile">Look up a verse</span>
+    </button>
   </div>
   <div class="toggle-row">
     <div class="toggle-group" id="modeToggle">
