@@ -2368,17 +2368,20 @@ function init() {
             const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn')];
             const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
             if (match) {
-              match.style.transition = 'color 0.3s, font-size 0.3s';
-              match.style.color = 'var(--gold)';
-              match.style.fontSize = '120%';
-              match.style.fontWeight = '700';
+              // Wait for smooth scroll to settle before highlighting
               setTimeout(() => {
-                match.style.transition = 'color 0.8s, font-size 0.8s';
-                match.style.color = '';
-                match.style.fontSize = '';
-                match.style.fontWeight = '';
-                setTimeout(() => { match.style.transition = ''; }, 900);
-              }, 1500);
+                match.style.transition = 'color 0.3s, font-size 0.3s';
+                match.style.color = 'var(--gold)';
+                match.style.fontSize = '120%';
+                match.style.fontWeight = '700';
+                setTimeout(() => {
+                  match.style.transition = 'color 1.2s, font-size 1.2s';
+                  match.style.color = '';
+                  match.style.fontSize = '';
+                  match.style.fontWeight = '';
+                  setTimeout(() => { match.style.transition = ''; }, 1300);
+                }, 2500);
+              }, 600);
             } else if (attempts++ < 20) {
               setTimeout(tryHighlight, 200);
             }
