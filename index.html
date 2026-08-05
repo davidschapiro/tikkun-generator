@@ -87,6 +87,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .toggle-group{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 
 /* ── VERSE LOOKUP MODAL ── */
+/* Verse lookup — brief flash to highlight the found verse */
+@keyframes verseFlash{0%,100%{background:transparent;}25%,65%{background:rgba(196,154,32,0.3);}}
+.verse-highlight{animation:verseFlash 1.8s ease;border-radius:3px;}
+
 .verse-lookup-btn{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
   background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
@@ -2344,7 +2348,25 @@ function init() {
           applyAliyahFilter();
         }
         const section = document.querySelector(`.tikkun-section.visible .aliyah[data-aliyah="${found.aliyahKey}"]`);
-        if (section) section.scrollIntoView({behavior: 'smooth', block: 'start'});
+        if (section) {
+          section.scrollIntoView({behavior: 'smooth', block: 'start'});
+          // Flash the specific verse. The vowelized column's <sup class="vn">
+          // elements contain the verse label (e.g. "25:10" or bare "10").
+          // Find the one matching our verse and highlight the surrounding line.
+          const verseLabels = [
+            `${ref.ch}:${ref.v}`,  // full label (chapter boundary or every 15th)
+            String(ref.v),          // bare verse number
+          ];
+          const sups = [...section.querySelectorAll('.col-vowel .vn,.col-vowel-print .vn')];
+          const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
+          if (match) {
+            // The sup sits inside a <span style="word-spacing:..."> line span.
+            // Highlight the closest ancestor span that wraps a full line.
+            const lineSpan = match.closest('span[style*="word-spacing"]') || match.parentElement;
+            lineSpan.classList.add('verse-highlight');
+            setTimeout(() => lineSpan.classList.remove('verse-highlight'), 2000);
+          }
+        }
       }, 400);
     });
   });
