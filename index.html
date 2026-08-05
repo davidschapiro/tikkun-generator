@@ -2395,6 +2395,31 @@ function init() {
     if (e.key === 'Enter') document.getElementById('vlSubmit').click();
   });
 
+  // Layout toggle: Side-by-Side / Either-Or
+  document.querySelectorAll('#layoutToggle .toggle-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('#layoutToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.val;
+      const columnToggle = document.getElementById('columnToggle');
+      const widget = document.getElementById('floatingViewToggle');
+      if (mode === 'either') {
+        document.body.classList.add('layout-either');
+        columnToggle.classList.remove('tg-hidden');
+        widget.style.display = '';
+        document.querySelectorAll('#columnToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').classList.add('active');
+        document.body.classList.remove('show-scroll');
+        document.body.classList.add('show-tikkun');
+      } else {
+        document.body.classList.remove('layout-either','show-scroll','show-tikkun');
+        columnToggle.classList.add('tg-hidden');
+        widget.style.display = 'none';
+      }
+      requestAnimationFrame(syncAllPracticeColumns);
+    });
+  });
+
   // Column toggle: Scroll view / Tikkun view (only active in Either-Or mode)
   document.querySelectorAll('#columnToggle .toggle-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
