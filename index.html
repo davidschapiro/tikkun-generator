@@ -715,12 +715,26 @@ const BOOK_CANON = {
   'lv':'Leviticus','num':'Numbers','nm':'Numbers','deut':'Deuteronomy','dt':'Deuteronomy',
 };
 
+// Torah verse counts per chapter — used to reject impossible references
+// like Deuteronomy 10:50 (ch 10 only has 22 verses) before they
+// accidentally match a range via the numeric comparison.
+const TORAH_VERSE_COUNTS = {
+  Genesis:     [31,25,24,26,32,22,24,22,29,32,32,20,18,24,21,16,27,33,38,18,34,24,20,67,34,35,46,22,35,43,55,33,20,31,29,43,36,30,23,23,57,38,34,34,28,34,31,22,33,26],
+  Exodus:      [22,25,22,31,23,30,25,32,35,29,10,51,22,31,27,36,16,27,25,26,36,31,33,18,40,37,21,43,46,38,18,35,23,35,35,38,29,31,43,38],
+  Leviticus:   [17,16,17,35,19,30,38,36,24,20,47,8,59,57,33,34,16,30,24,33,3,17,27,22,29,44,23],
+  Numbers:     [54,34,51,49,31,27,89,26,23,36,35,16,33,45,41,35,28,32,22,29,35,41,30,25,18,65,23,31,40,16,54,42,56,29,34,13],
+  Deuteronomy: [46,37,29,49,33,25,26,20,29,22,32,32,18,29,23,22,20,22,21,20,23,30,25,22,19,19,26,68,29,20,30,52,29,12],
+};
+
 function parseVerseRef(book, chapter, verse) {
-  // Returns {book: canonical, ch: int, v: int} or null
   const canon = BOOK_CANON[book.trim().toLowerCase()];
   if (!canon) return null;
   const ch = parseInt(chapter, 10), v = parseInt(verse, 10);
   if (!ch || !v) return null;
+  // Validate against known verse counts — reject before range search
+  const counts = TORAH_VERSE_COUNTS[canon];
+  if (!counts || ch < 1 || ch > counts.length) return null;
+  if (v < 1 || v > counts[ch - 1]) return null;
   return {book: canon, ch, v};
 }
 
@@ -2289,12 +2303,16 @@ function init() {
   });
   document.getElementById('vlSubmit').addEventListener('click', () => {
     const book = document.getElementById('vlBook').value;
-    const ch   = parseInt(document.getElementById('vlChapter').value, 10);
-    const v    = parseInt(document.getElementById('vlVerse').value, 10);
+    const ch   = document.getElementById('vlChapter').value;
+    const v    = document.getElementById('vlVerse').value;
     const result = document.getElementById('vlResult');
-    if (!ch || !v) { result.textContent = 'Please enter a chapter and verse.'; return; }
+    const ref = parseVerseRef(book, ch, v);
+    if (!ref) {
+      result.textContent = `${book} ${ch}:${v} does not exist.`;
+      return;
+    }
     const locKey = state.israel ? 'israel' : 'diaspora';
-    const found = findVerseLocation(book, ch, v, locKey);
+    const found = findVerseLocation(ref.book, ref.ch, ref.v, locKey);
     if (!found) {
       result.textContent = `${book} ${ch}:${v} was not found in the current 1.5-year parasha schedule.`;
       return;
