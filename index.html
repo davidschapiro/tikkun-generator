@@ -90,9 +90,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 /* Verse lookup — brief flash to highlight the found verse */
 @keyframes verseFlash{
   0%,100%{box-shadow:none;color:inherit;}
-  25%,65%{box-shadow:0 0 0 3px rgba(196,154,32,0.6);color:var(--gold);}
+  25%,65%{box-shadow:0 0 0 4px rgba(196,154,32,0.7);color:var(--gold);}
 }
-.verse-highlight{animation:verseFlash 1.8s ease;border-radius:3px;}
+.verse-highlight{animation:verseFlash 2s ease;border-radius:3px;display:inline-block;}
 
 .verse-lookup-btn{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
@@ -2360,19 +2360,21 @@ function init() {
         const section = document.querySelector(`.tikkun-section.visible .aliyah[data-aliyah="${found.aliyahKey}"]`);
         if (section) {
           section.scrollIntoView({behavior: 'smooth', block: 'start'});
-          // Flash the specific verse. The vowelized column's <sup class="vn">
-          // elements contain the verse label (e.g. "25:10" or bare "10").
-          // Find the one matching our verse and highlight the surrounding line.
-          const verseLabels = [
-            `${ref.ch}:${ref.v}`,  // full label (chapter boundary or every 15th)
-            String(ref.v),          // bare verse number
-          ];
-          const sups = [...section.querySelectorAll('.col-vowel .vn,.col-vowel-print .vn')];
-          const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
-          if (match) {
-            match.classList.add('verse-highlight');
-            setTimeout(() => match.classList.remove('verse-highlight'), 2000);
-          }
+          // Poll until the column is populated, then highlight the verse number.
+          // Can't use a fixed timeout because syncAllPracticeColumns is async.
+          const verseLabels = [`${ref.ch}:${ref.v}`, String(ref.v)];
+          let attempts = 0;
+          const tryHighlight = () => {
+            const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn')];
+            const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
+            if (match) {
+              match.classList.add('verse-highlight');
+              setTimeout(() => match.classList.remove('verse-highlight'), 2200);
+            } else if (attempts++ < 20) {
+              setTimeout(tryHighlight, 200); // retry every 200ms, up to 4 seconds
+            }
+          };
+          setTimeout(tryHighlight, 300);
         }
       }, 400);
     });
