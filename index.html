@@ -2369,7 +2369,7 @@ function init() {
           const verseLabels = [`${ref.ch}:${ref.v}`, String(ref.v)];
           let attempts = 0;
           const tryHighlight = () => {
-            const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn')];
+            const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn, .bima-body .vn')];
             const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
             if (match) {
               // Scroll to the actual verse, centered in the viewport
