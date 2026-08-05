@@ -2342,6 +2342,12 @@ function init() {
     state.regularMaftir = false;
     document.getElementById('regularMaftirCheckbox').checked = false;
 
+    // Ensure we're in Tikkun view (not Scroll view) so the verse is visible
+    if (document.body.classList.contains('layout-either') &&
+        document.body.classList.contains('show-scroll')) {
+      document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').click();
+    }
+
     state.holidayKey = null;
     state.weekdayLeyning = null;
     state.refDate = new Date(found.parasha.date + 'T12:00:00');
