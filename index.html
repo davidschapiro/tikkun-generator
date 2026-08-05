@@ -2368,10 +2368,19 @@ function init() {
             const sups = [...section.querySelectorAll('.col-vowel .vn, .col-vowel-print .vn')];
             const match = sups.find(s => verseLabels.includes(s.textContent.trim()));
             if (match) {
-              match.classList.add('verse-highlight');
-              setTimeout(() => match.classList.remove('verse-highlight'), 2200);
+              match.style.transition = 'color 0.3s, font-size 0.3s';
+              match.style.color = 'var(--gold)';
+              match.style.fontSize = '120%';
+              match.style.fontWeight = '700';
+              setTimeout(() => {
+                match.style.transition = 'color 0.8s, font-size 0.8s';
+                match.style.color = '';
+                match.style.fontSize = '';
+                match.style.fontWeight = '';
+                setTimeout(() => { match.style.transition = ''; }, 900);
+              }, 1500);
             } else if (attempts++ < 20) {
-              setTimeout(tryHighlight, 200); // retry every 200ms, up to 4 seconds
+              setTimeout(tryHighlight, 200);
             }
           };
           setTimeout(tryHighlight, 300);
