@@ -309,6 +309,30 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   color:var(--ink-mid);}
 .modal-inner .section-lbl{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;
   text-transform:uppercase;color:var(--ink-pale);margin-top:1rem;margin-bottom:0.2rem;}
+/* Help dialog */
+#helpDialog{border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-card);color:var(--ink);padding:0;
+  box-shadow:0 4px 24px rgba(0,0,0,0.22);width:min(680px,92vw);
+  max-height:82vh;display:flex;flex-direction:column;
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
+#helpDialog::backdrop{background:rgba(0,0,0,0.45);}
+.help-header{display:flex;justify-content:space-between;align-items:center;
+  padding:1rem 1.4rem 0.6rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+.help-header h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin:0;}
+.help-body{overflow-y:auto;padding:1rem 1.4rem;font-size:0.85rem;line-height:1.65;flex:1;}
+.help-body h2{font-size:0.9rem;font-weight:700;color:var(--gold);
+  margin:1.1rem 0 0.35rem;border-bottom:1px solid var(--border);padding-bottom:0.2rem;}
+.help-body h3{font-size:0.82rem;font-weight:700;color:var(--ink-mid);margin:0.8rem 0 0.2rem;}
+.help-body ul{padding-left:1.2rem;margin:0.3rem 0;}
+.help-body li{margin:0.2rem 0;}
+.help-body strong{color:var(--ink);}
+.help-body a{color:var(--gold);}
+.help-body hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
+.help-body p{margin:0.3rem 0;}
+.help-footer{padding:0.6rem 1.4rem;border-top:1px solid var(--border);
+  font-size:0.75rem;color:var(--ink-soft);flex-shrink:0;}
+.help-footer a{color:var(--gold);}
+
 .modal-close{display:block;margin:1.2rem 0 0 auto;background:none;
   border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem 0.9rem;
   font-size:0.78rem;cursor:pointer;font-family:'Arimo',sans-serif;color:var(--ink-soft);}
@@ -632,10 +656,21 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   Text: <a href="https://sefaria.org" target="_blank">Sefaria.org</a> ·
   Leyning: <a href="https://hebcal.com" target="_blank">Hebcal.com</a> ·
   <a onclick="document.getElementById('impressumDialog').showModal()">Impressum</a> ·
+  <a onclick="openHelp()" style="cursor:pointer">Help</a> ·
   <a href="mailto:david@schapiro.org?subject=Tikkun%20Generator" class="support-btn">✉ Feedback</a>
 </footer>
 
-<dialog id="impressumDialog">
+<dialog id="helpDialog">
+  <div class="help-header">
+    <h3>Tikkun Generator — Help</h3>
+    <button class="modal-close" onclick="document.getElementById('helpDialog').close()">✕</button>
+  </div>
+  <div id="helpContent" class="help-body">Loading…</div>
+  <div class="help-footer">
+    <a href="https://github.com/davidschapiro/tikkun-generator/blob/main/README.md"
+       target="_blank" rel="noopener">Full documentation on GitHub ↗</a>
+  </div>
+</dialog>
   <div class="modal-inner">
     <h3>Impressum</h3>
     <p class="section-lbl">Angaben gemäß §5 TMG</p>
@@ -2479,6 +2514,80 @@ function init() {
     });
   }, { passive: true });
 }
+// ── HELP MODAL ────────────────────────────────────────────────────────────────
+const README_URL = 'https://raw.githubusercontent.com/davidschapiro/tikkun-generator/main/README.md';
+let helpCache = null;
+
+function mdToHtml(md) {
+  // Minimal Markdown → HTML for the subset used in this README.
+  // Not a full parser — handles headers, bold, inline code, links, bullets, hr.
+  const lines = md.split('\n');
+  let html = '', inList = false;
+
+  // Skip sections not useful to end users (deploy/tech/impressum)
+  const skipHeaders = ['Deploy', 'Technical', 'Impressum', 'Sources', 'Known gaps'];
+  let skip = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const h2 = line.match(/^## (.+)/);
+    const h3 = line.match(/^### (.+)/);
+
+    if (h2) {
+      skip = skipHeaders.some(s => h2[1].startsWith(s));
+      if (inList) { html += '</ul>'; inList = false; }
+      if (!skip) html += `<h2>${h2[1]}</h2>`;
+      continue;
+    }
+    if (skip) continue;
+    if (h3) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h3>${h3[1]}</h3>`;
+      continue;
+    }
+    if (line.match(/^---+$/)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += '<hr>';
+      continue;
+    }
+    if (line.match(/^# /)) continue; // skip h1 title
+    if (line.match(/^\*\*Live:\*\*/)) continue; // skip live URL line
+
+    const inline = s => s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    const bullet = line.match(/^- (.+)/);
+    if (bullet) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${inline(bullet[1])}</li>`;
+      continue;
+    }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (line.trim()) html += `<p>${inline(line)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+async function openHelp() {
+  const dialog = document.getElementById('helpDialog');
+  const content = document.getElementById('helpContent');
+  dialog.showModal();
+  if (helpCache) { content.innerHTML = helpCache; return; }
+  content.innerHTML = 'Loading…';
+  try {
+    const r = await fetch(README_URL);
+    if (!r.ok) throw new Error('fetch failed');
+    const md = await r.text();
+    helpCache = mdToHtml(md);
+    content.innerHTML = helpCache;
+  } catch {
+    content.innerHTML = '<p>Could not load help — <a href="https://github.com/davidschapiro/tikkun-generator/blob/main/README.md" target="_blank">view on GitHub</a>.</p>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded',init);
 
 </script>
