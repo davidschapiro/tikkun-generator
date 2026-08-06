@@ -95,9 +95,3 @@ A self-contained web tool for generating Torah and holiday reading practice shee
 
 **Live:** https://tikkun.kahal-masorti.org
 
-## What it does
-
-Generates two printable tikkunim for any Shabbat parasha or Jewish holiday reading:
-
-- **Tikkun Korim** — vowelized text with cantillation alongside consonantal scroll text (no nikud, no sof pasuk, no shin/sin dots)
-- **Bima Tikkun** — single large-font vowelized column for use at the reading desk
