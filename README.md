@@ -14,6 +14,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - **Either-Or practice mode** — hide one column and reveal it word by word for active practice
 - **Jump to any verse** — look up any Torah reference (e.g. Numbers 25:10) and go directly to the right parasha and aliyah
 - **Fast day readings** — all five public fasts with their Shacharit and Mincha readings; the sections customarily repeated by the congregation are highlighted in blue
+- **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka, Purim, and Yom Kippur Mincha
 - **Rosh Chodesh** — single generic reading (always Numbers 28:1–15)
 
 ## Features
