@@ -889,8 +889,24 @@ tuning decision:
   before the next biannual (Jan 1 / Jul 1) refresh runs.
 
 **Not started / open:**
-- **Audio integration/linking.** No audio at all right now — text only.
-  Not investigated; coverage inconsistent across Sefaria's community audio.
+- **Audio integration — vayavinu.com approach (ready to implement).**
+  Rabbi Jeremy Wieder has recorded the entire Torah in both Havarah
+  Ashkenazit and Havarah Sephardit, per-aliyah, as YouTube videos, all
+  linked from vayavinu.com. The site structure is fully predictable:
+  `vayavinu.com/{book-num}{book-name}-{parasha-num}-{parasha-name}`.
+  Each parasha page embeds YouTube video IDs for all 7 aliyot in both
+  pronunciations. Holidays (Yamim Tovim, Ta'anit Tzibbur/Vayechal) are
+  also covered. Plan: scrape vayavinu.com once to extract all YouTube
+  video IDs → store as a small JSON file in the repo → add a ▶ button
+  per aliyah header that opens the YouTube video in a new tab. No
+  hosting cost, free, human-quality. Weekday nusach NOT covered —
+  Wieder only recorded Shabbat aliyot. Sephardit pronunciation available
+  as a bonus. Implement in a new session.
+- **CI workflow** — now done (test.yml added Aug 2026). Tests run on
+  every push to main. Three tests: tokenizer, paragraph-breaks,
+  print-geometry.
+
+**Nothing currently known to be broken on `main`.**
 
 **Done, July 2026 session (this is now the current state of main):**
 - **Data source rewrite:** `refresh_data.py` now uses `/leyning` as the
