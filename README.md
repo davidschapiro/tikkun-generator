@@ -1,15 +1,20 @@
 # Tikkun Generator
 
-A self-contained web tool for generating Torah and holiday reading practice sheets (tikkunim).
-
 **Live:** https://tikkun.kahal-masorti.org
 
-## What it does
+A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. Enter any Shabbat, weekday, or holiday and get a two-column practice sheet — vowelized text alongside the unpointed scroll text — plus a large-font Bima Tikkun for use at the reading desk.
 
-Generates two printable tikkunim for any Shabbat parasha or Jewish holiday reading:
+## What you can do with it
 
-- **Tikkun Korim** — vowelized text with cantillation alongside consonantal scroll text (no nikud, no sof pasuk, no shin/sin dots)
-- **Bima Tikkun** — single large-font vowelized column for use at the reading desk
+- **Practice any reading** — select a parasha, holiday, or fast day from the dropdown, or type in a specific verse reference to jump straight there
+- **Shabbat and weekday readings** — toggle between the full Shabbat kriyah and the Monday/Thursday reading for the same parasha
+- **Triennial or Full Kriyah** — switch between the CJLS triennial cycle and the full reading
+- **Diaspora or Israel** — separate schedules where they differ
+- **Print** — printer-friendly output, side-by-side, always correctly centered on the page
+- **Either-Or practice mode** — hide one column and reveal it word by word for active practice
+- **Jump to any verse** — look up any Torah reference (e.g. Numbers 25:10) and go directly to the right parasha and aliyah
+- **Fast day readings** — all five public fasts with their Shacharit and Mincha readings; the sections customarily repeated by the congregation are highlighted in blue
+- **Rosh Chodesh** — single generic reading (always Numbers 28:1–15)
 
 ## Features
 
@@ -21,7 +26,6 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 - **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own correctly-sourced Mincha reading. All Mincha leyning comes directly from Hebcal's `/leyning` endpoint, not hardcoded
 - **Congregation-repeat coloring for fast-day Shacharit** — in the Vayechal Moshe reading (Exodus 32:11–14 + 34:1–10), the three word spans customarily chanted first by the congregation and then repeated by the Ba'al Kriyah are rendered in dark blue, inline in the text flow with no paragraph breaks. Word-level precision: only the actual congregation phrases are colored (e.g. "שׁוּב" mid-verse 32:12, not the whole verse). An explanatory note appears at the top of each affected aliyah.
 - **Rosh Chodesh** — single generic entry in the dropdown (the reading is always identical — Numbers 28:1-15 — so there is no point listing every month); no date shown in the meta line for the same reason
-- **Yom Tov on Shabbat** — automatically displays the holiday reading when no parasha falls on that date
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
 - **Regular Maftir override for Triennial mode** — toggleable, only shown when Triennial is active and no holiday is selected
 - **Diaspora / Israel** toggle — separate parasha and holiday schedules for each
@@ -59,7 +63,6 @@ Generates two printable tikkunim for any Shabbat parasha or Jewish holiday readi
 ### Mobile
 - **Defaults to Either-Or / Tikkun view** below 680px
 - Aliyah chips centered on all line-wrap configurations
-- Parasha name centered between the nav buttons and screen edge
 
 ### Technical
 - Hebrew text set in **Shlomo SemiStam** (SIL Open Font License), embedded
