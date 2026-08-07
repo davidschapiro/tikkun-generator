@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install playwright
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run tokenizer test
+        run: node tests/validate-tokenizer.js
+
+      - name: Run paragraph-breaks test
+        run: node tests/validate-paragraph-breaks.js
+
+      - name: Run print geometry test
+        run: node tests/validate-print-geometry.js
