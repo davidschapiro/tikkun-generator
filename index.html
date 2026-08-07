@@ -2588,7 +2588,7 @@ async function openHelp() {
   if (helpCache) { content.innerHTML = helpCache; return; }
   content.innerHTML = 'Loading…';
   try {
-    const r = await fetch(README_URL);
+    const r = await fetch(README_URL, {cache: 'no-cache'});
     if (!r.ok) throw new Error('fetch failed');
     const md = await r.text();
     helpCache = mdToHtml(md);
