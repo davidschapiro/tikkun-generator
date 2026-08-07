@@ -935,6 +935,35 @@ tuning decision:
   the documented wrong turns (verse-level markers, banner divs, block grids).
 - **Three-test suite:** tokenizer, paragraph-breaks, print-geometry. All
   passing. Run all three before any change to the rendering pipeline.
+- **Dark/Light mode toggle:** floating `Light | Dark` toggle-group at
+  bottom-left, symmetric with the `Scroll view | Tikkun view` widget at
+  bottom-right. Follows system preference by default; persists manual
+  override to `localStorage`; live `matchMedia` change listener.
+- **Side-by-Side/Either-Or moved to header toggle-row.** Scroll/Tikkun
+  view stays at bottom-right, only shown when in Either-Or mode.
+- **Help modal:** `?` button in top-right of header fetches and renders
+  `README.md` live from GitHub (`cache: 'no-cache'` to bypass mobile
+  browser cache). One source of truth — no separate help content to
+  maintain. Minimal Markdown parser handles headers, bold, bullets,
+  links; skips Deploy/Technical/Impressum sections as developer-facing.
+  `display:flex` must be on `dialog[open]`, NOT on `dialog` — otherwise
+  `dialog.close()` can't hide it because the explicit display overrides
+  the browser's `display:none`.
+- **Verse lookup** (added above in §11, repeated here for completeness):
+  aliyah ranges now pre-baked in `PARASHA_LISTS` via `refresh_data.py`.
+- **README restructured:** short user-facing "What you can do with it"
+  summary at the top (written for Ba'alei Kriyah, not developers),
+  followed by the existing technical feature list. Keep these in sync.
+- **GitHub Pages outage (Aug 6, 2026):** GitHub Actions/Pages had a
+  major incident (webhook throttled to ~15%, ~30-40% of jobs failing).
+  We attempted a switch from legacy to Actions-based Pages deployment
+  during the incident which compounded the problem — the Actions workflow
+  `deploy-pages@v4` was hanging because Pages was in an errored state
+  from the custom domain re-entry. Reverted to legacy branch deployment.
+  Lesson: never change deployment infrastructure during an active
+  outage. The Node.js 20 deprecation warning in the legacy build is
+  cosmetic only (GitHub forces Node 24 transparently) and not worth
+  switching deployment strategies over.
 
 **Nothing currently known to be broken on `main`.**
 
