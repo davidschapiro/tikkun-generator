@@ -864,11 +864,12 @@ function syncUrl() {
     }
   }
 
-  // Scroll position — stored as the topmost visible aliyah's key, not a
-  // pixel offset, since a key is stable across screen sizes/zoom and
-  // survives the layout being rebuilt on load. Omitted when at (or near)
-  // the very top, since that's indistinguishable from a fresh link.
-  const scrollKey = topmostVisibleAliyahKey();
+  // Scroll position — stored as whichever aliyah's key currently sits at
+  // the center of the viewport, not a pixel offset, since a key is
+  // stable across screen sizes/zoom and survives the layout being
+  // rebuilt on load. Omitted when the first aliyah is centered, since
+  // that's indistinguishable from a fresh link.
+  const scrollKey = centeredAliyahKey();
   const renderedKeys = [...document.querySelectorAll('.tikkun-section.visible .aliyah')]
     .map(el => el.dataset.aliyah);
   if (scrollKey && renderedKeys.length && scrollKey !== renderedKeys[0]) {
@@ -881,22 +882,25 @@ function syncUrl() {
 
 // Which aliyah section is currently at (or just above) the top of the
 // viewport, within whichever tab (practice/bima) is actually showing.
-// Same idea as a scrollspy nav — walks sections top-to-bottom and keeps
-// the last one whose top edge has scrolled past a small offset below the
-// viewport top, so it reflects "what I'm reading now" rather than
-// whatever's merely still partially visible.
-function topmostVisibleAliyahKey() {
+// Same idea as a scrollspy nav — picks whichever section's vertical span
+// currently contains the center of the viewport, so it reflects "what I'm
+// reading now" rather than merely what's topmost or still partially
+// visible. Falls back to the closest section by distance if the viewport
+// center happens to land in a gap between sections.
+function centeredAliyahKey() {
   const visibleSection = document.querySelector('.tikkun-section.visible');
   if (!visibleSection) return null;
   const sections = [...visibleSection.querySelectorAll('.aliyah')];
   if (!sections.length) return null;
-  const OFFSET = 80; // rough allowance for the sticky controls bar
-  let current = sections[0];
+  const viewportCenter = window.innerHeight / 2;
+  let best = null, bestDist = Infinity;
   for (const sec of sections) {
-    if (sec.getBoundingClientRect().top <= OFFSET) current = sec;
-    else break;
+    const rect = sec.getBoundingClientRect();
+    if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) return sec.dataset.aliyah || null;
+    const dist = rect.top > viewportCenter ? rect.top - viewportCenter : viewportCenter - rect.bottom;
+    if (dist < bestDist) { bestDist = dist; best = sec; }
   }
-  return current.dataset.aliyah || null;
+  return best ? (best.dataset.aliyah || null) : null;
 }
 
 // Applies a shared link's aliyah-filter/scroll restore once the DOM for
@@ -928,7 +932,7 @@ function applyPendingRestore() {
       const target = visibleSection
         ? visibleSection.querySelector(`.aliyah[data-aliyah="${scrollKey}"]`)
         : null;
-      if (target) target.scrollIntoView({behavior: 'auto', block: 'start'});
+      if (target) target.scrollIntoView({behavior: 'auto', block: 'center'});
     }, 0);
   }
 }
