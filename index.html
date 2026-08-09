@@ -723,6 +723,13 @@ const state = {
   weekdayLeyning: null
 };
 
+// One-shot restore instructions from a shared link, consumed the first
+// time a render finishes after load — aliyah-filter checkboxes and the
+// scroll target both only exist in the DOM *after* generate() has run,
+// so they can't be applied during init() itself like the rest of state.
+let pendingRestore = null; // {aliyahKeys: Set<string>|null, scrollKey: string|null}
+let scrollSyncArmed = false; // only start tracking scroll after first render
+
 const LABELS = {
   '1':{he:'ראשון',en:'Rishon'},'2':{he:'שני',en:'Sheni'},
   '3':{he:'שלישי',en:'Shlishi'},'4':{he:'רביעי',en:"Revi'i"},
@@ -845,8 +852,99 @@ function syncUrl() {
   if (state.israel) params.set('il', '1');
   if (state.mode !== 'triennial') params.set('mode', state.mode);
   if (state.regularMaftir) params.set('maftir', '1');
+
+  // Aliyah filter — only include when it's a strict subset, so the common
+  // "everything selected" case doesn't clutter every link.
+  const panel = document.getElementById('aliyahMsPanel');
+  const cbs = panel ? [...panel.querySelectorAll('.aliyah-cb')] : [];
+  if (cbs.length) {
+    const checked = cbs.filter(c => c.checked);
+    if (checked.length > 0 && checked.length < cbs.length) {
+      params.set('al', checked.map(c => c.dataset.aliyah).join(','));
+    }
+  }
+
+  // Scroll position — stored as the topmost visible aliyah's key, not a
+  // pixel offset, since a key is stable across screen sizes/zoom and
+  // survives the layout being rebuilt on load. Omitted when at (or near)
+  // the very top, since that's indistinguishable from a fresh link.
+  const scrollKey = topmostVisibleAliyahKey();
+  const renderedKeys = [...document.querySelectorAll('.tikkun-section.visible .aliyah')]
+    .map(el => el.dataset.aliyah);
+  if (scrollKey && renderedKeys.length && scrollKey !== renderedKeys[0]) {
+    params.set('sc', scrollKey);
+  }
+
   const qs = params.toString();
   history.replaceState(null, '', qs ? ('?' + qs) : location.pathname);
+}
+
+// Which aliyah section is currently at (or just above) the top of the
+// viewport, within whichever tab (practice/bima) is actually showing.
+// Same idea as a scrollspy nav — walks sections top-to-bottom and keeps
+// the last one whose top edge has scrolled past a small offset below the
+// viewport top, so it reflects "what I'm reading now" rather than
+// whatever's merely still partially visible.
+function topmostVisibleAliyahKey() {
+  const visibleSection = document.querySelector('.tikkun-section.visible');
+  if (!visibleSection) return null;
+  const sections = [...visibleSection.querySelectorAll('.aliyah')];
+  if (!sections.length) return null;
+  const OFFSET = 80; // rough allowance for the sticky controls bar
+  let current = sections[0];
+  for (const sec of sections) {
+    if (sec.getBoundingClientRect().top <= OFFSET) current = sec;
+    else break;
+  }
+  return current.dataset.aliyah || null;
+}
+
+// Applies a shared link's aliyah-filter/scroll restore once the DOM for
+// the first render actually exists. No-op past the first render (there's
+// nothing left to restore after that — normal user interaction takes over).
+function applyPendingRestore() {
+  if (!pendingRestore) return;
+  const {aliyahKeys, scrollKey} = pendingRestore;
+  pendingRestore = null;
+
+  if (aliyahKeys && aliyahKeys.size) {
+    const panel = document.getElementById('aliyahMsPanel');
+    const cbs = panel ? [...panel.querySelectorAll('.aliyah-cb')] : [];
+    if (cbs.length) {
+      cbs.forEach(cb => { cb.checked = aliyahKeys.has(cb.dataset.aliyah); });
+      // Guard against a link naming aliyot that don't exist on this
+      // particular reading (e.g. edited by hand) — fall back to "all"
+      // rather than leaving nothing visible.
+      if (!cbs.some(cb => cb.checked)) cbs.forEach(cb => cb.checked = true);
+      applyAliyahFilter();
+    }
+  }
+
+  if (scrollKey) {
+    // Let the layout settle first — same reasoning as the existing
+    // syncAllPracticeColumns() setTimeout(...,0) elsewhere in this file.
+    setTimeout(() => {
+      const visibleSection = document.querySelector('.tikkun-section.visible');
+      const target = visibleSection
+        ? visibleSection.querySelector(`.aliyah[data-aliyah="${scrollKey}"]`)
+        : null;
+      if (target) target.scrollIntoView({behavior: 'auto', block: 'start'});
+    }, 0);
+  }
+}
+
+// Starts tracking scroll position for URL sync, once, after the first
+// successful render — debounced so it costs nothing during normal
+// scrolling. Deliberately separate from the existing controls-bar
+// show/hide scroll listener (different concern, no reason to couple them).
+function armScrollSync() {
+  if (scrollSyncArmed) return;
+  scrollSyncArmed = true;
+  let t = null;
+  window.addEventListener('scroll', () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(syncUrl, 400);
+  }, {passive: true});
 }
 
 function syncDropdown() {
@@ -2026,6 +2124,8 @@ async function generate() {
     const target = document.querySelector('.'+savedTab+'-section');
     if(target) target.classList.add('visible');
     updateFloatingToggleVisibility(savedTab);
+    applyPendingRestore();
+    armScrollSync();
     syncUrl();
 
   } catch(err) {
@@ -2122,6 +2222,8 @@ function applyAliyahFilter() {
   const bimaBtn = document.getElementById('printBtnBima');
   if (practiceBtn) practiceBtn.textContent = printLabel;
   if (bimaBtn) bimaBtn.textContent = printLabel;
+
+  syncUrl();
 }
 function toggleAliyahPanel() {
   document.getElementById('aliyahMsPanel').style.display =
@@ -2279,6 +2381,17 @@ function init() {
   } else {
     state.refDate = toShabbat(new Date());
   }
+
+  // Aliyah filter / scroll restore can't be applied yet — the elements
+  // they target don't exist until after the first generate() renders.
+  // Stashed here and consumed once by applyPendingRestore().
+  if (urlParams.has('al') || urlParams.has('sc')) {
+    pendingRestore = {
+      aliyahKeys: urlParams.has('al') ? new Set(urlParams.get('al').split(',').filter(Boolean)) : null,
+      scrollKey: urlParams.get('sc') || null,
+    };
+  }
+
   rebuildDropdown();
 
   // Apply saved theme preference (overrides prefers-color-scheme)
