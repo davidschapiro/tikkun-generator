@@ -48,6 +48,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - **Verse lookup** — a "🔍 Verse" button next to the dropdown (mobile: "Look up a verse", full-width) opens a modal where you can enter any Torah book, chapter, and verse. The tool validates the reference against a hardcoded verse-count table (so "Deuteronomy 10:50" is rejected immediately), then finds the correct parasha and aliyah from the pre-baked fullkriyah range index — no runtime API call. Always navigates in Full Kriyah mode; scrolls to and briefly highlights the specific verse in gold
 - **Aliyah jump chips** — a row of colored buttons (matching each aliyah header's color) sits in the controls bar alongside the aliyah selector. Clicking scrolls directly to that aliyah; chips for deselected aliyot are hidden automatically so the bar always reflects only what's visible
 - **Aliyah multi-select** — "All Aliyot" button opens a popover; unchecking it deselects everything so you can quickly pick one or two; the "at least one" guard on individual checkboxes prevents an accidental blank screen
+- **Shareable links** — the 🔗 button next to the nav arrows copies a link that reproduces exactly what you're looking at: date, weekday/holiday view, Diaspora/Israel, Triennial/Full Kriyah, Regular Maftir, a narrowed aliyah selection, and your scroll position (whichever aliyah is centered on your screen). Opening that link scrolls the recipient straight to that aliyah, pinned at the top so they have room to read on from there. Display preferences (theme, Practice/Bima tab, layout) are deliberately left out — they stay whatever the recipient already has set
 - **Side-by-Side / Either-Or layout toggle** for Tikkun Korim — Either-Or collapses to single column with a Scroll/Tikkun sub-toggle for cover-and-check practice
 - Both toggles in a **floating widget** (bottom-right, always visible while scrolling)
 - Tab switcher between Tikkun Korim and Bima Tikkun (last tab remembered); tab switcher lives just above the tikkun content, not buried in the header
@@ -68,7 +69,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 ### Technical
 - Hebrew text set in **Shlomo SemiStam** (SIL Open Font License), embedded
 - Favicon: a tav (ת) rendered in the same embedded font, gold-on-dark
-- Dark mode support
+- Dark mode support — always follows your system's light/dark setting, including live if you change it mid-session; no manual override to keep in sync
 - No backend, no build step — `index.html` + `tokenizer.js`, both static
 
 ## Sources
@@ -81,7 +82,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 - A setuma can occasionally still land at a line edge on a tight column — accepted as permanent, glyph stays in both columns
 - Simchat Torah Chatanim structure not included
-- **No audio** — planned idea, not yet investigated
+- **No audio yet** — Rabbi Jeremy Wieder's per-aliyah Torah recordings (vayavinu.com) have been scraped and mapped to parasha names, sitting on a branch, not yet merged or wired into the UI. The three combined-reading weeks (Chukat-Balak, Matot-Masei, Nitzavim-Vayeilech) need a specific fix since no combined recording exists. A second, exact-verse-range audio source is also being explored, pending permission from its site owner
 
 ## Deploy & maintenance
 

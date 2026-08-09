@@ -638,6 +638,47 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
+**Done, August 2026 session (this is now the current state of main):**
+- **Shareable links.** `syncUrl()` reflects the full reading state into
+  the URL via `history.replaceState` after every render: `d` (Shabbat
+  date), `wd` (weekday-reading flag), `h` (holiday key), `il` (Israel
+  calendar), `mode` (annual, only when not triennial), `maftir` (regular
+  maftir toggle), `al` (aliyah filter, only when a strict subset is
+  selected), `sc` (scroll position). `init()` parses the same params on
+  load, with graceful fallback to today's Shabbat on malformed/missing
+  input — verified with a standalone Node harness against six cases
+  (normal, all-secondary-params-set, weekday, holiday, malformed date,
+  no params) before shipping. 🔗 Copy Link button next to prev/next nav;
+  clipboard-API with a `prompt()` fallback if unavailable.
+  **Scroll position is deliberately asymmetric, not a plain round-trip**:
+  captured as whichever aliyah's span currently contains the *viewport
+  center* (`centeredAliyahKey()` — scrollspy-style, contains-check with
+  nearest-distance fallback for gaps between sections), but *restored*
+  with `scrollIntoView({block:'start'})`, pinning that aliyah to the
+  *top* on open. This was a real back-and-forth in the session — first
+  built top/top, then changed to center/center per an ambiguous request,
+  then corrected to center/top once the actual intent (matches this
+  app's existing jump-chip behavior, gives the recipient reading room
+  below) was clarified. If asked to touch this again, don't assume
+  symmetry is correct by default.
+  Aliyah-filter/scroll restore can't run inside `init()` itself — the
+  checkboxes and `.aliyah` sections don't exist until after `generate()`
+  renders — so both are stashed in a one-shot `pendingRestore` global and
+  applied via `applyPendingRestore()` right after the first render
+  completes; a link naming aliyot that don't exist on that particular
+  reading falls back to "show all" rather than showing nothing.
+  Explicitly NOT in the link (local display prefs, not reading state):
+  theme, active tab (Practice/Bima), Side-by-Side vs Either-Or layout.
+- **Theme always matches system, no persisted override.** Previously a
+  manual Light/Dark toggle click saved to `localStorage` and overrode
+  system preference on every future load — removed. The toggle is now
+  session-only (click still previews a theme immediately, just doesn't
+  persist); every load, and any live OS theme change including
+  mid-session, always reflects `prefers-color-scheme`. The live
+  `matchMedia('change')` listener no longer checks `localStorage` first —
+  it unconditionally re-syncs, so a live OS switch overrides even a
+  theme picked seconds earlier in that same session.
+
 **Done since last update — shipped to `main`:**
 - **Mid-verse petucha token-gluing fixed** (Numbers 26:1, Genesis 35:22).
   Root cause: source data embeds a literal `<br>` right after the
@@ -889,19 +930,36 @@ tuning decision:
   before the next biannual (Jan 1 / Jul 1) refresh runs.
 
 **Not started / open:**
-- **Audio integration — vayavinu.com approach (ready to implement).**
+- **Audio integration — vayavinu.com scrape complete, not yet merged/wired.**
   Rabbi Jeremy Wieder has recorded the entire Torah in both Havarah
   Ashkenazit and Havarah Sephardit, per-aliyah, as YouTube videos, all
-  linked from vayavinu.com. The site structure is fully predictable:
-  `vayavinu.com/{book-num}{book-name}-{parasha-num}-{parasha-name}`.
-  Each parasha page embeds YouTube video IDs for all 7 aliyot in both
-  pronunciations. Holidays (Yamim Tovim, Ta'anit Tzibbur/Vayechal) are
-  also covered. Plan: scrape vayavinu.com once to extract all YouTube
-  video IDs → store as a small JSON file in the repo → add a ▶ button
-  per aliyah header that opens the YouTube video in a new tab. No
-  hosting cost, free, human-quality. Weekday nusach NOT covered —
-  Wieder only recorded Shabbat aliyot. Sephardit pronunciation available
-  as a bonus. Implement in a new session.
+  linked from vayavinu.com. Scraped Aug 2026 (see session log below):
+  `vayavinu-audio.json` (video IDs, all 42 parshiot + Yamim Tovim +
+  Ta'anit Tzibbur) and `vayavinu-parasha-map.json` (name→slug mapping)
+  live on branch `vayavinu-audio-data`, **not merged to `main`**. Still
+  needed before this is user-facing: (1) the ▶ button UI per aliyah
+  header, (2) a real fix for the three combined weeks (Chukat-Balak,
+  Matot-Masei, Nitzavim-Vayeilech) — vayavinu has no combined recording,
+  only the two parshiot separately with different aliyah verse
+  boundaries than the combined reading; current plan is verse-range
+  matching against each combined aliyah's actual range (already in
+  `PARASHA_LISTS`), not simple concatenation. Weekday nusach NOT covered
+  by vayavinu — Wieder only recorded Shabbat aliyot.
+- **Adatshalom scrollscraper (adatshalom.net) — exact-verse-range audio,
+  pending permission, do not automate against it.** A different site,
+  `scrollscraper.adatshalom.net/buildmp3.cgi`, generates audio for *any*
+  arbitrary verse range (not just full-parasha aliyot) — would solve the
+  combined-week problem above exactly, and could extend to weekday/
+  triennial audio too, all in one consistent nusach. Its `robots.txt`
+  explicitly disallows `/buildmp3.cgi`, `/scrollscraper.cgi`, and
+  `/sedrot.cgi` — confirmed real, checked directly. **Do not script
+  requests to these endpoints even for testing/reverse-engineering the
+  `flags` parameter** — that's the same load/consent problem as
+  production scraping, just smaller. David is emailing the site owner to
+  ask about permitted use; resolve this before building anything on top
+  of it. If they say yes, this is the better long-term audio source and
+  the vayavinu integration above may become unnecessary/secondary. If
+  no/no-response, fall back to the vayavinu approach.
 - **CI workflow** — now done (test.yml added Aug 2026). Tests run on
   every push to main. Three tests: tokenizer, paragraph-breaks,
   print-geometry.
