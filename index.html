@@ -925,6 +925,11 @@ function applyPendingRestore() {
   }
 
   if (scrollKey) {
+    // Deliberately asymmetric with the center-based detection above:
+    // the link is *generated* from whatever aliyah is centered on the
+    // sharer's screen, but *opened* to that aliyah pinned at the top —
+    // matches the app's existing jump-chip behavior elsewhere in the
+    // file, and gives the recipient headroom to read forward from it.
     // Let the layout settle first — same reasoning as the existing
     // syncAllPracticeColumns() setTimeout(...,0) elsewhere in this file.
     setTimeout(() => {
@@ -932,7 +937,7 @@ function applyPendingRestore() {
       const target = visibleSection
         ? visibleSection.querySelector(`.aliyah[data-aliyah="${scrollKey}"]`)
         : null;
-      if (target) target.scrollIntoView({behavior: 'auto', block: 'center'});
+      if (target) target.scrollIntoView({behavior: 'auto', block: 'start'});
     }, 0);
   }
 }
