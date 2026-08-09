@@ -403,6 +403,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
       <div class="date-display" id="dateDisplay">—</div>
       <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+      <button class="nav-btn" id="copyLinkBtn" title="Copy a link to this exact reading">🔗</button>
     </div>
     <div class="parasha-name" id="parashaName">—</div>
     <select class="parasha-select" id="parashaSelect">
@@ -826,6 +827,26 @@ function findVerseLocation(book, ch, v, locKey) {
     }
   }
   return null;
+}
+
+// Reflects current state into the URL so it can be copied/shared and will
+// reproduce the exact same view on load. Uses replaceState (not pushState)
+// so navigating parashiot doesn't spam the browser history stack.
+function syncUrl() {
+  const params = new URLSearchParams();
+  if (state.weekdayLeyning) {
+    params.set('d', dateStr(toShabbat(state.refDate)));
+    params.set('wd', '1');
+  } else if (state.holidayKey) {
+    params.set('h', state.holidayKey);
+  } else {
+    params.set('d', dateStr(toShabbat(state.refDate)));
+  }
+  if (state.israel) params.set('il', '1');
+  if (state.mode !== 'triennial') params.set('mode', state.mode);
+  if (state.regularMaftir) params.set('maftir', '1');
+  const qs = params.toString();
+  history.replaceState(null, '', qs ? ('?' + qs) : location.pathname);
 }
 
 function syncDropdown() {
@@ -2005,6 +2026,7 @@ async function generate() {
     const target = document.querySelector('.'+savedTab+'-section');
     if(target) target.classList.add('visible');
     updateFloatingToggleVisibility(savedTab);
+    syncUrl();
 
   } catch(err) {
     status.innerHTML=`<div class="error-box">⚠ ${err.message}<br><br>
@@ -2234,7 +2256,29 @@ function rebuildDropdown() {
 }
 
 function init() {
-  state.refDate = toShabbat(new Date());
+  // Restore a shared link's state, if present, before any default is
+  // applied. Location/mode/maftir are read regardless of view type;
+  // which of h / d(+wd) is present determines the view itself.
+  const urlParams = new URLSearchParams(location.search);
+  if (urlParams.has('il')) state.israel = urlParams.get('il') === '1';
+  if (urlParams.has('mode')) state.mode = urlParams.get('mode');
+  if (urlParams.has('maftir')) state.regularMaftir = urlParams.get('maftir') === '1';
+
+  let pendingWeekday = false;
+  if (urlParams.has('h')) {
+    state.holidayKey = urlParams.get('h');
+    state.refDate = toShabbat(new Date());
+  } else if (urlParams.has('d')) {
+    const d = new Date(urlParams.get('d') + 'T12:00:00');
+    if (!isNaN(d)) {
+      state.refDate = d;
+      pendingWeekday = urlParams.get('wd') === '1';
+    } else {
+      state.refDate = toShabbat(new Date());
+    }
+  } else {
+    state.refDate = toShabbat(new Date());
+  }
   rebuildDropdown();
 
   // Apply saved theme preference (overrides prefers-color-scheme)
@@ -2318,6 +2362,22 @@ function init() {
   document.getElementById('nextBtn').addEventListener('click',()=>{
     state.holidayKey=null; state.weekdayLeyning=null; syncReadingTypeToggle(); state.refDate=shiftWeeks(state.refDate,1);
     state.chCache={}; syncDropdown(); generate();
+  });
+
+  document.getElementById('copyLinkBtn').addEventListener('click', async (e) => {
+    // syncUrl() already keeps location.href current after every generate(),
+    // so there's nothing to build here — just hand it to the clipboard.
+    const btn = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(location.href);
+      const original = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (err) {
+      // Clipboard API can fail (permissions, insecure context) — fall back
+      // to selecting the URL so the person can copy it manually.
+      prompt('Copy this link:', location.href);
+    }
   });
 
   document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(btn=>{
@@ -2499,8 +2559,23 @@ function init() {
     document.querySelector('#layoutToggle .toggle-btn[data-val="either"]').click();
   }
 
+  // Sync toggles whose initial active state comes from static HTML
+  // (locToggle, readingTypeToggle) to match state restored from a shared
+  // link — the modeToggle loop above already reads state.mode directly,
+  // but these two don't, so a link with il=1 or wd=1 would otherwise
+  // fetch the right data while showing the wrong buttons highlighted.
+  if (state.israel) {
+    document.querySelectorAll('#locToggle .toggle-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.val === 'israel'));
+  }
   syncDropdown();
-  generate();
+  if (pendingWeekday) {
+    document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.val === 'weekday'));
+    loadWeekdayReading();
+  } else {
+    generate();
+  }
 
   // Hide controls bar on scroll-down, reveal on scroll-up (mobile-friendly nav)
   let lastScrollY = window.scrollY;
