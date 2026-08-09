@@ -2403,12 +2403,10 @@ function init() {
 
   rebuildDropdown();
 
-  // Apply saved theme preference (overrides prefers-color-scheme)
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const initDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-
+  // Always reflects system dark/light preference on load — no persisted
+  // override. Leaving data-theme unset lets the CSS's own
+  // @media(prefers-color-scheme:dark) rule apply directly, so this block
+  // doesn't even need to set the attribute for the default case.
   function syncThemeToggle() {
     const dark = document.documentElement.dataset.theme === 'dark'
       || (!document.documentElement.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -2419,17 +2417,18 @@ function init() {
   syncThemeToggle();
   document.querySelectorAll('#themeToggle .toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Session-only preview — deliberately not persisted, so the next
+      // load always re-syncs to system rather than sticking to whatever
+      // was last picked.
       document.documentElement.dataset.theme = btn.dataset.val;
-      localStorage.setItem('theme', btn.dataset.val);
       syncThemeToggle();
     });
   });
-  // Follow system preference live when the user hasn't set a manual preference
+  // Keep following system preference live, including overriding any
+  // in-session manual toggle above — "always match system" wins.
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (!localStorage.getItem('theme')) {
-      delete document.documentElement.dataset.theme;
-      syncThemeToggle();
-    }
+    delete document.documentElement.dataset.theme;
+    syncThemeToggle();
   });
 
   document.getElementById('regularMaftirCheckbox').checked = state.regularMaftir;
