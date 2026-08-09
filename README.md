@@ -82,7 +82,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 - A setuma can occasionally still land at a line edge on a tight column — accepted as permanent, glyph stays in both columns
 - Simchat Torah Chatanim structure not included
-- **No audio yet** — Rabbi Jeremy Wieder's per-aliyah Torah recordings (vayavinu.com) have been scraped and mapped to parasha names, sitting on a branch, not yet merged or wired into the UI. The three combined-reading weeks (Chukat-Balak, Matot-Masei, Nitzavim-Vayeilech) need a specific fix since no combined recording exists. A second, exact-verse-range audio source is also being explored, pending permission from its site owner
+- **No audio** — planned, not yet available
 
 ## Deploy & maintenance
 
