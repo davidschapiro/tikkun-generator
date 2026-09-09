@@ -703,12 +703,23 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
   </div>
   <div class="vl-row">
-    <label>Include</label>
-    <select id="ytScope">
-      <option value="weekly">Weekly parshiot only</option>
-      <option value="weekly+holidays" selected>Weekly parshiot + holidays</option>
-    </select>
+    <label style="align-self:flex-start;padding-top:0.15rem;">Include</label>
+    <div style="flex:1;display:flex;gap:1rem;font-size:0.82rem;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-weight:normal;">
+        <input type="checkbox" id="ytIncludeShabbat" checked>Shabbat</label>
+      <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-weight:normal;">
+        <input type="checkbox" id="ytIncludeWeekday">Weekday</label>
+      <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-weight:normal;">
+        <input type="checkbox" id="ytIncludeHolidays" checked>Holidays</label>
+    </div>
   </div>
+  <p id="ytWeekdayNote" style="display:none;font-size:0.74rem;color:var(--ink-pale);margin:-0.2rem 0 0.5rem;">
+    Monday/Thursday readings are always the upcoming Shabbat's own
+    Full-Kriyah opening — the same regardless of the Cycle setting
+    below, and not covered by a Triennial Shabbat reading (which starts
+    somewhere else in the parasha most years). Requires one extra live
+    lookup per week, so checking this noticeably increases build time.
+  </p>
   <div class="vl-row" id="ytCurationRow">
     <label style="align-self:flex-start;padding-top:0.3rem;">Holidays</label>
     <div style="flex:1;">
@@ -725,6 +736,9 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <option value="full">Full Kriyah</option>
     </select>
   </div>
+  <p style="font-size:0.72rem;color:var(--ink-pale);margin:-0.3rem 0 0.5rem;">
+    Applies to Shabbat readings only.
+  </p>
   <p style="font-size:0.76rem;color:var(--ink-pale);margin:0.4rem 0 0.6rem;">
     Builds the Bima Tikkun view only. Fetches every reading fresh from
     Sefaria in your browser, then opens the print dialog — for a full
@@ -2171,15 +2185,22 @@ function mergeFastDayMincha(holidayEntries) {
     .map(o => YEAR_TIKKUN_MERGE_MINCHA.has(o.label) ? { ...o, titleSuffix: ' (Shacharit + Mincha)' } : o);
 }
 
-function buildYearOccasions(hebrewYear, locKey, includeHolidays, includedFamilyIds) {
+// Only the Shabbat/Holiday parts of the occasion list are known
+// synchronously from static data — Weekday readings require a live
+// Hebcal lookup per week (see below) and are added separately in
+// runYearTikkunBuild(), then merged and re-sorted.
+function buildYearOccasions(hebrewYear, locKey, includeShabbat, includeHolidays, includedFamilyIds) {
   const years = availableHebrewYears(locKey);
   const bound = years.find(y => y.year === hebrewYear);
   if (!bound) return null;
   const { start, end } = bound; // end is exclusive
 
-  const weekly = PARASHA_LISTS[locKey]
-    .filter(p => p.date >= start && p.date < end)
-    .map(p => ({ kind: 'parasha', date: p.date, label: p.name, data: p, sortKey: p.date + 'a' }));
+  let weekly = [];
+  if (includeShabbat) {
+    weekly = PARASHA_LISTS[locKey]
+      .filter(p => p.date >= start && p.date < end)
+      .map(p => ({ kind: 'parasha', date: p.date, label: p.name, data: p, sortKey: p.date + '1' }));
+  }
 
   let holidays = [];
   if (includeHolidays) {
@@ -2196,18 +2217,33 @@ function buildYearOccasions(hebrewYear, locKey, includeHolidays, includedFamilyI
         return fam ? includedFamilyIds.has(fam.id) : true;
       });
     }
-    holidays = raw.map(o => ({ ...o, sortKey: o.date + 'b' }));
+    holidays = raw.map(o => ({ ...o, sortKey: o.date + '2' }));
   }
 
   return [...weekly, ...holidays].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
+// Every Shabbat date in the range, regardless of whether Shabbat itself
+// is included in the final book — needed to know which weeks to look
+// up a Monday/Thursday reading for, since Weekday can be selected
+// independently of Shabbat.
+function shabbatDatesInYear(hebrewYear, locKey) {
+  const years = availableHebrewYears(locKey);
+  const bound = years.find(y => y.year === hebrewYear);
+  if (!bound) return [];
+  return PARASHA_LISTS[locKey].filter(p => p.date >= bound.start && p.date < bound.end).map(p => p.date);
+}
+
 // Ranges for one occasion, same triennial/full-kriyah branch generate()
 // uses — always the triennial cycle's own maftir (no regularMaftir
-// override) for simplicity in a whole-year book.
+// override) for simplicity in a whole-year book. Weekday readings are
+// already a flat {1,2,3} object (no triennial variant — Monday/Thursday
+// is always the upcoming Shabbat's Full-Kriyah opening, regardless of
+// which cycle that Shabbat itself is read in), so they take the same
+// branch as holidays.
 function rangesForOccasion(o, mode) {
   const ranges = {};
-  if (o.kind === 'holiday') {
+  if (o.kind === 'holiday' || o.kind === 'weekday') {
     for (const k of ['1','2','3','4','5','6','7']) if (o.data[k]) ranges[k] = o.data[k];
     if (o.data.maftir) ranges.maftir = o.data.maftir;
   } else if (mode === 'triennial' && o.data.triennial) {
@@ -2239,11 +2275,15 @@ async function runPool(items, limit, worker) {
 }
 
 function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
-  const isHoliday = o.kind === 'holiday';
-  const title = isHoliday ? formatHolidayTitle(o.label) + (o.titleSuffix || '') : o.label;
+  const isHolidayStyle = o.kind !== 'parasha'; // holiday AND weekday both use holiday-style rendering (see generate()'s own comment on this)
+  const title = o.kind === 'holiday' ? formatHolidayTitle(o.label) + (o.titleSuffix || '') : o.label;
   const ty = triennialYear(hebrewYear);
-  const modeLbl = isHoliday ? 'Holiday Reading' : (mode === 'triennial' ? `Triennial Year ${ty}` : 'Full Kriyah');
-  const hebrewDate = isHoliday ? o.data.hdate : null;
+  const modeLbl = o.kind === 'weekday' ? 'Weekday Reading'
+    : o.kind === 'holiday' ? 'Holiday Reading'
+    : (mode === 'triennial' ? `Triennial Year ${ty}` : 'Full Kriyah');
+  // Weekday readings have no Hebrew date available from Hebcal's
+  // /leyning response at present — same limitation as the single-view.
+  const hebrewDate = o.kind === 'holiday' ? o.data.hdate : null;
   const dateLabel = hebrewDate ? `${hebrewDate} · ${o.date}` : o.date;
   const meta = `${dateLabel} · ${modeLbl}`;
 
@@ -2256,7 +2296,7 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
   for (const k of ['1','2','3','4','5','6','7','maftir']) {
     if (!aliyotData[k]) continue;
     const {range, verses} = aliyotData[k];
-    bimaHTML += aliyahSection(k, range, verses, 'bima', isHoliday);
+    bimaHTML += aliyahSection(k, range, verses, 'bima', isHolidayStyle);
   }
   return `<div class="year-tikkun-occasion">${printHdr}${bimaHTML}</div>`;
 }
@@ -2264,7 +2304,9 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
 async function runYearTikkunBuild() {
   const year = parseInt(document.getElementById('ytYear').value);
   const locKey = document.getElementById('ytLocation').value;
-  const includeHolidays = document.getElementById('ytScope').value === 'weekly+holidays';
+  const includeShabbat = document.getElementById('ytIncludeShabbat').checked;
+  const includeWeekday = document.getElementById('ytIncludeWeekday').checked;
+  const includeHolidays = document.getElementById('ytIncludeHolidays').checked;
   const includedFamilyIds = new Set(
     [...document.querySelectorAll('#ytFamilyList input:checked')].map(cb => cb.dataset.family)
   );
@@ -2274,14 +2316,61 @@ async function runYearTikkunBuild() {
   const submitBtn = document.getElementById('ytSubmit');
 
   resultEl.textContent = '';
-  const occasions = buildYearOccasions(year, locKey, includeHolidays, includedFamilyIds);
-  if (!occasions || !occasions.length) {
-    resultEl.innerHTML = '<div class="error-box">⚠ Nothing to build with the current selection.</div>';
+  let occasions = buildYearOccasions(year, locKey, includeShabbat, includeHolidays, includedFamilyIds);
+  if (occasions === null) {
+    resultEl.innerHTML = '<div class="error-box">⚠ That year isn\u2019t fully available yet.</div>';
     return;
   }
 
   submitBtn.disabled = true;
   progressEl.style.display = 'block';
+
+  if (includeWeekday) {
+    // Weekday readings aren't in any static table — each week's actual
+    // reading (or absence of one, if a holiday overrides both Monday
+    // and Thursday that week) is only knowable via a live Hebcal
+    // lookup. state.israel is set to match the dialog's own Where
+    // field for the duration of this pool, since fetchWeekdayLeyning()
+    // reads it internally — restored in finally regardless of outcome,
+    // so it never leaks into the live single-occasion view behind the
+    // dialog.
+    const shabbatDates = shabbatDatesInYear(year, locKey).map(d => new Date(d + 'T12:00:00'));
+    const savedIsrael = state.israel;
+    state.israel = (locKey === 'israel');
+    let weekdayResults;
+    try {
+      let doneWd = 0;
+      progressEl.textContent = `Finding weekday readings… 0/${shabbatDates.length}`;
+      weekdayResults = await runPool(shabbatDates, 4, async (d) => {
+        let result = null;
+        try {
+          const w = await fetchWeekdayReadingForShabbat(d);
+          // A holiday overriding both Mon/Thu that week returns
+          // itype:'holiday' — skip it here so it isn't potentially
+          // duplicated against whatever the Holidays checklist covers;
+          // that week's holiday, if wanted, comes from that checklist.
+          if (w.itype === 'weekday') {
+            result = { kind: 'weekday', date: w.date, label: w.title, data: w.leyning, sortKey: w.date + '0' };
+          }
+        } catch (e) { /* no weekday reading resolvable that week — skip it */ }
+        doneWd++;
+        progressEl.textContent = `Finding weekday readings… ${doneWd}/${shabbatDates.length}`;
+        return result;
+      });
+    } finally {
+      state.israel = savedIsrael;
+    }
+    occasions = [...occasions, ...weekdayResults.filter(Boolean)]
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }
+
+  if (!occasions.length) {
+    resultEl.innerHTML = '<div class="error-box">⚠ Nothing to build with the current selection.</div>';
+    submitBtn.disabled = false;
+    progressEl.style.display = 'none';
+    return;
+  }
+
   let done = 0;
   progressEl.textContent = `Fetching 0/${occasions.length}…`;
 
@@ -2324,8 +2413,13 @@ async function runYearTikkunBuild() {
 }
 
 function syncYearTikkunCurationRow() {
-  const includeHolidays = document.getElementById('ytScope').value === 'weekly+holidays';
+  const includeHolidays = document.getElementById('ytIncludeHolidays').checked;
   document.getElementById('ytCurationRow').style.display = includeHolidays ? 'flex' : 'none';
+}
+
+function syncYearTikkunWeekdayNote() {
+  const includeWeekday = document.getElementById('ytIncludeWeekday').checked;
+  document.getElementById('ytWeekdayNote').style.display = includeWeekday ? 'block' : 'none';
 }
 
 function renderYearTikkunFamilyList(useDefaults) {
@@ -2351,6 +2445,7 @@ function populateYearTikkunDialog() {
   document.getElementById('ytProgress').style.display = 'none';
   renderYearTikkunFamilyList(true);
   syncYearTikkunCurationRow();
+  syncYearTikkunWeekdayNote();
 }
 
 async function generate() {
@@ -2988,7 +3083,8 @@ function init() {
     document.getElementById('ytYear').innerHTML =
       years.map(y => `<option value="${y.year}">${y.year}</option>`).join('');
   });
-  document.getElementById('ytScope').addEventListener('change', syncYearTikkunCurationRow);
+  document.getElementById('ytIncludeHolidays').addEventListener('change', syncYearTikkunCurationRow);
+  document.getElementById('ytIncludeWeekday').addEventListener('change', syncYearTikkunWeekdayNote);
   document.getElementById('ytFamilyAll').addEventListener('click', () => {
     document.querySelectorAll('#ytFamilyList input').forEach(cb => cb.checked = true);
   });
