@@ -638,7 +638,69 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
-**Done, August 2026 session (this is now the current state of main):**
+**Done, September 2026 session:**
+- **Fixed a real live-site bug: Impressum content permanently visible on
+  every page load.** `<dialog id="impressumDialog">` was missing its
+  opening tag — the Impressum `<div class="modal-inner">` sat bare in
+  `<body>` with an orphaned `</dialog>` after it that the HTML parser
+  silently drops (an unmatched end tag is just discarded, not an error).
+  A plain `<div>` has no default `display:none` the way an unopened
+  `<dialog>` does, so the German legal notice was genuinely rendered on
+  every load — easy to miss since it sits after all real content with
+  no visual framing, but confirmed via `offsetParent !== null` in a
+  live page, not just inferred from the markup. This is also why it
+  showed up at the bottom of every generated Bima Tikkun PDF page (see
+  below) — one root cause, one fix, verified against both symptoms.
+  Footer's Impressum link still opens/closes the dialog correctly.
+- **`tools/bima-5787/`** — new tooling, not part of the live app itself.
+  Generates one print-ready PDF covering all of Hebrew year 5787's
+  Torah-reading occasions (Diaspora, triennial cycle year 2): drives the
+  live app in headless Chromium via Playwright, one page load per
+  occasion using the app's own shareable-link URL scheme (`?d=`/`?h=`),
+  captures each as its own correctly-paginated PDF, merges in
+  chronological order. See `tools/bima-5787/README.md` for setup/usage
+  and how to regenerate for a different year.
+  Content decisions worth remembering if this comes up again:
+  - The four minor fasts (Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther,
+    Tzom Tammuz) each have a Mincha reading that is byte-identical to
+    their own Shacharit reading — confirmed by comparing `HOLIDAY_DATA`
+    entries directly, not assumed. Occasions.json merges each pair into
+    one entry, relabeled "(Shacharit + Mincha)" via a `titleSuffix`
+    field the generator patches onto the rendered `.ph-he`/`.ph-en`
+    title text — no changes to the live app's rendering needed.
+  - **Tisha B'Av is the one exception** — its Shacharit is the special
+    Deuteronomy 4:25-40 + Lamentations reading; only its Mincha matches
+    the generic fast-day Vayechal reading. Both entries stay separate.
+    If asked to "fix the fast day duplication" again, don't assume all
+    five public fasts collapse the same way.
+  - Weekday Chol HaMoed readings (Sukkot Chol HaMoed Days 1-4, Pesach
+    Chol HaMoed Days 2-4) are dropped from the booklet entirely — kept
+    only Sukkot's Hoshana Raba and Pesach's Shabbat Chol HaMoed reading
+    (the two that carry more communal weight: last day of Sukkot, and a
+    Shabbat reading rather than an ordinary weekday one).
+  - Chanukah's plain weekday days (2-6) are dropped; kept only Day 7
+    (on Rosh Chodesh), since that's the one with a distinct combined
+    reading, not just the everyday Chanukah insert.
+  - A systematic torah-content diff across all 5787 holiday entries
+    found no other duplicates. One near-miss: Sukkot I (on Shabbat) and
+    Sukkot II cover the same overall verse range but split it into 7
+    vs. 5 aliyot respectively — genuinely different readings, correctly
+    NOT merged.
+  - Sandbox note (not relevant to real deployments): Playwright's
+    Chromium needs `ignoreHTTPSErrors: true` in this dev sandbox because
+    its network proxy does TLS interception that Chromium doesn't trust
+    by default — every `fetch()` to Sefaria silently failed without it,
+    hanging each page on `waitForSelector` for its full timeout with no
+    visible error. Cost real time to diagnose; if PDF generation hangs
+    again with zero output and no errors, check this first.
+  - Also hit: this sandbox does not reliably keep background processes
+    (a backgrounded local HTTP server, a `nohup`'d long-running script)
+    alive *across* separate tool-call boundaries, even with `disown`.
+    Anything that needs to run for more than one call has to either
+    complete within a single call, or be made resumable (skip-if-exists
+    on output files) and re-invoked in bounded chunks.
+
+
 - **Shareable links.** `syncUrl()` reflects the full reading state into
   the URL via `history.replaceState` after every render: `d` (Shabbat
   date), `wd` (weekday-reading flag), `h` (holiday key), `il` (Israel

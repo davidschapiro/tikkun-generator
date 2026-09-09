@@ -78,6 +78,10 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - Torah text: [Sefaria.org](https://sefaria.org)
 - Hebrew font: Shlomo SemiStam by Shlomo Orbach, based on Ezra SIL SR — [SIL Open Font License 1.1](https://scripts.sil.org/OFL)
 
+## Tools
+
+- **`tools/bima-5787/`** — generates a single print-ready PDF covering every Torah-reading occasion in Hebrew year 5787 (weekly parshiot in the triennial cycle plus holiday/fast readings), Diaspora nusach, rendered from the Bima Tikkun view. Drives the live app in headless Chromium via Playwright rather than reimplementing any rendering logic. See `tools/bima-5787/README.md` for setup and usage, including how to regenerate for a different year.
+
 ## Known gaps
 
 - A setuma can occasionally still land at a line edge on a tight column — accepted as permanent, glyph stays in both columns
