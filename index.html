@@ -116,12 +116,13 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   color:var(--ink);padding:0.28rem 0.6rem;cursor:pointer;white-space:nowrap;
   transition:color 0.12s,border-color 0.12s;}
 .verse-lookup-btn:hover{color:var(--gold);border-color:var(--gold);}
-#verseLookupDialog{border:1px solid var(--border);border-radius:10px;
+#verseLookupDialog,#yearTikkunDialog{border:1px solid var(--border);border-radius:10px;
   background:var(--bg-card);color:var(--ink);padding:1.4rem 1.6rem;
   box-shadow:0 4px 24px rgba(0,0,0,0.22);max-width:360px;width:90vw;
   position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
-#verseLookupDialog::backdrop{background:rgba(0,0,0,0.45);}
-#verseLookupDialog h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
+#yearTikkunDialog{max-width:440px;max-height:85vh;overflow-y:auto;}
+#verseLookupDialog::backdrop,#yearTikkunDialog::backdrop{background:rgba(0,0,0,0.45);}
+#verseLookupDialog h3,#yearTikkunDialog h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
 .vl-row{display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem;}
 .vl-row label{font-size:0.78rem;color:var(--ink-soft);min-width:3rem;}
 .vl-row select,.vl-row input{
@@ -135,6 +136,12 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 #vlSubmit{background:var(--gold);color:#fff;}
 #vlCancel{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
 #vlResult{font-size:0.78rem;color:var(--red);margin-top:0.4rem;min-height:1em;}
+.yt-family-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.5rem 0.7rem;margin-bottom:0.7rem;}
+.yt-family-row{display:flex;align-items:flex-start;gap:0.5rem;padding:0.25rem 0;font-size:0.78rem;}
+.yt-family-row input{margin-top:0.15rem;flex-shrink:0;}
+.yt-family-actions{display:flex;gap:0.6rem;font-size:0.72rem;margin-bottom:0.5rem;}
+.yt-family-actions a{color:var(--ink-soft);cursor:pointer;text-decoration:underline;}
 .floating-toggle{
   position:fixed;bottom:1.1rem;right:1.1rem;z-index:80;
   display:flex;flex-direction:column;gap:0.4rem;align-items:flex-end;
@@ -703,11 +710,13 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
   </div>
   <div class="vl-row" id="ytCurationRow">
-    <label>Holidays</label>
-    <select id="ytCuration">
-      <option value="curated" selected>Curated (skip weekday Chol HaMoed &amp; Chanukah, merge fast-day Mincha into Shacharit)</option>
-      <option value="all">Everything (every occasion, nothing merged)</option>
-    </select>
+    <label style="align-self:flex-start;padding-top:0.3rem;">Holidays</label>
+    <div style="flex:1;">
+      <div class="yt-family-actions">
+        <a id="ytFamilyAll">Select all</a><a id="ytFamilyNone">Select none</a><a id="ytFamilyDefault">Reset to suggested</a>
+      </div>
+      <div class="yt-family-list" id="ytFamilyList"></div>
+    </div>
   </div>
   <div class="vl-row">
     <label>Cycle</label>
@@ -719,7 +728,12 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   <p style="font-size:0.76rem;color:var(--ink-pale);margin:0.4rem 0 0.6rem;">
     Builds the Bima Tikkun view only. Fetches every reading fresh from
     Sefaria in your browser, then opens the print dialog — for a full
-    year this can take a minute or two.
+    year this can take a minute or two. Every minor fast's Mincha
+    reading is byte-identical to its own Shacharit reading, so those
+    are always shown as one combined entry — not a choice here, since
+    showing the same text twice never makes sense. Tisha B'Av is the
+    one exception: its Shacharit is a different reading, so it keeps
+    separate Shacharit and Mincha entries.
   </p>
   <div id="ytProgress" style="display:none;font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.5rem;"></div>
   <div id="ytResult"></div>
@@ -2114,24 +2128,50 @@ function availableHebrewYears(locKey) {
   return out;
 }
 
-// Curated holiday set — same content decisions as tools/bima-5787's
-// occasions.json (see AGENTS.md for the reasoning): weekday Chol HaMoed
-// dropped except Hoshana Raba and the Pesach Shabbat Chol HaMoed
-// reading; plain Chanukah weekdays dropped except Day 7 (on Rosh
-// Chodesh); the four minor fasts' Mincha entries merged into their
-// Shacharit entry (byte-identical content) — Tisha B'Av excluded from
-// that merge since its Shacharit and Mincha genuinely differ.
-const YEAR_TIKKUN_DROP_TITLES = new Set([
-  'Sukkot Chol ha-Moed Day 1', 'Sukkot Chol ha-Moed Day 2',
-  'Sukkot Chol ha-Moed Day 3', 'Sukkot Chol ha-Moed Day 4', 'Sukkot Chol ha-Moed Day 5',
-  'Pesach Chol ha-Moed Day 2 on Sunday', 'Pesach Chol ha-Moed Day 3 on Monday',
-  'Pesach Chol ha-Moed Day 4', 'Pesach II (CH’’M)', 'Pesach IV (CH’’M)',
-  'Pesach V (CH’’M)', 'Pesach VI (CH’’M)',
-  'Chanukah Day 2', 'Chanukah Day 3', 'Chanukah Day 4', 'Chanukah Day 5', 'Chanukah Day 6',
-]);
+// Holiday "families" offered as individually toggleable checkboxes in
+// the Full Year Tikkun picker — grouped rather than one checkbox per
+// exact HOLIDAY_DATA entry, since e.g. "Sukkot Chol HaMoed Day 1-4" as
+// four separate checkboxes would be more clutter than choice. `default`
+// is what's pre-checked when the dialog opens (matches the previous
+// "curated" preset) — every one of these remains freely toggleable,
+// unlike the fast-day Mincha merge below, which is not a choice.
+const HOLIDAY_FAMILIES = [
+  { id: 'rosh-hashanah', label: 'Rosh Hashanah', match: l => l.startsWith('Rosh Hashana'), default: true },
+  { id: 'yom-kippur', label: 'Yom Kippur (Shacharit + Mincha)', match: l => l.startsWith('Yom Kippur'), default: true },
+  { id: 'sukkot-main', label: 'Sukkot I & II', match: l => l.startsWith('Sukkot I'), default: true },
+  { id: 'sukkot-cholhamoed', label: 'Sukkot Chol HaMoed (weekdays)', match: l => l.startsWith('Sukkot Chol ha-Moed'), default: false },
+  { id: 'hoshana-raba', label: 'Hoshana Raba', match: l => l.includes('Hoshana Raba'), default: true },
+  { id: 'shmini-simchat', label: 'Shmini Atzeret / Simchat Torah', match: l => l.startsWith('Shmini Atzeret') || l.includes('Simchat Torah'), default: true },
+  { id: 'chanukah-weekdays', label: 'Chanukah weekdays (Days 2\u20136)', match: l => /^Chanukah Day [2-6]$/.test(l), default: false },
+  { id: 'chanukah-roshchodesh', label: 'Chanukah Day 7 (on Rosh Chodesh)', match: l => l.includes('Chanukah Day 7'), default: true },
+  { id: 'minor-fasts', label: 'Minor fasts (Tzom Gedaliah, Asara B\u2019Tevet, Ta\u2019anit Esther, Tzom Tammuz)',
+    match: l => YEAR_TIKKUN_MERGE_MINCHA_TEST(l), default: true },
+  { id: 'tisha-bav', label: 'Tisha B\u2019Av (Shacharit + Mincha)', match: l => l.startsWith('Tish\u2019a B\u2019Av'), default: true },
+  { id: 'purim', label: 'Purim / Shushan Purim', match: l => l.includes('Purim'), default: true },
+  { id: 'pesach-main', label: 'Pesach I, II, VII, VIII', match: l => /^Pesach (I|II|VII|VIII)$/.test(l), default: true },
+  { id: 'pesach-cholhamoed', label: 'Pesach Chol HaMoed (weekdays)', match: l => l.startsWith('Pesach Chol ha-Moed'), default: false },
+  { id: 'pesach-shabbat-cholhamoed', label: 'Pesach Shabbat Chol HaMoed', match: l => l === 'Pesach Shabbat Chol ha-Moed', default: true },
+  { id: 'shavuot', label: 'Shavuot I & II', match: l => l.startsWith('Shavuot'), default: true },
+  { id: 'yom-haatzmaut', label: 'Yom HaAtzma\u2019ut', match: l => l.includes('Yom HaAtzma'), default: true },
+];
 const YEAR_TIKKUN_MERGE_MINCHA = new Set(['Tzom Gedaliah', 'Asara B’Tevet', 'Ta’anit Esther', 'Tzom Tammuz']);
+function YEAR_TIKKUN_MERGE_MINCHA_TEST(label) {
+  return YEAR_TIKKUN_MERGE_MINCHA.has(label) || YEAR_TIKKUN_MERGE_MINCHA.has(label.replace(' (Shacharit + Mincha)', ''));
+}
 
-function buildYearOccasions(hebrewYear, locKey, includeHolidays, curated) {
+// Not a curation choice — always applied. Each of the four minor fasts'
+// Mincha reading is byte-identical to its own Shacharit reading
+// (verified directly against HOLIDAY_DATA, not assumed), so showing
+// both is never useful. Tisha B'Av is the one exception: its Shacharit
+// is the special Deuteronomy 4:25-40 + Lamentations reading, genuinely
+// different from its Mincha — both of its entries stay.
+function mergeFastDayMincha(holidayEntries) {
+  return holidayEntries
+    .filter(o => !(o.label.endsWith('(Mincha)') && YEAR_TIKKUN_MERGE_MINCHA.has(o.label.replace(' (Mincha)', ''))))
+    .map(o => YEAR_TIKKUN_MERGE_MINCHA.has(o.label) ? { ...o, titleSuffix: ' (Shacharit + Mincha)' } : o);
+}
+
+function buildYearOccasions(hebrewYear, locKey, includeHolidays, includedFamilyIds) {
   const years = availableHebrewYears(locKey);
   const bound = years.find(y => y.year === hebrewYear);
   if (!bound) return null;
@@ -2143,15 +2183,20 @@ function buildYearOccasions(hebrewYear, locKey, includeHolidays, curated) {
 
   let holidays = [];
   if (includeHolidays) {
-    holidays = Object.entries(HOLIDAY_DATA[locKey])
+    let raw = Object.entries(HOLIDAY_DATA[locKey])
       .filter(([key]) => key !== 'rosh-chodesh|Rosh Chodesh')
-      .map(([key, v]) => ({ date: key.split('|')[0], label: key.split('|').slice(1).join('|'), holidayKey: key, data: v }))
-      .filter(o => o.date >= start && o.date < end)
-      .filter(o => curated ? !YEAR_TIKKUN_DROP_TITLES.has(o.label) : true)
-      .filter(o => curated ? !(o.label.endsWith('(Mincha)') && YEAR_TIKKUN_MERGE_MINCHA.has(o.label.replace(' (Mincha)', ''))) : true)
-      .map(o => (curated && YEAR_TIKKUN_MERGE_MINCHA.has(o.label))
-        ? { ...o, kind: 'holiday', titleSuffix: ' (Shacharit + Mincha)', sortKey: o.date + 'b' }
-        : { ...o, kind: 'holiday', sortKey: o.date + 'b' });
+      .map(([key, v]) => ({ kind: 'holiday', date: key.split('|')[0], label: key.split('|').slice(1).join('|'), holidayKey: key, data: v }))
+      .filter(o => o.date >= start && o.date < end);
+    raw = mergeFastDayMincha(raw);
+    if (includedFamilyIds) {
+      raw = raw.filter(o => {
+        const fam = HOLIDAY_FAMILIES.find(f => f.match(o.label));
+        // An entry matching no known family is a safety net, not an
+        // oversight — always included rather than silently dropped.
+        return fam ? includedFamilyIds.has(fam.id) : true;
+      });
+    }
+    holidays = raw.map(o => ({ ...o, sortKey: o.date + 'b' }));
   }
 
   return [...weekly, ...holidays].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
@@ -2220,16 +2265,18 @@ async function runYearTikkunBuild() {
   const year = parseInt(document.getElementById('ytYear').value);
   const locKey = document.getElementById('ytLocation').value;
   const includeHolidays = document.getElementById('ytScope').value === 'weekly+holidays';
-  const curated = document.getElementById('ytCuration').value === 'curated';
+  const includedFamilyIds = new Set(
+    [...document.querySelectorAll('#ytFamilyList input:checked')].map(cb => cb.dataset.family)
+  );
   const mode = document.getElementById('ytMode').value;
   const resultEl = document.getElementById('ytResult');
   const progressEl = document.getElementById('ytProgress');
   const submitBtn = document.getElementById('ytSubmit');
 
   resultEl.textContent = '';
-  const occasions = buildYearOccasions(year, locKey, includeHolidays, curated);
+  const occasions = buildYearOccasions(year, locKey, includeHolidays, includedFamilyIds);
   if (!occasions || !occasions.length) {
-    resultEl.innerHTML = '<div class="error-box">⚠ No data available for that year yet.</div>';
+    resultEl.innerHTML = '<div class="error-box">⚠ Nothing to build with the current selection.</div>';
     return;
   }
 
@@ -2281,6 +2328,19 @@ function syncYearTikkunCurationRow() {
   document.getElementById('ytCurationRow').style.display = includeHolidays ? 'flex' : 'none';
 }
 
+function renderYearTikkunFamilyList(useDefaults) {
+  const list = document.getElementById('ytFamilyList');
+  const prevChecked = new Map(
+    [...list.querySelectorAll('input')].map(cb => [cb.dataset.family, cb.checked])
+  );
+  list.innerHTML = HOLIDAY_FAMILIES.map(f => {
+    const checked = useDefaults ? f.default : (prevChecked.has(f.id) ? prevChecked.get(f.id) : f.default);
+    return `<label class="yt-family-row">
+      <input type="checkbox" data-family="${f.id}" ${checked ? 'checked' : ''}>
+      <span>${f.label}</span></label>`;
+  }).join('');
+}
+
 function populateYearTikkunDialog() {
   const locSel = document.getElementById('ytLocation');
   locSel.value = state.israel ? 'israel' : 'diaspora';
@@ -2289,6 +2349,7 @@ function populateYearTikkunDialog() {
   yearSel.innerHTML = years.map(y => `<option value="${y.year}">${y.year}</option>`).join('');
   document.getElementById('ytResult').innerHTML = '';
   document.getElementById('ytProgress').style.display = 'none';
+  renderYearTikkunFamilyList(true);
   syncYearTikkunCurationRow();
 }
 
@@ -2928,6 +2989,13 @@ function init() {
       years.map(y => `<option value="${y.year}">${y.year}</option>`).join('');
   });
   document.getElementById('ytScope').addEventListener('change', syncYearTikkunCurationRow);
+  document.getElementById('ytFamilyAll').addEventListener('click', () => {
+    document.querySelectorAll('#ytFamilyList input').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('ytFamilyNone').addEventListener('click', () => {
+    document.querySelectorAll('#ytFamilyList input').forEach(cb => cb.checked = false);
+  });
+  document.getElementById('ytFamilyDefault').addEventListener('click', () => renderYearTikkunFamilyList(true));
   document.getElementById('ytSubmit').addEventListener('click', runYearTikkunBuild);
 
   // Layout toggle: Side-by-Side / Either-Or
