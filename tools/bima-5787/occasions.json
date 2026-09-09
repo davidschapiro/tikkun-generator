@@ -1,0 +1,488 @@
+[
+  {
+    "kind": "holiday",
+    "date": "2026-09-12",
+    "holidayKey": "2026-09-12|Rosh Hashana I (on Shabbat)",
+    "label": "Rosh Hashana I (on Shabbat)",
+    "sortKey": "2026-09-12b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-13",
+    "holidayKey": "2026-09-13|Rosh Hashana II",
+    "label": "Rosh Hashana II",
+    "sortKey": "2026-09-13b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-14",
+    "holidayKey": "2026-09-14|Tzom Gedaliah",
+    "label": "Tzom Gedaliah",
+    "sortKey": "2026-09-14b",
+    "titleSuffix": " (Shacharit + Mincha)"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-09-19",
+    "label": "Ha’azinu",
+    "sortKey": "2026-09-19a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-21",
+    "holidayKey": "2026-09-21|Yom Kippur",
+    "label": "Yom Kippur",
+    "sortKey": "2026-09-21b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-21",
+    "holidayKey": "2026-09-21|Yom Kippur (Mincha)",
+    "label": "Yom Kippur (Mincha)",
+    "sortKey": "2026-09-21b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-26",
+    "holidayKey": "2026-09-26|Sukkot I (on Shabbat)",
+    "label": "Sukkot I (on Shabbat)",
+    "sortKey": "2026-09-26b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-09-27",
+    "holidayKey": "2026-09-27|Sukkot II",
+    "label": "Sukkot II",
+    "sortKey": "2026-09-27b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-10-02",
+    "holidayKey": "2026-10-02|Sukkot Final Day (Hoshana Raba)",
+    "label": "Sukkot Final Day (Hoshana Raba)",
+    "sortKey": "2026-10-02b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-10-03",
+    "holidayKey": "2026-10-03|Erev Simchat Torah",
+    "label": "Erev Simchat Torah",
+    "sortKey": "2026-10-03b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-10-03",
+    "holidayKey": "2026-10-03|Shmini Atzeret (on Shabbat)",
+    "label": "Shmini Atzeret (on Shabbat)",
+    "sortKey": "2026-10-03b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-10-04",
+    "holidayKey": "2026-10-04|Simchat Torah",
+    "label": "Simchat Torah",
+    "sortKey": "2026-10-04b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-10-10",
+    "label": "Bereshit",
+    "sortKey": "2026-10-10a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-10-17",
+    "label": "Noach",
+    "sortKey": "2026-10-17a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-10-24",
+    "label": "Lech-Lecha",
+    "sortKey": "2026-10-24a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-10-31",
+    "label": "Vayera",
+    "sortKey": "2026-10-31a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-11-07",
+    "label": "Chayei Sara",
+    "sortKey": "2026-11-07a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-11-14",
+    "label": "Toldot",
+    "sortKey": "2026-11-14a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-11-21",
+    "label": "Vayetzei",
+    "sortKey": "2026-11-21a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-11-28",
+    "label": "Vayishlach",
+    "sortKey": "2026-11-28a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-12-05",
+    "label": "Vayeshev",
+    "sortKey": "2026-12-05a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-12-11",
+    "holidayKey": "2026-12-11|Chanukah Day 7 (on Rosh Chodesh)",
+    "label": "Chanukah Day 7 (on Rosh Chodesh)",
+    "sortKey": "2026-12-11b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-12-12",
+    "label": "Miketz",
+    "sortKey": "2026-12-12a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-12-19",
+    "label": "Vayigash",
+    "sortKey": "2026-12-19a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2026-12-20",
+    "holidayKey": "2026-12-20|Asara B’Tevet",
+    "label": "Asara B’Tevet",
+    "sortKey": "2026-12-20b",
+    "titleSuffix": " (Shacharit + Mincha)"
+  },
+  {
+    "kind": "parasha",
+    "date": "2026-12-26",
+    "label": "Vayechi",
+    "sortKey": "2026-12-26a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-01-02",
+    "label": "Shemot",
+    "sortKey": "2027-01-02a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-01-09",
+    "label": "Vaera",
+    "sortKey": "2027-01-09a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-01-16",
+    "label": "Bo",
+    "sortKey": "2027-01-16a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-01-23",
+    "label": "Beshalach",
+    "sortKey": "2027-01-23a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-01-30",
+    "label": "Yitro",
+    "sortKey": "2027-01-30a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-02-06",
+    "label": "Mishpatim",
+    "sortKey": "2027-02-06a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-02-13",
+    "label": "Terumah",
+    "sortKey": "2027-02-13a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-02-20",
+    "label": "Tetzaveh",
+    "sortKey": "2027-02-20a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-02-27",
+    "label": "Ki Tisa",
+    "sortKey": "2027-02-27a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-03-06",
+    "label": "Vayakhel",
+    "sortKey": "2027-03-06a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-03-13",
+    "label": "Pekudei",
+    "sortKey": "2027-03-13a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-03-20",
+    "label": "Vayikra",
+    "sortKey": "2027-03-20a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-03-22",
+    "holidayKey": "2027-03-22|Ta’anit Esther",
+    "label": "Ta’anit Esther",
+    "sortKey": "2027-03-22b",
+    "titleSuffix": " (Shacharit + Mincha)"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-03-23",
+    "holidayKey": "2027-03-23|Purim",
+    "label": "Purim",
+    "sortKey": "2027-03-23b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-03-27",
+    "label": "Tzav",
+    "sortKey": "2027-03-27a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-04-03",
+    "label": "Shmini",
+    "sortKey": "2027-04-03a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-04-10",
+    "label": "Tazria",
+    "sortKey": "2027-04-10a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-04-17",
+    "label": "Metzora",
+    "sortKey": "2027-04-17a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-04-22",
+    "holidayKey": "2027-04-22|Pesach I",
+    "label": "Pesach I",
+    "sortKey": "2027-04-22b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-04-23",
+    "holidayKey": "2027-04-23|Pesach II",
+    "label": "Pesach II",
+    "sortKey": "2027-04-23b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-04-24",
+    "holidayKey": "2027-04-24|Pesach Shabbat Chol ha-Moed",
+    "label": "Pesach Shabbat Chol ha-Moed",
+    "sortKey": "2027-04-24b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-04-28",
+    "holidayKey": "2027-04-28|Pesach VII",
+    "label": "Pesach VII",
+    "sortKey": "2027-04-28b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-04-29",
+    "holidayKey": "2027-04-29|Pesach VIII",
+    "label": "Pesach VIII",
+    "sortKey": "2027-04-29b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-05-01",
+    "label": "Achrei Mot",
+    "sortKey": "2027-05-01a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-05-08",
+    "label": "Kedoshim",
+    "sortKey": "2027-05-08a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-05-12",
+    "holidayKey": "2027-05-12|Yom HaAtzma’ut",
+    "label": "Yom HaAtzma’ut",
+    "sortKey": "2027-05-12b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-05-15",
+    "label": "Emor",
+    "sortKey": "2027-05-15a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-05-22",
+    "label": "Behar",
+    "sortKey": "2027-05-22a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-05-29",
+    "label": "Bechukotai",
+    "sortKey": "2027-05-29a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-06-05",
+    "label": "Bamidbar",
+    "sortKey": "2027-06-05a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-06-11",
+    "holidayKey": "2027-06-11|Shavuot I",
+    "label": "Shavuot I",
+    "sortKey": "2027-06-11b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-06-12",
+    "holidayKey": "2027-06-12|Shavuot II (on Shabbat)",
+    "label": "Shavuot II (on Shabbat)",
+    "sortKey": "2027-06-12b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-06-19",
+    "label": "Nasso",
+    "sortKey": "2027-06-19a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-06-26",
+    "label": "Beha’alotcha",
+    "sortKey": "2027-06-26a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-07-03",
+    "label": "Sh’lach",
+    "sortKey": "2027-07-03a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-07-10",
+    "label": "Korach",
+    "sortKey": "2027-07-10a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-07-17",
+    "label": "Chukat-Balak",
+    "sortKey": "2027-07-17a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-07-22",
+    "holidayKey": "2027-07-22|Tzom Tammuz",
+    "label": "Tzom Tammuz",
+    "sortKey": "2027-07-22b",
+    "titleSuffix": " (Shacharit + Mincha)"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-07-24",
+    "label": "Pinchas",
+    "sortKey": "2027-07-24a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-07-31",
+    "label": "Matot-Masei",
+    "sortKey": "2027-07-31a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-08-07",
+    "label": "Devarim",
+    "sortKey": "2027-08-07a"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-08-12",
+    "holidayKey": "2027-08-12|Tish’a B’Av",
+    "label": "Tish’a B’Av",
+    "sortKey": "2027-08-12b"
+  },
+  {
+    "kind": "holiday",
+    "date": "2027-08-12",
+    "holidayKey": "2027-08-12|Tish’a B’Av (Mincha)",
+    "label": "Tish’a B’Av (Mincha)",
+    "sortKey": "2027-08-12b"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-08-14",
+    "label": "Vaetchanan",
+    "sortKey": "2027-08-14a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-08-21",
+    "label": "Eikev",
+    "sortKey": "2027-08-21a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-08-28",
+    "label": "Re’eh",
+    "sortKey": "2027-08-28a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-09-04",
+    "label": "Shoftim",
+    "sortKey": "2027-09-04a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-09-11",
+    "label": "Ki Teitzei",
+    "sortKey": "2027-09-11a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-09-18",
+    "label": "Ki Tavo",
+    "sortKey": "2027-09-18a"
+  },
+  {
+    "kind": "parasha",
+    "date": "2027-09-25",
+    "label": "Nitzavim-Vayeilech",
+    "sortKey": "2027-09-25a"
+  }
+]
