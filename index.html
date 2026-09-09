@@ -370,11 +370,24 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .aliyah-hdr{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
   .content{padding:0;max-width:100%;}
   body.print-practice .bima-section{display:none!important;}
-  body.print-bima    .practice-section{display:none!important;}
-  .bima-body{font-size:1.5rem;padding:0.9rem 1rem;}
+  body.print-bima    .practice-section{display:none!important;}  .bima-body{font-size:1.5rem;padding:0.9rem 1rem;}
   .aliyah-hdr{background:#fff!important;color:#000!important;
     border-top:2px solid #000;border-bottom:1px solid #ccc;}
   .lbl-he,.lbl-en,.lbl-range{color:#000!important;}
+}
+
+/* ── FULL-YEAR TIKKUN PRINT MODE ── */
+/* The container sits in the DOM at all times but stays empty/hidden
+   until runYearTikkunBuild() populates it and adds this class right
+   before calling window.print() — everything else in the app is
+   hidden for that one print pass so only the year's worth of Bima
+   occasions comes out, each starting on its own page. */
+.year-tikkun-print-container{display:none;}
+@media print{
+  body.year-tikkun-print-mode > *:not(#yearTikkunPrintContainer){display:none!important;}
+  body.year-tikkun-print-mode .year-tikkun-print-container{display:block!important;}
+  .year-tikkun-occasion{break-before:page;}
+  .year-tikkun-occasion:first-child{break-before:avoid;}
 }
 @media(max-width:680px){
   .practice-body{grid-template-columns:1fr;}
@@ -574,6 +587,10 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <span class="vl-desktop">🔍 Verse</span>
       <span class="vl-mobile">Look up a verse</span>
     </button>
+    <button class="verse-lookup-btn" id="yearTikkunBtn" title="Build a printable Tikkun for a whole Hebrew year">
+      <span class="vl-desktop">📅 Full Year</span>
+      <span class="vl-mobile">Full-year Tikkun</span>
+    </button>
   </div>
   <div class="toggle-row">
     <div class="toggle-group" id="modeToggle">
@@ -622,6 +639,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   </div>
 <div id="outputArea"></div>
 </main>
+<div id="yearTikkunPrintContainer" class="year-tikkun-print-container"></div>
 
 <div id="floatingViewToggle" class="floating-toggle" style="display:none">
   <div class="toggle-group tg-hidden" id="columnToggle">
@@ -661,6 +679,53 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   <div class="vl-actions">
     <button id="vlCancel">Cancel</button>
     <button id="vlSubmit">Go</button>
+  </div>
+</dialog>
+
+<dialog id="yearTikkunDialog">
+  <h3>Full-Year Tikkun (Bima)</h3>
+  <div class="vl-row">
+    <label>Year</label>
+    <select id="ytYear"></select>
+  </div>
+  <div class="vl-row">
+    <label>Where</label>
+    <select id="ytLocation">
+      <option value="diaspora">Diaspora</option>
+      <option value="israel">Israel</option>
+    </select>
+  </div>
+  <div class="vl-row">
+    <label>Include</label>
+    <select id="ytScope">
+      <option value="weekly">Weekly parshiot only</option>
+      <option value="weekly+holidays" selected>Weekly parshiot + holidays</option>
+    </select>
+  </div>
+  <div class="vl-row" id="ytCurationRow">
+    <label>Holidays</label>
+    <select id="ytCuration">
+      <option value="curated" selected>Curated (skip weekday Chol HaMoed &amp; Chanukah, merge fast-day Mincha into Shacharit)</option>
+      <option value="all">Everything (every occasion, nothing merged)</option>
+    </select>
+  </div>
+  <div class="vl-row">
+    <label>Cycle</label>
+    <select id="ytMode">
+      <option value="triennial" selected>Triennial</option>
+      <option value="full">Full Kriyah</option>
+    </select>
+  </div>
+  <p style="font-size:0.76rem;color:var(--ink-pale);margin:0.4rem 0 0.6rem;">
+    Builds the Bima Tikkun view only. Fetches every reading fresh from
+    Sefaria in your browser, then opens the print dialog — for a full
+    year this can take a minute or two.
+  </p>
+  <div id="ytProgress" style="display:none;font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.5rem;"></div>
+  <div id="ytResult"></div>
+  <div class="vl-actions">
+    <button id="ytCancel">Cancel</button>
+    <button id="ytSubmit">Build &amp; Print</button>
   </div>
 </dialog>
 
@@ -2017,6 +2082,216 @@ function renderOutput(p, aliyotData, isHoliday) {
     </div>`;
 }
 
+// ── FULL-YEAR TIKKUN (BIMA) ──────────────────────────────────────────
+// Builds one long printable document covering every Torah-reading
+// occasion in a Hebrew year, entirely client-side: reuses fetchVerses()/
+// aliyahSection() (same functions the single-occasion view uses, so
+// text/tokenization/coloring is identical) rather than a separate
+// rendering path. Bima view only for now — Practice/Tikkun Korim needs
+// the async column-sync pass that Bima doesn't, and was out of scope
+// for a first version of this feature.
+
+// A Hebrew year boundary is anchored on "Rosh Hashana I" (matches both
+// "Rosh Hashana I (on Shabbat)" and any plain "Rosh Hashana I" variant),
+// not a fixed key string, since which form appears depends on what day
+// of the week that Rosh Hashana falls on.
+function findHebrewYearBoundaries(locKey) {
+  return Object.entries(HOLIDAY_DATA[locKey])
+    .filter(([key]) => key.includes('Rosh Hashana I') && !key.includes('Rosh Hashana II'))
+    .map(([key, v]) => ({ date: key.split('|')[0], year: parseInt(v.hdate.split(' ').pop()) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Only years with both a start AND the following year's start present in
+// the data are offered — an unbounded trailing year would silently cut
+// off mid-cycle, which is worse than not offering it at all.
+function availableHebrewYears(locKey) {
+  const bounds = findHebrewYearBoundaries(locKey);
+  const out = [];
+  for (let i = 0; i < bounds.length - 1; i++) {
+    out.push({ year: bounds[i].year, start: bounds[i].date, end: bounds[i + 1].date });
+  }
+  return out;
+}
+
+// Curated holiday set — same content decisions as tools/bima-5787's
+// occasions.json (see AGENTS.md for the reasoning): weekday Chol HaMoed
+// dropped except Hoshana Raba and the Pesach Shabbat Chol HaMoed
+// reading; plain Chanukah weekdays dropped except Day 7 (on Rosh
+// Chodesh); the four minor fasts' Mincha entries merged into their
+// Shacharit entry (byte-identical content) — Tisha B'Av excluded from
+// that merge since its Shacharit and Mincha genuinely differ.
+const YEAR_TIKKUN_DROP_TITLES = new Set([
+  'Sukkot Chol ha-Moed Day 1', 'Sukkot Chol ha-Moed Day 2',
+  'Sukkot Chol ha-Moed Day 3', 'Sukkot Chol ha-Moed Day 4', 'Sukkot Chol ha-Moed Day 5',
+  'Pesach Chol ha-Moed Day 2 on Sunday', 'Pesach Chol ha-Moed Day 3 on Monday',
+  'Pesach Chol ha-Moed Day 4', 'Pesach II (CH’’M)', 'Pesach IV (CH’’M)',
+  'Pesach V (CH’’M)', 'Pesach VI (CH’’M)',
+  'Chanukah Day 2', 'Chanukah Day 3', 'Chanukah Day 4', 'Chanukah Day 5', 'Chanukah Day 6',
+]);
+const YEAR_TIKKUN_MERGE_MINCHA = new Set(['Tzom Gedaliah', 'Asara B’Tevet', 'Ta’anit Esther', 'Tzom Tammuz']);
+
+function buildYearOccasions(hebrewYear, locKey, includeHolidays, curated) {
+  const years = availableHebrewYears(locKey);
+  const bound = years.find(y => y.year === hebrewYear);
+  if (!bound) return null;
+  const { start, end } = bound; // end is exclusive
+
+  const weekly = PARASHA_LISTS[locKey]
+    .filter(p => p.date >= start && p.date < end)
+    .map(p => ({ kind: 'parasha', date: p.date, label: p.name, data: p, sortKey: p.date + 'a' }));
+
+  let holidays = [];
+  if (includeHolidays) {
+    holidays = Object.entries(HOLIDAY_DATA[locKey])
+      .filter(([key]) => key !== 'rosh-chodesh|Rosh Chodesh')
+      .map(([key, v]) => ({ date: key.split('|')[0], label: key.split('|').slice(1).join('|'), holidayKey: key, data: v }))
+      .filter(o => o.date >= start && o.date < end)
+      .filter(o => curated ? !YEAR_TIKKUN_DROP_TITLES.has(o.label) : true)
+      .filter(o => curated ? !(o.label.endsWith('(Mincha)') && YEAR_TIKKUN_MERGE_MINCHA.has(o.label.replace(' (Mincha)', ''))) : true)
+      .map(o => (curated && YEAR_TIKKUN_MERGE_MINCHA.has(o.label))
+        ? { ...o, kind: 'holiday', titleSuffix: ' (Shacharit + Mincha)', sortKey: o.date + 'b' }
+        : { ...o, kind: 'holiday', sortKey: o.date + 'b' });
+  }
+
+  return [...weekly, ...holidays].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+}
+
+// Ranges for one occasion, same triennial/full-kriyah branch generate()
+// uses — always the triennial cycle's own maftir (no regularMaftir
+// override) for simplicity in a whole-year book.
+function rangesForOccasion(o, mode) {
+  const ranges = {};
+  if (o.kind === 'holiday') {
+    for (const k of ['1','2','3','4','5','6','7']) if (o.data[k]) ranges[k] = o.data[k];
+    if (o.data.maftir) ranges.maftir = o.data.maftir;
+  } else if (mode === 'triennial' && o.data.triennial) {
+    const t = o.data.triennial;
+    for (const k of ['1','2','3','4','5','6','7']) if (t[k]) ranges[k] = t[k];
+    if (t.maftir) ranges.maftir = t.maftir;
+  } else {
+    for (const k of ['1','2','3','4','5','6','7']) if (o.data.ranges[k]) ranges[k] = o.data.ranges[k];
+    if (o.data.ranges.maftir) ranges.maftir = o.data.ranges.maftir;
+  }
+  return ranges;
+}
+
+// Runs async jobs with bounded concurrency — a few requests in flight at
+// once is noticeably faster than one-at-a-time for ~50-90 occasions'
+// worth of chapter fetches, without hammering Sefaria the way full
+// parallelism would.
+async function runPool(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function runOne() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(limit, items.length)}, runOne));
+  return results;
+}
+
+function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
+  const isHoliday = o.kind === 'holiday';
+  const title = isHoliday ? formatHolidayTitle(o.label) + (o.titleSuffix || '') : o.label;
+  const ty = triennialYear(hebrewYear);
+  const modeLbl = isHoliday ? 'Holiday Reading' : (mode === 'triennial' ? `Triennial Year ${ty}` : 'Full Kriyah');
+  const hebrewDate = isHoliday ? o.data.hdate : null;
+  const dateLabel = hebrewDate ? `${hebrewDate} · ${o.date}` : o.date;
+  const meta = `${dateLabel} · ${modeLbl}`;
+
+  const printHdr = `<div class="print-header">
+    <div class="ph-he">${title}</div>
+    <div class="ph-en">${title} · Bima Tikkun</div>
+    <div class="ph-meta">${meta}</div></div>`;
+
+  let bimaHTML = '';
+  for (const k of ['1','2','3','4','5','6','7','maftir']) {
+    if (!aliyotData[k]) continue;
+    const {range, verses} = aliyotData[k];
+    bimaHTML += aliyahSection(k, range, verses, 'bima', isHoliday);
+  }
+  return `<div class="year-tikkun-occasion">${printHdr}${bimaHTML}</div>`;
+}
+
+async function runYearTikkunBuild() {
+  const year = parseInt(document.getElementById('ytYear').value);
+  const locKey = document.getElementById('ytLocation').value;
+  const includeHolidays = document.getElementById('ytScope').value === 'weekly+holidays';
+  const curated = document.getElementById('ytCuration').value === 'curated';
+  const mode = document.getElementById('ytMode').value;
+  const resultEl = document.getElementById('ytResult');
+  const progressEl = document.getElementById('ytProgress');
+  const submitBtn = document.getElementById('ytSubmit');
+
+  resultEl.textContent = '';
+  const occasions = buildYearOccasions(year, locKey, includeHolidays, curated);
+  if (!occasions || !occasions.length) {
+    resultEl.innerHTML = '<div class="error-box">⚠ No data available for that year yet.</div>';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  progressEl.style.display = 'block';
+  let done = 0;
+  progressEl.textContent = `Fetching 0/${occasions.length}…`;
+
+  let occasionHTML;
+  try {
+    const rendered = await runPool(occasions, 4, async (o) => {
+      const ranges = rangesForOccasion(o, mode);
+      const aliyotData = {};
+      for (const [k, range] of Object.entries(ranges)) {
+        aliyotData[k] = { range, verses: await fetchVerses(range) };
+      }
+      done++;
+      progressEl.textContent = `Fetching ${done}/${occasions.length}… (${o.label})`;
+      return buildOccasionBimaHTML(o, aliyotData, year, mode);
+    });
+    occasionHTML = rendered.join('');
+  } catch (err) {
+    resultEl.innerHTML = `<div class="error-box">⚠ ${err.message}</div>`;
+    submitBtn.disabled = false;
+    progressEl.style.display = 'none';
+    return;
+  }
+
+  const container = document.getElementById('yearTikkunPrintContainer');
+  container.innerHTML = occasionHTML;
+  document.body.classList.add('year-tikkun-print-mode');
+  document.getElementById('yearTikkunDialog').close();
+  submitBtn.disabled = false;
+  progressEl.style.display = 'none';
+
+  // Let the freshly-inserted content actually paint before printing —
+  // same reasoning as generate()'s setTimeout(...,0) for column sync.
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('year-tikkun-print-mode');
+      container.innerHTML = '';
+    }, 1000);
+  }, 0);
+}
+
+function syncYearTikkunCurationRow() {
+  const includeHolidays = document.getElementById('ytScope').value === 'weekly+holidays';
+  document.getElementById('ytCurationRow').style.display = includeHolidays ? 'flex' : 'none';
+}
+
+function populateYearTikkunDialog() {
+  const locSel = document.getElementById('ytLocation');
+  locSel.value = state.israel ? 'israel' : 'diaspora';
+  const yearSel = document.getElementById('ytYear');
+  const years = availableHebrewYears(locSel.value);
+  yearSel.innerHTML = years.map(y => `<option value="${y.year}">${y.year}</option>`).join('');
+  document.getElementById('ytResult').innerHTML = '';
+  document.getElementById('ytProgress').style.display = 'none';
+  syncYearTikkunCurationRow();
+}
+
 async function generate() {
   const myId = ++state.genId;
   const status = document.getElementById('statusArea');
@@ -2638,6 +2913,22 @@ function init() {
   document.getElementById('verseLookupDialog').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('vlSubmit').click();
   });
+
+  // Full-Year Tikkun (Bima) dialog
+  document.getElementById('yearTikkunBtn').addEventListener('click', () => {
+    populateYearTikkunDialog();
+    document.getElementById('yearTikkunDialog').showModal();
+  });
+  document.getElementById('ytCancel').addEventListener('click', () => {
+    document.getElementById('yearTikkunDialog').close();
+  });
+  document.getElementById('ytLocation').addEventListener('change', () => {
+    const years = availableHebrewYears(document.getElementById('ytLocation').value);
+    document.getElementById('ytYear').innerHTML =
+      years.map(y => `<option value="${y.year}">${y.year}</option>`).join('');
+  });
+  document.getElementById('ytScope').addEventListener('change', syncYearTikkunCurationRow);
+  document.getElementById('ytSubmit').addEventListener('click', runYearTikkunBuild);
 
   // Layout toggle: Side-by-Side / Either-Or
   document.querySelectorAll('#layoutToggle .toggle-btn').forEach(btn=>{
