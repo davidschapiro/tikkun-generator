@@ -296,8 +296,12 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:va
    (Rishon can run longer than the weekday reading; e.g. Bereshit's
    weekday reading ends 1:13 but Rishon runs to 2:3), just wherever
    weekday aliyah 3 actually ends. */
-.weekday-break{color:var(--gold);font-weight:700;margin:0 0.2em;font-size:0.85em;}
-.weekday-break sup{font-size:0.62em;font-weight:700;margin-right:1px;vertical-align:0.4em;}
+.weekday-break{display:inline-flex;align-items:center;justify-content:center;
+  position:relative;width:1em;height:1em;margin:0 0.28em;vertical-align:0.02em;}
+.weekday-break .wb-diamond{position:absolute;inset:0;background:var(--gold);
+  transform:rotate(45deg);border-radius:1px;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+.weekday-break .wb-num{position:relative;z-index:1;color:#231708;font-size:0.52em;
+  font-weight:700;line-height:1;font-family:'Arimo',sans-serif;}
 
 
 /* ── TAB SWITCHER ── */
@@ -1208,23 +1212,45 @@ function parseRange(str) {
   return {book:m[1],sc:+m[2],sv:+m[3],ec:+m[4],ev:+m[5]};
 }
 
-// For Full Kriyah weeks, the Monday/Thursday reading always falls
-// entirely within the Shabbat's own Rishon — so rather than print it
-// as a fully separate occasion, the Full Year Tikkun builder marks the
-// break points inline within Rishon itself. Returns
-// [{afterCh,afterV,label:'1'}, {afterCh,afterV,label:'2'},
-//  {afterCh,afterV,label:''}] — the third (unnumbered) marks wherever
-// weekday aliyah 3 actually ends, which is NOT necessarily Rishon's own
-// end: Rishon can run longer (e.g. Bereshit's weekday reading ends
-// 1:13, but Rishon runs to 2:3) — the marker-insertion logic in
-// buildBimaFlow() handles either case the same way regardless.
+// For Full Kriyah weeks, the Monday/Thursday reading doesn't always
+// fall entirely within Rishon — e.g. Ha'azinu's weekday reading ends
+// at Deut 32:12, which is inside Sheni, not Rishon (32:1-6). So rather
+// than a fully separate weekday occasion, the Full Year Tikkun builder
+// marks each break inline wherever it actually falls, which
+// assignBreaksToAliyot() below sorts out per Shabbat aliyah.
+// Returns [{afterCh,afterV,label:'2'}, {afterCh,afterV,label:'3'},
+//  {afterCh,afterV,label:''}] — labels name the aliyah that BEGINS
+// after each break (so "2" marks where weekday aliyah 2 starts, not
+// where aliyah 1 ended); the third is unnumbered since there's no
+// weekday aliyah 4. A break landing exactly on a Shabbat aliyah's own
+// boundary still gets its diamond — never suppressed as "redundant".
 function computeWeekdayBreakMarkers(weekdayLeyning) {
   const markers = [];
-  for (const [k, label] of [['1','1'], ['2','2'], ['3','']]) {
+  for (const [k, label] of [['1','2'], ['2','3'], ['3','']]) {
     const r = weekdayLeyning[k] ? parseRange(weekdayLeyning[k]) : null;
     if (r) markers.push({ afterCh: r.ec, afterV: r.ev, label });
   }
   return markers;
+}
+
+// Sorts weekday break markers into which Shabbat aliyah's own verse
+// range each one falls within, since (per Ha'azinu above) that's not
+// always Rishon. ch:v pairs compared as ch*1000+v — safe since no
+// Torah chapter has anywhere near 1000 verses.
+function assignBreaksToAliyot(weekdayBreaks, aliyotData) {
+  const result = {};
+  if (!weekdayBreaks) return result;
+  const parsed = ['1','2','3','4','5','6','7']
+    .filter(k => aliyotData[k])
+    .map(k => ({ k, r: parseRange(aliyotData[k].range) }))
+    .filter(x => x.r);
+  for (const bm of weekdayBreaks) {
+    const pos = bm.afterCh * 1000 + bm.afterV;
+    const match = parsed.find(({r}) => pos >= (r.sc*1000+r.sv) && pos <= (r.ec*1000+r.ev));
+    if (match) (result[match.k] = result[match.k] || []).push(bm);
+    else console.warn('Weekday break marker matched no Shabbat aliyah:', bm);
+  }
+  return result;
 }
 // Verses where the congregation reads aloud first, then the Ba'al Kriyah
 // repeats — the three-verse block specific to Shacharit of public fast days
@@ -1330,8 +1356,9 @@ function buildBimaFlow(verses, breakMarkers) {
     });
   }
   function diamondHTML(label) {
-    const title = label ? `End of weekday aliyah ${label}` : 'End of weekday reading (Monday/Thursday)';
-    return `<span class="weekday-break" title="${title}">${label ? `<sup>${label}</sup>` : ''}\u2666</span>`;
+    const title = label ? `Weekday aliyah ${label} begins here` : 'End of weekday reading (Monday/Thursday)';
+    const num = label ? `<span class="wb-num">${label}</span>` : '';
+    return `<span class="weekday-break" title="${title}"><span class="wb-diamond"></span>${num}</span>`;
   }
 
   let verseIdx = 0;
@@ -2352,15 +2379,15 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
     <div class="ph-meta">${meta}</div></div>`;
 
   let bimaHTML = '';
+  const breaksByKey = assignBreaksToAliyot(o.weekdayBreaks, aliyotData);
   for (const k of ['1','2','3','4','5','6','7','maftir']) {
     if (!aliyotData[k]) continue;
     const {range, verses} = aliyotData[k];
-    // o.weekdayBreaks is only ever attached to a parasha occasion's own
-    // Rishon (see runYearTikkunBuild) — Full Kriyah + Shabbat + Weekday
-    // all selected together marks the weekday breaks inline here instead
-    // of generating a fully separate weekday occasion.
-    const breakMarkers = (k === '1') ? o.weekdayBreaks : undefined;
-    bimaHTML += aliyahSection(k, range, verses, 'bima', isHolidayStyle, breakMarkers);
+    // Full Kriyah + Shabbat + Weekday all selected together marks the
+    // weekday breaks inline, wherever each one actually falls (see
+    // assignBreaksToAliyot — not always Rishon), instead of generating
+    // a fully separate weekday occasion.
+    bimaHTML += aliyahSection(k, range, verses, 'bima', isHolidayStyle, breaksByKey[k]);
   }
   return `<div class="year-tikkun-occasion">${printHdr}${bimaHTML}</div>`;
 }
