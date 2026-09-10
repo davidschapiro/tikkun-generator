@@ -297,10 +297,10 @@ sup.vn{font-family:'Arimo',sans-serif;font-size:0.68rem;font-weight:700;color:va
    weekday reading ends 1:13 but Rishon runs to 2:3), just wherever
    weekday aliyah 3 actually ends. */
 .weekday-break{display:inline-flex;align-items:center;justify-content:center;
-  position:relative;width:1em;height:1em;margin:0 0.28em;vertical-align:0.02em;}
+  position:relative;width:0.68em;height:0.68em;margin:0 0.24em;vertical-align:0.05em;}
 .weekday-break .wb-diamond{position:absolute;inset:0;background:var(--gold);
   transform:rotate(45deg);border-radius:1px;print-color-adjust:exact;-webkit-print-color-adjust:exact;}
-.weekday-break .wb-num{position:relative;z-index:1;color:#231708;font-size:0.52em;
+.weekday-break .wb-num{position:relative;z-index:1;color:#fff;font-size:0.56em;
   font-weight:700;line-height:1;font-family:'Arimo',sans-serif;}
 
 
@@ -1361,6 +1361,24 @@ function buildBimaFlow(verses, breakMarkers) {
     return `<span class="weekday-break" title="${title}"><span class="wb-diamond"></span>${num}</span>`;
   }
 
+  // A verse's petucha/setuma glyph (if it has one) is just another word
+  // token belonging to that same verse (verseNum:null, same as any
+  // other non-first word — see tokenizer.js buildTokens) — so it
+  // shares that verse's verseIdx. Precomputing each verseIdx's actual
+  // LAST token index (real content or trailing paragraph glyph — doesn't
+  // matter which) lets a break marker attach to it directly, landing right
+  // after that verse's own last character — e.g. right after a "פ" on
+  // the same line, not after the line-break that follows it.
+  const lastTokenIdxOfVerse = {};
+  {
+    let vIdx = 0, first = true;
+    tokens.forEach((t, i) => {
+      if (!first && t.verseNum !== null && t.verseNum !== undefined) vIdx++;
+      first = false;
+      lastTokenIdxOfVerse[vIdx] = i;
+    });
+  }
+
   let verseIdx = 0;
   let firstToken = true;
   let inCong = false;
@@ -1368,10 +1386,8 @@ function buildBimaFlow(verses, breakMarkers) {
     const vn = t.verseNum !== null && t.verseNum !== undefined
       ? `<sup class="vn">${t.verseNum}</sup>` : '';
     let prefix = '';
-    let markerHTML = '';
     // Detect verse boundary (t.verseNum non-null = first token of a new verse)
     if (!firstToken && t.verseNum !== null && t.verseNum !== undefined) {
-      if (markerAfterIdx.hasOwnProperty(verseIdx)) markerHTML = diamondHTML(markerAfterIdx[verseIdx]);
       verseIdx++;
     }
     firstToken = false;
@@ -1385,15 +1401,13 @@ function buildBimaFlow(verses, breakMarkers) {
     }
     const isPetucha = t.vowel === PETUCHA_HTML;
     const hasNext = i + 1 < tokens.length;
-    let sep = !hasNext ? (inCong ? '</span>' : '') : (isPetucha ? '<br>' : ' ');
-    // The third (unnumbered) marker falls after the very last verse —
-    // there's no "next verse" transition to hang it on, so it's
-    // appended here instead, on the final token.
-    if (!hasNext && markerAfterIdx.hasOwnProperty(verseIdx)) sep += diamondHTML(markerAfterIdx[verseIdx]);
+    const sep = !hasNext ? (inCong ? '</span>' : '') : (isPetucha ? '<br>' : ' ');
     const glyph = (t.vowel === SETUMA_HTML)
       ? '<span class="pm pm-samekh" style="margin:0 1em">ס</span>'
       : t.vowel;
-    return markerHTML + prefix + vn + glyph + sep;
+    const markerHTML = (i === lastTokenIdxOfVerse[verseIdx] && markerAfterIdx.hasOwnProperty(verseIdx))
+      ? diamondHTML(markerAfterIdx[verseIdx]) : '';
+    return prefix + vn + glyph + markerHTML + sep;
   }).join('');
 }
 
