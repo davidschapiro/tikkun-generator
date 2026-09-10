@@ -731,17 +731,19 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     Monday/Thursday readings are always the upcoming Shabbat's own
     Full-Kriyah opening (Rishon), split into 3 — the same regardless of
     the Cycle setting below. If Shabbat is also checked and Cycle is
-    Full Kriyah, that's shown inline: a numbered \u2666 marks each of the
-    first two internal breaks within Rishon itself, and an unnumbered
-    \u2666 marks the third — not necessarily Rishon's own end (Rishon
-    can run longer than the weekday reading), just wherever weekday
-    aliyah 3 actually ends — no
-    separate weekday pages needed, since the text is already fully
-    present. Otherwise (Triennial, since a Triennial Shabbat reading
-    doesn't cover this content at all — or Weekday without Shabbat),
-    weekday readings print as their own pages. Either way, this
-    requires one extra live lookup per week, so checking it noticeably
-    increases build time.
+    Full Kriyah, that's shown inline: a small numbered gold diamond
+    (<span class="weekday-break"><span class="wb-diamond"></span><span class="wb-num">2</span></span>)
+    marks each of the first two internal breaks within Rishon itself,
+    and an unnumbered diamond
+    (<span class="weekday-break"><span class="wb-diamond"></span></span>)
+    marks the third — not necessarily Rishon's own end (Rishon can run
+    longer than the weekday reading), just wherever weekday aliyah 3
+    actually ends — no separate weekday pages needed, since the text
+    is already fully present. Otherwise (Triennial, since a Triennial
+    Shabbat reading doesn't cover this content at all — or Weekday
+    without Shabbat), weekday readings print as their own pages.
+    Either way, this requires one extra live lookup per week, so
+    checking it noticeably increases build time.
   </p>
   <div class="vl-row" id="ytCurationRow">
     <label style="align-self:flex-start;padding-top:0.3rem;">Holidays</label>
