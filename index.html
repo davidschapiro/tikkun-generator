@@ -434,9 +434,9 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 <div class="controls-bar">
   <div class="top-row">
     <div class="nav-group">
-      <button class="nav-btn" id="prevBtn" title="Previous Shabbat">‹</button>
+      <button class="nav-btn" id="prevBtn" title="Previous reading">‹</button>
       <div class="date-display" id="dateDisplay">—</div>
-      <button class="nav-btn" id="nextBtn" title="Next Shabbat">›</button>
+      <button class="nav-btn" id="nextBtn" title="Next reading">›</button>
       <button class="nav-btn" id="copyLinkBtn" title="Copy a link to this exact reading">🔗</button>
     </div>
     <div class="parasha-name" id="parashaName">—</div>
@@ -891,6 +891,83 @@ function toShabbat(d) {
 function shiftWeeks(d,n){ const r=new Date(d); r.setDate(r.getDate()+n*7); return r; }
 function triennialYear(hYear){ return ((hYear-5786)%3+3)%3+1; }
 
+// ── PREV/NEXT ARROW NAVIGATION ───────────────────────────────────────────────
+// Bug (Oct 2026): the prev/next arrows only ever moved refDate by exactly
+// 7 days and always cleared holidayKey — so they walked Shabbat-to-Shabbat
+// only, silently skipping every holiday/fast that falls on a non-Saturday
+// (e.g. Hoshana Raba, always the 7th day of Sukkot — a Friday most years,
+// including Oct 2, 2026 — sits between two Shabbatot and was completely
+// unreachable by the arrows no matter how many times you clicked). Fix:
+// build one true chronological list of every embedded dated occasion
+// (every Shabbat parasha + every dated holiday/fast entry) and step to
+// its immediate neighbor, instead of a fixed week-sized hop.
+//
+// Rosh Chodesh is deliberately excluded — it's a single generic, dateless
+// dropdown entry (same reading every month, not tied to one occurrence),
+// not a specific calendar occasion to land on.
+function buildChronologicalEntries(locKey) {
+  const entries = [];
+  PARASHA_LISTS[locKey].forEach(p => entries.push({date: p.date, type: 'parasha', parasha: p}));
+  Object.keys(HOLIDAY_DATA[locKey]).forEach(key => {
+    const dt = key.split('|')[0];
+    if (dt === 'rosh-chodesh') return;
+    entries.push({date: dt, type: 'holiday', key});
+  });
+  // Same tie-break rebuildDropdown() already applies for same-day entries
+  // (e.g. a fast's Shacharit vs. its own Mincha reading): date first, then
+  // a stable secondary order so repeated calls never reshuffle ties.
+  entries.sort((a, b) => a.date.localeCompare(b.date) ||
+    (a.type === b.type ? (a.key||'').localeCompare(b.key||'') : (a.type === 'parasha' ? -1 : 1)));
+  return entries;
+}
+
+// Locates whatever is currently on screen within that list, so prev/next
+// can step to its immediate neighbor. Returns -1 when the current view
+// isn't itself a distinct dated entry (a plain weekday Mon/Thu reading —
+// treated as belonging to its owning Shabbat, see navigateReading below —
+// or a date outside the embedded ~1.5-year window).
+function currentEntryIndex(entries) {
+  if (state.holidayKey) {
+    return entries.findIndex(e => e.type === 'holiday' && e.key === state.holidayKey);
+  }
+  const ds = dateStr(toShabbat(state.refDate));
+  return entries.findIndex(e => e.type === 'parasha' && e.date === ds);
+}
+
+// Moves to the next (dir=1) or previous (dir=-1) entry in true
+// chronological order. Falls back to the original plain 7-day Shabbat
+// shift whenever the current position isn't found in the embedded data
+// (outside the refresh window, or viewing a weekday Mon/Thu reading) or
+// there's no further embedded entry in that direction — this keeps
+// Shabbat navigation unbounded both ways, exactly as before, while using
+// the embedded chronological list whenever it actually has the answer.
+function navigateReading(dir) {
+  const locKey = state.israel ? 'israel' : 'diaspora';
+  const entries = buildChronologicalEntries(locKey);
+  const i = currentEntryIndex(entries);
+  const target = (i === -1) ? null : entries[i + dir];
+
+  state.weekdayLeyning = null;
+  syncReadingTypeToggle();
+  state.chCache = {};
+
+  if (target) {
+    if (target.type === 'holiday') {
+      state.holidayKey = target.key;
+      document.getElementById('parashaSelect').value = 'holiday|' + target.key;
+    } else {
+      state.holidayKey = null;
+      state.refDate = new Date(target.date + 'T12:00:00');
+      syncDropdown();
+    }
+  } else {
+    state.holidayKey = null;
+    state.refDate = shiftWeeks(state.refDate, dir);
+    syncDropdown();
+  }
+  generate();
+}
+
 // ── VERSE LOOKUP ─────────────────────────────────────────────────────────────
 // Maps common book name variants (English full names, abbreviations, Hebrew) to
 // the canonical names used in PARASHA_LISTS ranges ("Genesis", "Exodus", etc.)
@@ -1092,6 +1169,19 @@ function syncReadingTypeToggle() {
 function updateParashaName(title) {
   const name = (title||'').replace('Parashat ','').replace('Parashas ','');
   document.getElementById('parashaName').textContent = name;
+}
+// Shared by the weekday/holiday render branches below — previously each
+// one either duplicated this formatting inline (weekday) or skipped it
+// entirely (holiday, and the Yom-Tov-on-Shabbat fallback), leaving the
+// header's date-display stuck on whatever Shabbat date was last shown.
+// Harmless when reached via the dropdown (which already shows the date
+// in its own option text) but genuinely misleading once the prev/next
+// arrows can land directly on a holiday: the content would be correct
+// while the big date header silently still said "Shabbat <old date>".
+function setDateDisplayForDate(dateStr_) {
+  const d = new Date(dateStr_ + 'T12:00:00');
+  document.getElementById('dateDisplay').textContent =
+    d.toLocaleDateString('en-GB', {weekday:'long', month:'short', day:'numeric', year:'numeric'});
 }
 
 async function fetchParasha() {
@@ -2590,9 +2680,7 @@ async function generate() {
       p = { title: w.title, date: w.date, hebrew: w.title, hdate: w.date, leyning: w.leyning };
       leyningData = w.leyning;
       updateParashaName(w.title);
-      const wd = new Date(w.date + 'T12:00:00');
-      document.getElementById('dateDisplay').textContent =
-        wd.toLocaleDateString('en-GB', {weekday:'long', month:'short', day:'numeric', year:'numeric'});
+      setDateDisplayForDate(w.date);
     } else if (state.holidayKey) {
       isHoliday = true;
       const locKey = state.israel ? 'israel' : 'diaspora';
@@ -2604,6 +2692,9 @@ async function generate() {
       p = { title: hTitle, date: realDate, hebrew: hTitle, hdate: realDate, leyning };
       leyningData = leyning;
       updateParashaName(formatHolidayTitle(hTitle));
+      if (realDate) document.getElementById('parashaSelect').value = 'holiday|' + state.holidayKey;
+      if (realDate) setDateDisplayForDate(realDate);
+      else document.getElementById('dateDisplay').textContent = 'Rosh Chodesh';
     } else {
       try {
         p = await fetchParasha();
@@ -2621,6 +2712,8 @@ async function generate() {
           p = { title: hTitle, date: ds, hebrew: hTitle, hdate: ds, leyning };
           leyningData = leyning;
           updateParashaName(formatHolidayTitle(hTitle));
+          document.getElementById('parashaSelect').value = 'holiday|' + key;
+          setDateDisplayForDate(ds);
         } else {
           throw e;
         }
@@ -3030,14 +3123,8 @@ function init() {
     generate();
   });
 
-  document.getElementById('prevBtn').addEventListener('click',()=>{
-    state.holidayKey=null; state.weekdayLeyning=null; syncReadingTypeToggle(); state.refDate=shiftWeeks(state.refDate,-1);
-    state.chCache={}; syncDropdown(); generate();
-  });
-  document.getElementById('nextBtn').addEventListener('click',()=>{
-    state.holidayKey=null; state.weekdayLeyning=null; syncReadingTypeToggle(); state.refDate=shiftWeeks(state.refDate,1);
-    state.chCache={}; syncDropdown(); generate();
-  });
+  document.getElementById('prevBtn').addEventListener('click',()=>{ navigateReading(-1); });
+  document.getElementById('nextBtn').addEventListener('click',()=>{ navigateReading(1); });
 
   document.getElementById('copyLinkBtn').addEventListener('click', async (e) => {
     // syncUrl() already keeps location.href current after every generate(),
