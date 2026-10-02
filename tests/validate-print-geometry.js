@@ -40,6 +40,19 @@ const TOLERANCE_PX = 1; // sub-pixel rounding only
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1000, height: 1200 } });
+
+  // Cloudflare Pages auto-injects a RUM analytics beacon
+  // (cloudflareinsights.com/cdn-cgi/rum) into every page it serves. It has
+  // nothing to do with this app's print geometry, but a CI runner's network
+  // policy blocks it with a CORS preflight failure, which the browser logs
+  // as a console error -- that alone was failing this test on a real,
+  // passing geometry run (see AGENTS.md). Fulfill it with an empty 204
+  // locally so it never gets a chance to fail and log noise; this is the
+  // one request this test intentionally doesn't let reach the real network,
+  // same spirit as not retrying through the allowlist for a blocked site.
+  await page.route('**cloudflareinsights.com**', route =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+
   const consoleErrors = [];
   page.on('pageerror', e => consoleErrors.push(String(e)));
   page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
