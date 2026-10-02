@@ -485,6 +485,44 @@ are exactly what wastes a future session's time if not written down.
   this environment (observed at least once). If it does, keep working from
   `/home/claude/` and retry the outputs copy later — it's recovered every
   time so far.
+- **Push access in a Claude Code sandbox session is gated by the Claude
+  GitHub App being installed/linked for the org — not by the PAT.**
+  (Oct 2026.) A valid PAT with confirmed `push`/`admin` permissions on
+  this repo still got refused on every write path — `git push`, `gh pr
+  create`, and even a raw REST API write (`POST .../git/refs`) — with
+  either "Claude doesn't have GitHub access to
+  davidschapiro/tikkun-generator for your organization" or "Write access
+  to this GitHub API path is not permitted through this proxy." This is
+  the sandbox's own outbound proxy enforcing the App's org-level
+  authorization *before* your token's permissions are even checked — no
+  token, however well-scoped, gets around it. `add_repo`'s own
+  `push_check` field tells you this upfront (`"refused"` vs. allowed) —
+  believe it; don't waste a cycle re-testing with a "better" token.
+  **Fix (same session): once the user installs/links the Claude GitHub
+  App** (`github.com/apps/claude/installations/select_target`, or
+  reconnects at `claude.ai/customize/connectors?auth_start=github`),
+  `git push` starts working immediately with no other change needed —
+  confirmed end-to-end: branch pushed, PR opened via
+  `gh api repos/{owner}/{repo}/pulls -X POST` (plain `gh pr create` still
+  403s — it calls GraphQL, which is blocked separately; use the REST
+  endpoint), PR merged via
+  `gh api repos/{owner}/{repo}/pulls/{n}/merge -X PUT`.
+  `/repos/{owner}/{repo}/pages/builds` stayed proxy-blocked even after
+  the App was linked — don't rely on checking Pages build status from
+  inside the session; ask the user to check the live site instead, or
+  look for the errored→retry pattern already documented above only if
+  they report it.
+- **A shallow clone's default fetch refspec only tracks `main`**
+  (`+refs/heads/main:refs/remotes/origin/main`), so `git fetch` silently
+  never creates a remote-tracking ref for any other branch — even one
+  you yourself just pushed. `git branch -vv` on that branch shows no
+  `[origin/...]` annotation, and a plain `git fetch` reports the branch
+  only as `FETCH_HEAD`, which looks exactly like "the push didn't really
+  happen" even though it did (verify independently against the GitHub
+  API's `/git/ref/heads/{branch}` if in doubt — that's ground truth,
+  local git state isn't, under a restrictive refspec). Fix: `git config
+  --add remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'` once,
+  then `git fetch` behaves normally for every branch.
 
 ---
 
@@ -637,6 +675,57 @@ continuing an already-long one — point it at this file first.
 If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
+
+**Done, October 2026 session:**
+- **Fixed a real live-site bug: prev/next arrows couldn't reach any
+  holiday/fast falling on a non-Saturday.** `prevBtn`/`nextBtn` always
+  shifted `state.refDate` by exactly 7 days and unconditionally cleared
+  `state.holidayKey` — so they only ever walked Shabbat-to-Shabbat.
+  Concretely reported: clicking Next could never land on Hoshana Raba
+  (7th day of Sukkot, a Friday in 5787) — it sits between the Shabbat of
+  Sukkot I and the Shabbat of Shmini Atzeret and was skipped on every
+  single click, no matter how many times. **This is the same root
+  pattern as the dropdown-cutoff bug already documented above** ("Tzom
+  Tammuz... wrongly excluded as past" — Separate dropdown bug, June
+  2026 session): code that conflates "the current/next Shabbat date"
+  with "the current/next reading date" breaks silently the moment a
+  holiday falls on a weekday. **If you're auditing this codebase for
+  more instances of the same class of bug, that's the question to ask
+  of any date-math touching `state.refDate` or `toShabbat()`: does this
+  assume every reading occasion is a Saturday?**
+  Fix: `buildChronologicalEntries(locKey)` merges every embedded
+  `PARASHA_LISTS` date with every embedded dated `HOLIDAY_DATA` entry
+  (Rosh Chodesh excluded — it's a single generic dateless dropdown
+  entry, not a calendar occasion) into one sorted list, and
+  `navigateReading(dir)` steps to the immediate neighbor in that list
+  rather than a fixed week-sized hop. Falls back to the original plain
+  7-day shift whenever the current position isn't found in the embedded
+  ~1.5-year window (keeps Shabbat nav unbounded into the far past/future,
+  exactly as before — this fallback matters, don't drop it chasing a
+  "purer" always-use-the-list design). Same-day ties (a fast's Shacharit
+  vs. its own Mincha reading) use the same tie-break `rebuildDropdown()`
+  already applies.
+  Also fixed along the way, same root cause: `generate()`'s `holidayKey`
+  branch (and the Yom-Tov-on-Shabbat fallback branch inside the
+  `fetchParasha()` catch) never updated the big date-display header —
+  only `updateParashaName()` was called. Harmless when reached via the
+  dropdown (whose option text already shows the date), but genuinely
+  misleading once the arrows can land directly on a holiday: content
+  would be correct while the header still said "Shabbat &lt;stale
+  date&gt;". Added one shared `setDateDisplayForDate()` helper, used by
+  all three branches that can render a holiday.
+  Verified: real headless-browser run against *live* Hebcal/Sefaria data
+  (not a mock) — clicking Next 9 times from Ha'azinu (2026-09-19) lands
+  exactly on Sukkot Final Day (Hoshana Raba) (2026-10-02) with correct
+  header text and real rendered Hebrew Torah text underneath; Prev 9
+  times returns symmetrically to the start. Confirmed in both Diaspora
+  and Israel locales (Israel's shorter Sukkot/no-second-day-Yom-Tov
+  schedule interleaves correctly too). Confirmed the far-future/past
+  fallback (outside the embedded window) still does a plain unbounded
+  week shift. Full existing regression suite (tokenizer,
+  paragraph-breaks) still passes — expected, since this touches only
+  navigation/display, never the tokenizer or line-sync pipeline.
+  PR: davidschapiro/tikkun-generator#1, merged to `main`.
 
 **Done, September 2026 session:**
 - **Fixed a real live-site bug: Impressum content permanently visible on
