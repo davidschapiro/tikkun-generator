@@ -726,6 +726,75 @@ this is *what*.
   paragraph-breaks) still passes — expected, since this touches only
   navigation/display, never the tokenizer or line-sync pipeline.
   PR: davidschapiro/tikkun-generator#1, merged to `main`.
+- **Fixed a real live-site bug: Diaspora/Israel locale toggle threw
+  "⚠ Holiday data not found for this location" during Chol HaMoed.**
+  Concretely reported (with a live screenshot, mobile browser, Oct 1
+  2026): toggling locale while viewing "Sukkot Chol ha-Moed Day 5"
+  (Israel) threw this error instead of switching. Root cause, confirmed
+  via a direct key comparison of `HOLIDAY_DATA.israel` vs.
+  `HOLIDAY_DATA.diaspora`: `state.holidayKey` is the literal
+  `"YYYY-MM-DD|Title"` string key into `HOLIDAY_DATA[locKey]`, and that
+  key is **locale-specific**, not just in title wording but in which
+  date maps to which day-number — Israel's 1-day Yom Tov vs. Diaspora's
+  2-day Yom Tov shifts every subsequent Chol HaMoed day-count by one, so
+  the exact same date (2026-10-01) is `"...Day 5"` in Israel's data and
+  `"...Day 4"` in Diaspora's, with zero exact-key overlap. The toggle
+  handler carried the old locale's key forward unchanged into the new
+  locale's lookup, where it simply didn't exist. (The user's own
+  workaround — "used the arrows to scroll and content appeared
+  normally" — wasn't a real fix: `navigateReading`'s own
+  `currentEntryIndex` *also* fails to find the stale cross-locale key,
+  so it falls through to a plain unbounded date shift that clears
+  `holidayKey` entirely, accidentally escaping the broken state rather
+  than resolving it correctly.)
+  Fix: `remapHolidayKeyToLocale(oldKey, newLocKey)` — on locale toggle,
+  if the exact key doesn't exist in the new locale's data, re-resolve by
+  date instead (strip the date out of the old key, find all keys in the
+  new locale starting with that date), preferring whichever candidate
+  matches the old key's Mincha/non-Mincha-ness (so toggling locale while
+  viewing a fast's Mincha reading doesn't silently land on its
+  Shacharit, or vice versa). Rosh Chodesh's dateless generic key is left
+  alone (returns null → falls through to the existing "holiday not
+  found, drop to parasha" path, correct since Rosh Chodesh isn't
+  locale-dependent anyway). `#locToggle`'s click handler calls this
+  before `generate()` and reassigns `state.holidayKey` to the result.
+  Verified: real headless-browser runs across three distinct real
+  scenarios, not just the reported one — (1) pure renumbering (Israel
+  "Day 5" → Diaspora "Day 4" → back to "Day 5", zero errors either
+  direction), (2) still-Yom-Tov-in-one-locale (2026-09-27: Israel
+  "Sukkot Chol ha-Moed Day 1" ↔ Diaspora "Sukkot II" — same date, wholly
+  different occasion names), (3) completely different occasion entirely
+  (2026-10-02: Israel "Erev Simchat Torah" ↔ Diaspora "Sukkot Final Day
+  (Hoshana Raba)"). Zero errors before/after the toggle in all three
+  cases, both directions. Full existing regression suite unaffected.
+  PR: davidschapiro/tikkun-generator#2, merged to `main`.
+- **Fixed a CI-only false failure in `tests/validate-print-geometry.js`**
+  (not a site bug — this test was failing on `main` itself, at the exact
+  commit that had just been verified and merged, with every real
+  geometry assertion showing PASS). Root cause: the test fails on *any*
+  browser console/page error with zero filtering, and Cloudflare Pages
+  auto-injects a RUM analytics beacon
+  (`<script type=module src=static.cloudflareinsights.com/beacon.min.js>`)
+  into every page it serves — GitHub Actions' runner network policy
+  blocks that request with a CORS preflight failure, which the browser
+  logs as a console error, failing the whole test on noise unrelated to
+  anything it actually measures. Fix: `page.route()` intercepts requests
+  to `cloudflareinsights.com` and fulfills them locally with an empty,
+  correctly-typed (`contentType: 'application/javascript'`) response, so
+  the beacon never fails and never logs anything. **First attempt
+  fulfilled with a bare empty 204 body and no content-type — this didn't
+  work, it just traded the CORS console error for a different one**
+  ("Failed to load module script: ... MIME type checking is enforced for
+  module scripts") — because the real `<script>` tag is `type="module"`,
+  and a module script with no/wrong MIME type is itself a load error.
+  Caught by actually re-running the test after the first fix attempt,
+  not by assuming the fix worked. Lesson for this class of fix: stubbing
+  out a blocked third-party request needs to satisfy whatever the
+  calling code expected to receive (here: a parseable JS module), not
+  just return *something* with a 2xx status.
+  Verified: all three aliyot still PASS with zero console errors;
+  tokenizer and paragraph-breaks suites unaffected.
+  PR: davidschapiro/tikkun-generator#3, merged to `main`.
 
 **Done, September 2026 session:**
 - **Fixed a real live-site bug: Impressum content permanently visible on
