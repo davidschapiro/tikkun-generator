@@ -891,6 +891,46 @@ function toShabbat(d) {
 function shiftWeeks(d,n){ const r=new Date(d); r.setDate(r.getDate()+n*7); return r; }
 function triennialYear(hYear){ return ((hYear-5786)%3+3)%3+1; }
 
+// ── DIASPORA/ISRAEL LOCALE SWITCH WHILE VIEWING A HOLIDAY ───────────────────
+// Bug (Oct 2026): toggling Diaspora↔Israel while a holiday was on screen
+// reused the exact same `state.holidayKey` string against the OTHER
+// locale's HOLIDAY_DATA — but that key is locale-specific whenever the
+// Diaspora/Israel Yom Tov day-count differs (Israel keeps 1 day of Yom
+// Tov where Diaspora keeps 2, so the extra Chol HaMoed day shifts every
+// later day's number by one): e.g. 2026-10-01 is literally keyed
+// "...|Sukkot Chol ha-Moed Day 5" in Israel's data and
+// "...|Sukkot Chol ha-Moed Day 4" in Diaspora's — same calendar date,
+// different title, so the old key doesn't exist in the new locale's data
+// at all and generate() threw "Holiday data not found for this
+// location." (Confirmed directly: the two HOLIDAY_DATA sets have zero
+// shared keys on that date.) Reported symptom matched exactly: error
+// appeared switching locale during Sukkot Chol HaMoed; using the
+// prev/next arrows afterward "fixed" it only as a side effect — arrow
+// nav's own fallback (see below) can't find the stale key either, so it
+// falls through to a plain date shift and clears holidayKey.
+// Fix: re-resolve by DATE, not by exact key, when the exact key doesn't
+// exist in the new locale — this is also the semantically correct
+// behavior (not just a crash-avoidance patch): the Diaspora/Israel
+// toggle is supposed to show whatever each community actually reads on
+// that same calendar day, and that can genuinely be a different named
+// occasion (e.g. Oct 2, 2026 is "Hoshana Raba" in Diaspora but "Erev
+// Simchat Torah" in Israel — correctly different, not a bug). Prefers a
+// same-date match with the same Mincha/non-Mincha-ness as the original
+// (so switching locale mid-Mincha-reading doesn't silently drop you into
+// that date's Shacharit instead). Returns null if the new locale truly
+// has nothing on that date (shouldn't happen during any chag currently
+// in the data, but the caller must handle it rather than assume).
+function remapHolidayKeyToLocale(oldKey, newLocKey) {
+  const hData = HOLIDAY_DATA[newLocKey];
+  if (hData[oldKey]) return oldKey; // identical in both locales (the common case — minor fasts, Yom Kippur, Rosh Chodesh, etc.)
+  const oldDate = oldKey.split('|')[0];
+  if (oldDate === 'rosh-chodesh') return null; // generic key already failed the exact-match above — nothing date-based to try
+  const wantsMincha = oldKey.includes('(Mincha)');
+  const candidates = Object.keys(hData).filter(k => k.startsWith(oldDate + '|'));
+  if (candidates.length === 0) return null;
+  return candidates.find(k => k.includes('(Mincha)') === wantsMincha) || candidates[0];
+}
+
 // ── PREV/NEXT ARROW NAVIGATION ───────────────────────────────────────────────
 // Bug (Oct 2026): the prev/next arrows only ever moved refDate by exactly
 // 7 days and always cleared holidayKey — so they walked Shabbat-to-Shabbat
@@ -3102,6 +3142,15 @@ function init() {
       btn.classList.add('active');
       state.israel=btn.dataset.val==='israel';
       state.chCache={};
+      if (state.holidayKey) {
+        const remapped = remapHolidayKeyToLocale(state.holidayKey, state.israel ? 'israel' : 'diaspora');
+        // If nothing matches (not currently reachable by any date in the
+        // embedded data — every chag day has an entry in both locales),
+        // leave the old key in place: generate()'s existing "Holiday data
+        // not found for this location" error is the correct, honest
+        // failure mode rather than guessing at a fallback.
+        if (remapped) state.holidayKey = remapped;
+      }
       rebuildDropdown();
       generate();
     });
