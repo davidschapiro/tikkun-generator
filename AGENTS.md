@@ -769,6 +769,60 @@ this is *what*.
   wrong for the main domain — that beacon is the Cloudflare Web
   Analytics script tag added by hand.
 
+**Done, November 2026 session — on branch `audio-vayavinu` (PR, awaiting David's OK; stacked on `trope-colors`):**
+- **Audio wired up (vayavinu.com, Rabbi Jeremy Wieder).** David chose
+  vayavinu over waiting for Adat Shalom (no reply to his scrollscraper
+  email as of Nov 2026 — the do-not-automate note below still stands).
+  - **The Aug 2026 scrape was in the WRONG ORDER.** `vayavinu-audio.json`
+    stores each page's video ids in page-layout order — two columns, so
+    1,3,5,7,2,4,6 — not aliyah order, for every single page. Wiring
+    "video i = aliyah i+1" would have played Shlishi for Sheni, etc.
+    Caught by fetching each video's YouTube title via oEmbed
+    (`youtube.com/oembed?url=…`, all 942 ids returned 200, i.e. live and
+    embeddable) — titles carry the aliyah number ("bereishit ashk 3",
+    "YT Pesach Ashk 1,5", "Leining Yom Kippur #2 - Ashkenazit"). Titles
+    are committed as `vayavinu-titles.json` and are now the source of
+    truth for ordering. Also found from titles: Yitro (Sephardit) links
+    its Shvi'i slot to the Ta'am HaTachton video and has no real Shvi'i
+    video; Yitro/Va'etchanan carry an extra ta'am-tachton Decalogue
+    video (dropped — the numbered Shishi/Revi'i is the ta'am elyon);
+    Shavuot pages include Akdamut / Yatziv Pitgam (dropped); Chol HaMoed
+    Pesach labels its 4th aliyah "M" (it IS the Numbers passage).
+  - `scripts/build-audio-data.js` → `audio-data.js` (a `<script src>`
+    defining `window.AUDIO_DATA`, so it also works under file:// in
+    tests). Each recording carries its exact full-kriyah aliyah ranges
+    from `@hebcal/leyning` (npm, same data as Hebcal's /leyning).
+    Re-run only if the scrape changes (instructions in the script).
+  - **Matching is by verse overlap, never by aliyah number**
+    (`audioMatchesForRange` in index.html). This is what makes triennial,
+    weekday, combined weeks and holiday readings work with recordings
+    that only exist in the full-kriyah division. If one recording covers
+    the whole on-screen aliyah, only the shortest such is offered;
+    otherwise every overlapping one is listed in order. On a holiday,
+    holiday recordings win; on Shabbat, parasha recordings win.
+  - **Nusach guard:** recordings flagged `hh` (Rosh Hashana, Yom Kippur)
+    are offered only when `state.holidayKey` is a Rosh Hashana/Yom
+    Kippur reading, and regular recordings never are for those days.
+    VeZot HaBerakhah in Yamim Noraim trop was left out (minority custom,
+    and its last video is a partial "06a").
+  - UI: "▶ Listen" in each aliyah header → panel below the header with
+    Ashkenazit/Sephardit toggle (remembered: `localStorage.audioNusach`),
+    one entry per matching recording with a plain note about what it
+    covers, and a "Load player" button. **Two-click privacy:** the
+    youtube-nocookie.com iframe is only created on that click — the test
+    asserts zero YouTube requests before it. Hidden in print.
+  - Coverage: `tests/validate-audio.js` checks all 2,256 aliyot (full +
+    triennial, Diaspora + Israel) in `PARASHA_LISTS` get ≥1 overlapping
+    recording, that every video's title names the aliyah it is filed
+    under, the click-to-load behaviour, nusach switching, the
+    High-Holiday guard, print hiding, zero console errors. Not in CI yet
+    (same workflow-file limitation as the trope tests).
+  - Known limitation: no verse-level seeking — a triennial aliyah inside
+    a long full-kriyah aliyah starts playback at the recording's start.
+    vayavinu's site has phrase-by-phrase text sync for its own player;
+    if timestamps were ever available, `&start=` on the embed URL would
+    fix this.
+
 **Done, October 2026 session:**
 - **Fixed a real live-site bug: prev/next arrows couldn't reach any
   holiday/fast falling on a non-Saturday.** `prevBtn`/`nextBtn` always
@@ -1243,7 +1297,7 @@ tuning decision:
   before the next biannual (Jan 1 / Jul 1) refresh runs.
 
 **Not started / open:**
-- **Audio integration — vayavinu.com scrape complete, not yet merged/wired.**
+- **(SUPERSEDED Nov 2026 — see the November entry above; the scrape's order was wrong.)** **Audio integration — vayavinu.com scrape complete, not yet merged/wired.**
   Rabbi Jeremy Wieder has recorded the entire Torah in both Havarah
   Ashkenazit and Havarah Sephardit, per-aliyah, as YouTube videos, all
   linked from vayavinu.com. Scraped Aug 2026 (see session log below):
