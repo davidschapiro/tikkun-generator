@@ -676,6 +676,58 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
+**Done, November 2026 session — on branch `trope-colors` (PR, awaiting David's visual OK before merge):**
+- **Trope (cantillation) color highlighting.** New standalone `trope.js`
+  (pure functions, `require()`-able, loaded via `<script src>` after
+  `tokenizer.js`). `classifyTropeTokens(tokens)` reads the accent
+  codepoints of each vowel token and wraps its HTML in
+  `<span class="tw tf-<family> tl-<level>" title="<name>">`. Two schemes,
+  user-selectable via a new "Plain / Trope groups / Trope hierarchy"
+  toggle-group in the header toggle-row (David's explicit choice: both,
+  user decides):
+  - *Groups* (`tf-*`): Sof Pasuk, Etnachta, Katon, Revi'i, Segol, Tevir,
+    Geresh, Pazer. A conjunctive (or the one unaccented word, Deut 32:6
+    "הַ") takes the family of the nearest FOLLOWING disjunctive; tipcha
+    takes Etnachta or Sof depending on which of those two comes next;
+    munach-before-paseq is munach legarmeh (a Count) and takes the family
+    of what follows it. Zarqa is encoded both as U+0598 and U+05AE
+    (zinor) in Sefaria's MAM text — both map to zarka.
+  - *Hierarchy* (`tl-1..4`, `tl-s`): Jacobson's table (Revi'i = Duke).
+  - **Design choice that matters for line-sync:** classes are ALWAYS
+    present; color applies only under `html[data-trope="fam"|"lvl"]`
+    (pure CSS). Switching modes therefore re-renders and re-measures
+    nothing — verified: every column's innerHTML (vowel, scroll, both
+    print twins, Bima) is byte-identical before/after switching.
+  - Scroll column is never wrapped (no trope in a sefer Torah — coloring
+    it would give the answer away). Petucha/setuma/paseq tokens are never
+    wrapped either (`PETUCHA_HTML`/`SETUMA_HTML` are compared with `===`
+    in several places). NB the petucha glyph פ IS a Hebrew letter — the
+    first version of the classifier treated it as a word; caught by the
+    full-Torah test, excluded via its `class="pm"`.
+  - Family lookahead is deliberately NOT reset on `t.verseNum`:
+    congregation-repeat passages split one verse into pseudo-verses with
+    their own verseNum, and a reset there would orphan words. Scanning
+    right-to-left, the previous verse's own sof pasuk resets the
+    trackers naturally.
+  - Congregation-repeat words keep a background tint while trope colors
+    own the text color (`html[data-trope] .cong-token`).
+  - Persisted in localStorage `tropeColors`; in shared links as `tc`.
+  - Tests: `tests/validate-trope.js` (full Torah: last word of every
+    verse is sof pasuk, ≤1 etnachta per verse except the Decalogue,
+    every word gets a family, non-word tokens byte-identical, shalshelet
+    = 4 / karnei para = 1 / yerach ben yomo = 1, chapter-at-once ==
+    verse-by-verse, split-verse invariance) and
+    `tests/validate-trope-ui.js` (Playwright, live data: HTML unchanged
+    on switch, colors applied, scroll column clean, ?tc and
+    localStorage restore, no console errors). **Not yet in CI** — the
+    workflow file can't be pushed from the sandbox; add two steps to
+    `.github/workflows/test.yml` via the web UI.
+  - Test gotcha hit while writing the UI test: the active tab is
+    persisted (`localStorage.tikkunTab`), so a second page in the same
+    browser context opens on whatever tab the first one left — a Bima
+    tab renders the practice columns hidden and yields different
+    breaks. Reset the tab before comparing across pages.
+
 **Done, October 2026 session:**
 - **Fixed a real live-site bug: prev/next arrows couldn't reach any
   holiday/fast falling on a non-Saturday.** `prevBtn`/`nextBtn` always
