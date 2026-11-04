@@ -19,8 +19,17 @@ A single-file HTML/CSS/JS web app (`index.html`, currently ~137KB) that
 generates Torah/holiday reading practice sheets ("tikkunim"). No build step,
 no framework, no backend. Data (parasha schedules, holiday leyning, the
 Hebrew font) is fetched live from Sefaria/Hebcal at runtime *or* embedded as
-base64/JSON directly in the file. Hosted on GitHub Pages with a custom
-domain. A GitHub Action refreshes the embedded schedule data twice a year.
+base64/JSON directly in the file. Hosted on Cloudflare Pages (project
+"tikkun-generator", custom domains tikkun.kahal-masorti.org and
+tikkun.schapiro.org; branch previews at <branch>.tikkun-generator.pages.dev).
+A GitHub Action refreshes the embedded schedule data twice a year.
+
+Impressum (the `#impressumDialog` in index.html): publisher is Kahal Masorti
+e.V., registered at Amtsgericht Potsdam as VR 10083 P (entry 30.09.2026).
+The Verein is represented by the majority of the board, so all five board
+members are listed. Keep it in sync with the association website
+(davidschapiro/kahal-masorti-website, content/site.json), which is the
+source of truth for these facts. Cite § 5 DDG, not the old TMG.
 
 ---
 
