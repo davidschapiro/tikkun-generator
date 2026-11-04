@@ -98,7 +98,7 @@ Schedule data is embedded in `index.html` and refreshed automatically via **GitH
 
 ## Impressum
 
-Kahal Masorti e.V.i.G. · Baumeisterstr. 11 · 26122 Oldenburg
+Kahal Masorti e.V. · c/o Ufferfilge/Bubeck · Baumeisterstr. 11 · 26122 Oldenburg · Amtsgericht Potsdam, VR 10083 P
 Verantwortlicher gemäß §18 Abs. 2 MStV: David Schapiro · david@schapiro.org
 
 
