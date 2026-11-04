@@ -108,7 +108,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 @media(max-width:680px){
   .vl-desktop{display:none;}
   .vl-mobile{display:inline;}
-  #verseLookupBtn{width:100%;text-align:center;}
+  /* Mobile: the two buttons share one row below the dropdown, equal
+     width and the same look (icon + label), instead of one full-width
+     and one stray half-row button. */
+  #verseLookupBtn,#yearTikkunBtn{order:3;flex:1 1 0;min-width:0;text-align:center;}
 }
 .verse-lookup-btn{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
@@ -233,6 +236,56 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 .cong-token{color:#2a5298;}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .cong-token{color:#7fb3e8;}}
 [data-theme="dark"] .cong-token{color:#7fb3e8;}
+
+/* Trope (cantillation) colors — see trope.js. Every vowelized word always
+   carries .tw plus key classes (tk-<trope>, and tc tm-<master> for
+   conjunctives). The colors themselves come from a generated stylesheet,
+   <style id="tropeSchemeStyle">, built from the user's editable scheme
+   (Trope.schemeToCss), and only apply while html[data-trope] is set — so
+   switching on/off or editing colors never re-renders or re-measures
+   anything; color doesn't change glyph width, so line-sync breaks can't
+   move. The scroll column is never wrapped (no trope in a sefer Torah). */
+/* Congregation-repeat words keep their marking when trope colors take
+   over the text color: a background tint instead (no width change). */
+html[data-trope] .cong-token{background:rgba(42,82,152,0.13);border-radius:3px;}
+.trope-legend{display:none;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:0.3rem 0.9rem;
+  font-size:0.74rem;font-weight:700;margin:0.2rem auto 0.6rem;max-width:900px;padding:0 1rem;}
+html[data-trope] .trope-legend{display:flex;}
+.trope-legend .tlg-edit{background:none;border:1px solid var(--border);border-radius:999px;cursor:pointer;
+  font:700 0.7rem 'Arimo',sans-serif;color:var(--ink-soft);padding:0.1rem 0.6rem;}
+.trope-legend .tlg-edit:hover{border-color:var(--gold);color:var(--gold);}
+#tropeEditBtn{padding:0.28rem 0.6rem;}
+#tropeEditor{border:1px solid var(--border);border-radius:10px;background:var(--bg-card);color:var(--ink);
+  padding:1.3rem 1.4rem;box-shadow:0 4px 24px rgba(0,0,0,0.22);max-width:560px;width:92vw;max-height:88vh;
+  overflow-y:auto;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
+#tropeEditor::backdrop{background:rgba(0,0,0,0.45);}
+#tropeEditor h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:0.5rem;}
+#tropeEditor h4{font-size:0.8rem;font-weight:700;color:var(--ink-mid);margin:1rem 0 0.4rem;}
+#tropeEditor .te-hint{font-size:0.74rem;color:var(--ink-soft);margin-bottom:0.7rem;line-height:1.45;}
+#tropeEditor .te-follow{display:flex;gap:0.45rem;align-items:flex-start;font-size:0.78rem;cursor:pointer;margin-bottom:0.8rem;}
+.te-group{display:grid;grid-template-columns:auto 1fr auto;gap:0.5rem;align-items:center;margin-bottom:0.35rem;}
+.te-swatch{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);cursor:pointer;padding:0;}
+.te-group input[type=text]{font:0.82rem 'Arimo',sans-serif;background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--radius);color:var(--ink);padding:0.25rem 0.45rem;min-width:0;}
+.te-del{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:1rem;padding:0 0.3rem;}
+.te-del:hover{color:var(--red);}
+.te-members{grid-column:2 / 4;font-size:0.7rem;color:var(--ink-soft);margin:-0.15rem 0 0.25rem;}
+.te-palette{grid-column:1 / 4;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 0.5rem 2.1rem;}
+.te-palette button{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,0.25);cursor:pointer;padding:0;}
+.te-palette button.sel{outline:2px solid var(--ink);outline-offset:1px;}
+.te-palette input[type=color]{width:30px;height:24px;border:none;background:none;padding:0;cursor:pointer;}
+.te-add{font:700 0.76rem 'Arimo',sans-serif;background:var(--bg);border:1px dashed var(--border);color:var(--ink-mid);
+  border-radius:var(--radius);padding:0.3rem 0.8rem;cursor:pointer;margin-top:0.2rem;}
+.te-trope{display:grid;grid-template-columns:1fr auto;gap:0.5rem;align-items:center;padding:0.18rem 0;
+  border-bottom:1px solid var(--border);font-size:0.78rem;}
+.te-trope .te-he{font-family:'Arimo',sans-serif;color:var(--ink-soft);margin-left:0.5em;}
+.te-sub{font-size:0.74rem;font-weight:700;color:var(--ink-mid);margin:0.8rem 0 0.2rem;}
+.te-trope select{font:0.78rem 'Arimo',sans-serif;background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--radius);color:var(--ink);padding:0.15rem 0.3rem;max-width:11rem;}
+#teReset{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
+#teDone{background:var(--gold);color:#fff;}
+@media print{html[data-trope] .tw, html[data-trope] .trope-legend{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .trope-legend .tlg-edit{display:none;}}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
@@ -418,7 +471,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
   .top-row{width:100%;justify-content:space-between;flex-wrap:wrap;}
   #parashaSelect{width:100%;}
-  #verseLookupBtn{order:3;}
 }
 </style>
 </head>
@@ -606,11 +658,11 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
     <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">
       <span class="vl-desktop">🔍 Verse</span>
-      <span class="vl-mobile">Look up a verse</span>
+      <span class="vl-mobile">🔍 Look up a verse</span>
     </button>
     <button class="verse-lookup-btn" id="yearTikkunBtn" title="Build a printable Tikkun for a whole Hebrew year">
       <span class="vl-desktop">📅 Full Year</span>
-      <span class="vl-mobile">Full-year Tikkun</span>
+      <span class="vl-mobile">📅 Full-year Tikkun</span>
     </button>
   </div>
   <div class="toggle-row">
@@ -633,6 +685,12 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button class="toggle-btn active" data-val="side">Side-by-Side</button>
       <button class="toggle-btn" data-val="either">Either-Or</button>
     </div>
+
+    <div class="toggle-group" id="tropeToggle" title="Color the vowelized text by trope (cantillation)">
+      <button class="toggle-btn active" data-val="off">Plain</button>
+      <button class="toggle-btn" data-val="on">Trope colors</button>
+      <button class="toggle-btn" id="tropeEditBtn" type="button" title="Edit trope colors and groups">🎨</button>
+    </div>
   </div>
   <div id="aliyahRow" style="display:none">
   <div class="toggle-row">
@@ -651,6 +709,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </div>
 
 <main class="content">
+  <div id="tropeLegend" class="trope-legend" aria-label="Trope color legend"></div>
   <div id="statusArea"></div>
   <div id="tabBar" style="display:none">
     <div class="tab-bar">
@@ -675,6 +734,22 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     <button class="toggle-btn" data-val="dark">Dark</button>
   </div>
 </div>
+
+<dialog id="tropeEditor" aria-label="Trope colors">
+  <h3>Trope colors</h3>
+  <p class="te-hint">Put the tropes that belong together into one group and give each group a color.
+    Saved in this browser. Applies to the vowelized text and the Bima Tikkun — never to the scroll column.</p>
+  <label class="te-follow"><input type="checkbox" id="teFollow">
+    <span>Servants (Munach, Mercha, Mahpach, Kadma, …) that are not in a group take the color of the trope they lead into</span></label>
+  <div id="teGroups"></div>
+  <button type="button" class="te-add" id="teAddGroup">+ New group</button>
+  <h4>Which group each trope belongs to</h4>
+  <div id="teTropes"></div>
+  <div class="vl-actions">
+    <button type="button" id="teReset">Reset to default</button>
+    <button type="button" id="teDone">Done</button>
+  </div>
+</dialog>
 
 <dialog id="verseLookupDialog">
   <h3>Jump to Verse</h3>
@@ -820,6 +895,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </dialog>
 
 <script src="tokenizer.js"></script>
+<script src="trope.js"></script>
 <script>
 
 const PARASHA_LISTS = {
@@ -848,6 +924,128 @@ const state = {
 // so they can't be applied during init() itself like the rest of state.
 let pendingRestore = null; // {aliyahKeys: Set<string>|null, scrollKey: string|null}
 let scrollSyncArmed = false; // only start tracking scroll after first render
+
+// Trope colors: on/off ('off' | 'on'), plus the user's editable color
+// scheme (groups of trope keys with a color each, see trope.js).
+// Both persist in localStorage; links carry ?tc=1 when colors are on.
+// Older values/links ('fam', 'lvl') from the first version map to 'on'.
+let tropeMode = (() => {
+  try { const m = localStorage.getItem('tropeColors'); return (m && m !== 'off') ? 'on' : 'off'; }
+  catch (e) { return 'off'; }
+})();
+let tropeScheme = (() => {
+  try { return Trope.normalizeScheme(JSON.parse(localStorage.getItem('tropeScheme') || 'null')); }
+  catch (e) { return Trope.DEFAULT_SCHEME(); }
+})();
+function escHtml(x) {
+  return String(x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function applyTropeMode(m) {
+  tropeMode = (m && m !== 'off' && m !== '0') ? 'on' : 'off';
+  if (tropeMode === 'off') delete document.documentElement.dataset.trope;
+  else document.documentElement.dataset.trope = 'on';
+  document.querySelectorAll('#tropeToggle .toggle-btn[data-val]').forEach(b =>
+    b.classList.toggle('active', b.dataset.val === tropeMode));
+  try { localStorage.setItem('tropeColors', tropeMode); } catch (e) {}
+}
+function applyTropeScheme() {
+  let el = document.getElementById('tropeSchemeStyle');
+  if (!el) { el = document.createElement('style'); el.id = 'tropeSchemeStyle'; document.head.appendChild(el); }
+  el.textContent = Trope.schemeToCss(tropeScheme);
+  buildTropeLegend();
+}
+function saveTropeScheme() {
+  tropeScheme = Trope.normalizeScheme(tropeScheme);
+  try { localStorage.setItem('tropeScheme', JSON.stringify(tropeScheme)); } catch (e) {}
+  applyTropeScheme();
+}
+function buildTropeLegend() {
+  const el = document.getElementById('tropeLegend');
+  if (!el || !window.Trope) return;
+  el.innerHTML = tropeScheme.groups.filter(g => g.keys.length)
+    .map(g => `<span class="tg-${g.id}">${escHtml(g.name)}</span>`).join('') +
+    `<button type="button" class="tlg-edit" data-open-trope-editor>🎨 Edit colors</button>`;
+}
+let teOpenPalette = null; // id of the group whose palette row is open
+function renderTropeEditor() {
+  const s = tropeScheme;
+  document.getElementById('teFollow').checked = s.followMaster;
+  const nameOf = k => (Trope.TROPES.find(t => t.key === k) || {}).en || k;
+  document.getElementById('teGroups').innerHTML = s.groups.map(g => `
+    <div class="te-group" data-gid="${g.id}">
+      <button type="button" class="te-swatch" style="background:${g.color}" title="Change color" aria-label="Change color of ${escHtml(g.name)}"></button>
+      <input type="text" value="${escHtml(g.name)}" aria-label="Group name" maxlength="40">
+      <button type="button" class="te-del" title="Delete group" aria-label="Delete ${escHtml(g.name)}">✕</button>
+      <div class="te-members">${g.keys.length ? g.keys.map(k => escHtml(nameOf(k))).join(' · ') : '<i>empty — assign tropes below</i>'}</div>
+      ${teOpenPalette === g.id ? `<div class="te-palette">${Trope.PALETTE.map(c =>
+        `<button type="button" data-color="${c}" style="background:${c}" class="${c === g.color ? 'sel' : ''}" aria-label="${c}"></button>`).join('')}
+        <input type="color" value="${g.color}" title="Any color"></div>` : ''}
+    </div>`).join('');
+  // Servants are always listed: one left at the first option follows the
+  // trope it leads into (when that switch is on); one put into a group
+  // always takes that group's color.
+  const opts = (t) => `<option value="">${t.conj && s.followMaster ? '— color of the next trope —' : '— no color —'}</option>` +
+    s.groups.map(g => `<option value="${g.id}"${g.keys.includes(t.key) ? ' selected' : ''}>${escHtml(g.name)}</option>`).join('');
+  const row = t => `<div class="te-trope"><span>${escHtml(t.en)}${t.he ? `<span class="te-he" lang="he" dir="rtl">${t.he}</span>` : ''}</span>
+      <select data-key="${t.key}" aria-label="Group for ${escHtml(t.en)}">${opts(t)}</select></div>`;
+  document.getElementById('teTropes').innerHTML =
+    Trope.TROPES.filter(t => !t.conj).map(row).join('') +
+    `<div class="te-sub">Servants (conjunctives)</div>` +
+    Trope.TROPES.filter(t => t.conj && t.key !== 'none').map(row).join('');
+}
+function openTropeEditor() {
+  applyTropeMode('on');
+  syncUrl();
+  teOpenPalette = null;
+  renderTropeEditor();
+  document.getElementById('tropeEditor').showModal();
+}
+function initTropeEditor() {
+  const dlg = document.getElementById('tropeEditor');
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#tropeEditBtn, [data-open-trope-editor]')) openTropeEditor();
+  });
+  dlg.addEventListener('click', (e) => {
+    const row = e.target.closest('.te-group');
+    const g = row ? tropeScheme.groups.find(x => x.id === row.dataset.gid) : null;
+    if (e.target.closest('.te-swatch') && g) {
+      teOpenPalette = teOpenPalette === g.id ? null : g.id; renderTropeEditor(); return;
+    }
+    const sw = e.target.closest('.te-palette button[data-color]');
+    if (sw && g) { g.color = sw.dataset.color; saveTropeScheme(); renderTropeEditor(); return; }
+    if (e.target.closest('.te-del') && g) {
+      tropeScheme.groups = tropeScheme.groups.filter(x => x !== g); saveTropeScheme(); renderTropeEditor(); return;
+    }
+    if (e.target.id === 'teAddGroup') {
+      const used = new Set(tropeScheme.groups.map(x => x.color));
+      const color = Trope.PALETTE.find(c => !used.has(c)) || Trope.PALETTE[0];
+      let n = 1; while (tropeScheme.groups.some(x => x.id === 'g-new' + n)) n++;
+      tropeScheme.groups.push({ id: 'g-new' + n, name: 'Group ' + (tropeScheme.groups.length + 1), color, keys: [] });
+      teOpenPalette = 'g-new' + n; saveTropeScheme(); renderTropeEditor(); return;
+    }
+    if (e.target.id === 'teReset') {
+      tropeScheme = Trope.DEFAULT_SCHEME(); teOpenPalette = null; saveTropeScheme(); renderTropeEditor(); return;
+    }
+    if (e.target.id === 'teDone') dlg.close();
+  });
+  dlg.addEventListener('input', (e) => {
+    const row = e.target.closest('.te-group');
+    const g = row ? tropeScheme.groups.find(x => x.id === row.dataset.gid) : null;
+    if (g && e.target.type === 'text') { g.name = e.target.value; saveTropeScheme(); return; } // no re-render: keep focus
+    if (g && e.target.type === 'color') { g.color = e.target.value; row.querySelector('.te-swatch').style.background = g.color; saveTropeScheme(); }
+  });
+  dlg.addEventListener('change', (e) => {
+    if (e.target.id === 'teFollow') { tropeScheme.followMaster = e.target.checked; saveTropeScheme(); renderTropeEditor(); return; }
+    const key = e.target.dataset && e.target.dataset.key;
+    if (key) {
+      tropeScheme.groups.forEach(x => { x.keys = x.keys.filter(k => k !== key); });
+      const g = tropeScheme.groups.find(x => x.id === e.target.value);
+      if (g) g.keys.push(key);
+      saveTropeScheme(); renderTropeEditor();
+    }
+    if (e.target.type === 'text') renderTropeEditor(); // refresh dropdown labels after a rename
+  });
+}
 
 const LABELS = {
   '1':{he:'ראשון',en:'Rishon'},'2':{he:'שני',en:'Sheni'},
@@ -1088,6 +1286,7 @@ function syncUrl() {
   if (state.israel) params.set('il', '1');
   if (state.mode !== 'triennial') params.set('mode', state.mode);
   if (state.regularMaftir) params.set('maftir', '1');
+  if (tropeMode !== 'off') params.set('tc', '1');
 
   // Aliyah filter — only include when it's a strict subset, so the common
   // "everything selected" case doesn't clutter every link.
@@ -1476,6 +1675,7 @@ function buildBimaFlow(verses, breakMarkers) {
 
   const realVerses = verses.filter(v => !v.__marker);
   const {tokens} = buildTokens(realVerses);
+  if (window.Trope) Trope.classifyTropeTokens(tokens); // trope color classes (CSS-gated)
 
   // Optional weekday-aliyah break markers (see computeWeekdayBreakMarkers) —
   // keyed by the 0-based index (within realVerses) of the verse the break
@@ -2238,6 +2438,9 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
     const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
     const {tokens} = buildTokens(annotatedVerses);
     markCongTokens(tokens, annotatedVerses);
+    // After markCongTokens on purpose: classification never relies on
+    // verseNum, but keeping it last means it sees the final token list.
+    if (window.Trope) Trope.classifyTropeTokens(tokens);
     const tokenId = 'tk' + (__aliyahTokenCounter++);
     window.__aliyahTokenRegistry[tokenId] = tokens;
     body = noteHTML + `<div class="practice-body" data-token-id="${tokenId}">
@@ -3061,6 +3264,12 @@ function init() {
   if (urlParams.has('il')) state.israel = urlParams.get('il') === '1';
   if (urlParams.has('mode')) state.mode = urlParams.get('mode');
   if (urlParams.has('maftir')) state.regularMaftir = urlParams.get('maftir') === '1';
+  applyTropeScheme();
+  initTropeEditor();
+  applyTropeMode(urlParams.has('tc') ? urlParams.get('tc') : tropeMode);
+  document.querySelectorAll('#tropeToggle .toggle-btn[data-val]').forEach(btn => {
+    btn.addEventListener('click', () => { applyTropeMode(btn.dataset.val); syncUrl(); });
+  });
 
   let pendingWeekday = false;
   if (urlParams.has('h')) {

@@ -676,6 +676,99 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
+**Done, November 2026 session — trope colors, PR #4, merged to `main` on David's OK (Nov 4):**
+- **Trope (cantillation) colors with a user-editable color scheme.**
+  First version (same night) had two fixed schemes, "groups" and
+  "hierarchy". David's review: hierarchy (Emperors/Kings/…) is useless to
+  actual readers; what's useful is letting each reader decide which tropes
+  share a color and which colors — e.g. Zakef Katon and Zakef Gadol sound
+  different even though textbooks group them, and the first palette's
+  orange and yellow were too close. So the current design is:
+  - `trope.js` classifies each vowelized word into a KEY: every
+    disjunctive is its own key, except tipcha (split by context into
+    `tipcha-etnachta` / `tipcha-sof` — whichever of the two comes next)
+    and munach-before-paseq (`legarmeh`); every conjunctive is its own
+    key too (`munach`, `mercha`, …, `none` for the one unaccented word,
+    Deut 32:6 "הַ") and also records its MASTER, the key of the nearest
+    following disjunctive. Word HTML → `<span class="tw tk-<key>[ tc
+    tm-<master>]" title="…">`. Zarqa is encoded both as U+0598 and U+05AE
+    in Sefaria's MAM text — both map to `zarka`.
+  - **Names follow Ashkenazi usage** (David's correction): the geresh
+    sign is "Azla" right after a kadma (kadma ve-azla) and "Azla-Geresh"
+    on its own. The tooltip picks the right one; "previous word" must
+    skip paseq tokens (6 Torah verses have kadma ׀ azla — caught by the
+    full-Torah test).
+  - Scheme = `{v, followMaster, groups:[{id,name,color,keys}]}` in
+    `localStorage.tropeScheme`, validated by `Trope.normalizeScheme`
+    (corrupt/old data → default; a key can be in only one group).
+    `Trope.schemeToCss` generates `<style id="tropeSchemeStyle">`;
+    with followMaster, servants are colored via `.tc.tm-<master>`,
+    otherwise via their own `.tk-<key>`. Dark mode uses
+    `color-mix(in oklab, <color> 62%, white)` under the same two dark
+    selectors the rest of the file uses.
+  - On/off is `html[data-trope]` (`localStorage.tropeColors`, link
+    `?tc=1`; old `fam`/`lvl` values and links map to on). **Design
+    choice that matters for line-sync:** classes are always present and
+    every color decision is CSS — turning on/off and every editor action
+    re-render and re-measure nothing. Verified: every column's innerHTML
+    (vowel, scroll, both print twins, Bima) byte-identical across all of
+    it.
+  - Editor: `<dialog id="tropeEditor">` (🎨 in the toggle-group, also
+    "Edit colors" at the end of the legend). Group rows (swatch → palette
+    of `Trope.PALETTE` + native color input, name, delete), "+ New
+    group", a dropdown per trope, servants-follow checkbox, reset.
+    Servants are ALWAYS listed (David: Darga and Telisha Ketana were
+    missing): a servant put into a group always takes that group's
+    color — its `.tw.tc.tk-X` rule is emitted after all follow rules
+    (`.tw.tc.tm-Y`, same specificity) so it wins; a servant in no group
+    follows its master if the switch is on, else stays ink. Default has
+    Yetiv and Gershayim in their own groups (David's call). Darga sits
+    with Tevir by default and Telisha Ketana has its own color: both
+    are servants with a melody of their own — a darga without a tevir
+    after it must not "disappear" into the next trope's color. Telisha
+    Gedola is its own group too — 13 default groups (David asked for
+    "12 colors, 12 tribes", but the count with every split is 13;
+    kept all 13 and told him).
+- **Mobile header (Nov 2026):** "🔍 Look up a verse" and "📅 Full-year
+  Tikkun" share one row under the dropdown, equal width, same look
+  (previously one full-width and one stray half-row button).
+    User-entered names are HTML-escaped (`escHtml`).
+  - Scroll column never wrapped (no trope in a sefer Torah — coloring
+    it would give the answer away). Petucha/setuma/paseq tokens never
+    wrapped (`PETUCHA_HTML`/`SETUMA_HTML` are compared with `===`). The
+    petucha glyph פ IS a Hebrew letter — excluded via `class="pm"`.
+  - Master lookahead is NOT reset on `t.verseNum` (congregation-repeat
+    passages split a verse into pseudo-verses); scanning right-to-left,
+    the previous verse's own sof pasuk resets the trackers naturally.
+  - Congregation-repeat words keep a background tint while trope colors
+    own the text color.
+  - Tests: `tests/validate-trope.js` (full Torah: last word of every
+    verse is sof pasuk, ≤1 etnachta per verse except the Decalogue,
+    every servant has a master, no unresolved tipcha, Azla naming,
+    non-word tokens byte-identical, shalshelet = 4 / karnei para = 1 /
+    yerach ben yomo = 1, chapter-at-once == verse-by-verse, split-verse
+    invariance, scheme/CSS helpers) and `tests/validate-trope-ui.js`
+    (Playwright on live data: HTML unchanged through every editor
+    action, colors applied, servants-follow on/off, persistence, dark
+    mode, reset, Bima, `?tc=1` and legacy `?tc=fam`, no console errors).
+    **Not yet in CI** — the workflow file can't be pushed from the
+    sandbox; add the steps via the web UI.
+  - Test gotcha: the active tab is persisted (`localStorage.tikkunTab`),
+    so a second page in the same browser context opens on whatever tab
+    the first one left — a Bima tab renders the practice columns hidden
+    and yields different breaks. Reset the tab before comparing pages.
+- **Hosting fact check (Nov 2026):** `tikkun.kahal-masorti.org` is still
+  GitHub Pages (Strato DNS: CNAME → `davidschapiro.github.io`), but a
+  Cloudflare Pages project `tikkun-generator` already exists, connected
+  to this repo, serving `tikkun.schapiro.org` — and it builds every
+  branch: preview any branch at `https://<branch>.tikkun-generator.pages.dev`.
+  The planned move of the kahal-masorti domain to Cloudflare (Aug 7
+  plan: add the custom domain in Cloudflare first, then switch the
+  Strato CNAME, then drop GitHub Pages) has NOT happened yet. The
+  "Cloudflare Pages auto-injects a RUM beacon" wording further down is
+  wrong for the main domain — that beacon is the Cloudflare Web
+  Analytics script tag added by hand.
+
 **Done, October 2026 session:**
 - **Fixed a real live-site bug: prev/next arrows couldn't reach any
   holiday/fast falling on a non-Saturday.** `prevBtn`/`nextBtn` always
