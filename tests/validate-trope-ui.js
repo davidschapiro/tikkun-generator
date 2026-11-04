@@ -1,19 +1,21 @@
 // Trope-color UI test (real browser, real Hebcal/Sefaria data).
 //
 // Verifies the properties trope coloring must have to be safe in this
-// codebase (see AGENTS.md §3/§4 — line-sync is the fragile part):
+// codebase (see AGENTS.md §3/§4 — line-sync is the fragile part) and that
+// the color editor actually works:
 //
-//   1. Switching Plain → Trope groups → Trope hierarchy changes ONLY the
-//      html[data-trope] attribute: every rendered column's HTML (vowel,
-//      scroll, print twins, Bima) is byte-identical before and after.
-//      Nothing re-renders, so no line break can move.
-//   2. Colors actually apply: a sof-pasuk word is computed in the
-//      sof color in "groups" mode and the Emperor color in "hierarchy"
-//      mode, and in the plain ink color in "Plain" mode.
-//   3. The scroll column never contains trope wrappers (.tw) — coloring
-//      it would give the answer away.
-//   4. The mode survives a reload via ?tc=… and via localStorage, and
-//      the legend shows the matching set.
+//   1. Turning colors on/off and every editor action (recolor, regroup,
+//      servants on/off, new group, reset) changes ONLY CSS: every rendered
+//      column's HTML (vowel, scroll, print twins, Bima) stays
+//      byte-identical, so no line break can move.
+//   2. Colors really apply: sof pasuk words in the Sof Pasuk group color;
+//      a servant leading into sof pasuk shares it while "servants follow"
+//      is on, is uncolored when it's off and its own trope has no group,
+//      and colored again once assigned; a trope removed from all groups
+//      goes back to ink; dark mode uses a lighter shade.
+//   3. The scheme persists in localStorage; ?tc=1 and the old ?tc=fam
+//      links turn colors on; the legend shows the group names.
+//   4. The scroll column never contains trope wrappers.
 //   5. Zero console/page errors.
 //
 // Run with: node tests/validate-trope-ui.js  [--shots DIR]
@@ -35,111 +37,134 @@ async function ready(page) {
   }, { timeout: 20000 });
   await page.waitForTimeout(400);
 }
-
 const snapshot = (page) => page.evaluate(() => {
   const html = (sel) => [...document.querySelectorAll(sel)].map(e => e.innerHTML).join('\u0001');
-  return {
-    vowel: html('.col-vowel'), scroll: html('.col-scroll'),
-    vowelPrint: html('.col-vowel-print'), scrollPrint: html('.col-scroll-print'),
-    bima: html('.bima-body'),
-  };
+  return { vowel: html('.col-vowel'), scroll: html('.col-scroll'), vowelPrint: html('.col-vowel-print'),
+    scrollPrint: html('.col-scroll-print'), bima: html('.bima-body') };
 });
-
 const colorOf = (page, sel) => page.evaluate((s) => {
-  const el = document.querySelector(s);
-  return el ? getComputedStyle(el).color : null;
+  const el = document.querySelector(s); return el ? getComputedStyle(el).color : null;
 }, sel);
+const rgb = (hex) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+
+async function sameHtml(page, before, label) {
+  const now = await snapshot(page);
+  const bad = Object.keys(before).filter(k => before[k] !== now[k]);
+  check(bad.length === 0, `column HTML unchanged after ${label}${bad.length ? ' (changed: ' + bad.join(',') + ')' : ''}`);
+}
+async function newPage(context) {
+  const p = await context.newPage();
+  await p.route('**cloudflareinsights.com**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  return p;
+}
 
 (async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1100, height: 1300 } });
-  const page = await context.newPage();
-  await page.route('**cloudflareinsights.com**', r =>
-    r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  const page = await newPage(context);
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 
   await page.goto(PAGE_URL);
-  await page.evaluate(() => { localStorage.removeItem('tropeColors'); localStorage.removeItem('tikkunTab'); });
+  await page.evaluate(() => { ['tropeColors', 'tropeScheme', 'tikkunTab'].forEach(k => localStorage.removeItem(k)); });
   await page.goto(PAGE_URL);
   await ready(page);
 
-  check(await page.evaluate(() => !document.documentElement.dataset.trope), 'default mode is Plain (no data-trope)');
-  check((await page.locator('.col-vowel .tw').count()) > 50, 'vowel column words carry trope classes');
-  check((await page.locator('.col-scroll .tw').count()) === 0, 'scroll column has no trope wrappers');
-  check((await page.locator('.col-scroll-print .tw').count()) === 0, 'scroll print column has no trope wrappers');
-
+  check(await page.evaluate(() => !document.documentElement.dataset.trope), 'default is Plain');
+  check((await page.locator('.col-vowel .tw').count()) > 50, 'vowel words carry trope classes');
+  check((await page.locator('.col-scroll .tw, .col-scroll-print .tw').count()) === 0, 'scroll columns have no trope wrappers');
   const before = await snapshot(page);
-  const ink = await colorOf(page, '.col-vowel .tw.tl-1');
+  const ink = await colorOf(page, '.col-vowel');
+  const SOF = '.col-vowel .tw.tk-sof-pasuk';
+  const SERVANT_TO_SOF = '.col-vowel .tw.tc.tm-sof-pasuk';
+  check(await colorOf(page, SOF) === ink, 'Plain: sof pasuk word in ink color');
 
-  await page.click('#tropeToggle .toggle-btn[data-val="fam"]');
-  await page.waitForTimeout(300);
-  const famSof = await colorOf(page, '.col-vowel .tw.tl-1.tf-sof');
-  const famVar = await page.evaluate(() => {
-    const p = document.createElement('span'); p.style.color = 'var(--tr-sof)';
-    document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c;
-  });
-  check(famSof === famVar && famSof !== ink, `groups mode colors sof-pasuk words (${famSof})`);
-  check(await page.locator('#tropeLegend .tlg-fam').isVisible(), 'groups legend visible');
-  check(!(await page.locator('#tropeLegend .tlg-lvl').isVisible()), 'hierarchy legend hidden in groups mode');
-  check(new URL(page.url()).searchParams.get('tc') === 'fam', 'share link carries tc=fam');
-  const afterFam = await snapshot(page);
-  for (const k of Object.keys(before)) check(before[k] === afterFam[k], `${k} HTML unchanged by switching to groups`);
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-groups-light.png'), fullPage: false });
-
-  await page.click('#tropeToggle .toggle-btn[data-val="lvl"]');
-  await page.waitForTimeout(300);
-  const lvl1 = await colorOf(page, '.col-vowel .tw.tl-1');
-  const lvlS = await colorOf(page, '.col-vowel .tw.tl-s');
-  check(lvl1 !== ink && lvlS !== ink && lvl1 !== lvlS, `hierarchy mode colors emperors (${lvl1}) and servants (${lvlS}) differently`);
-  const afterLvl = await snapshot(page);
-  for (const k of Object.keys(before)) check(before[k] === afterLvl[k], `${k} HTML unchanged by switching to hierarchy`);
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-hierarchy-light.png'), fullPage: false });
-
-  // Dark theme still distinguishes the colors.
-  await page.click('#themeToggle .toggle-btn[data-val="dark"]');
-  await page.click('#tropeToggle .toggle-btn[data-val="fam"]');
-  await page.waitForTimeout(300);
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-groups-dark.png'), fullPage: false });
-
-  // Bima tab.
-  await page.click('.tab-btn[data-tab="bima"]');
-  await page.waitForTimeout(400);
-  check((await page.locator('.bima-body .tw').count()) > 50, 'Bima text carries trope classes');
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-groups-bima-dark.png'), fullPage: false });
-
-  await page.click('#tropeToggle .toggle-btn[data-val="off"]');
+  await page.click('#tropeToggle .toggle-btn[data-val="on"]');
   await page.waitForTimeout(200);
-  check(await page.evaluate(() => !document.documentElement.dataset.trope), 'Plain removes data-trope');
-  check(new URL(page.url()).searchParams.get('tc') === null, 'share link drops tc in Plain mode');
-  check((await colorOf(page, '.bima-body .tw.tl-1')) === (await colorOf(page, '.bima-body')),
-    'Plain mode leaves text in the normal ink color');
+  const def = await page.evaluate(() => Trope.DEFAULT_SCHEME());
+  const sofColor = def.groups.find(g => g.keys.includes('sof-pasuk')).color;
+  check(await colorOf(page, SOF) === rgb(sofColor), `on: sof pasuk in its group color ${sofColor}`);
+  check(await colorOf(page, SERVANT_TO_SOF) === rgb(sofColor), 'on: servant leading into sof pasuk shares that color');
+  check(new URL(page.url()).searchParams.get('tc') === '1', 'share link carries tc=1');
+  check(await page.locator('#tropeLegend .tg-g-sof').isVisible(), 'legend shows the Sof Pasuk group');
+  await sameHtml(page, before, 'turning colors on');
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-default-light.png') });
 
-  // The active tab is persisted (localStorage 'tikkunTab'); switch back to
-  // the practice tab so the reload below renders the same view as before.
-  await page.click('.tab-btn[data-tab="practice"]');
+  // Editor: recolor the Sof Pasuk group via its palette.
+  await page.click('#tropeEditBtn');
+  check(await page.locator('#tropeEditor').isVisible(), 'editor opens');
+  const newColor = await page.evaluate(() => Trope.PALETTE[9]);
+  await page.click('.te-group[data-gid="g-sof"] .te-swatch');
+  await page.click(`.te-group[data-gid="g-sof"] .te-palette button[data-color="${newColor}"]`);
+  await page.waitForTimeout(150);
+  check(await colorOf(page, SOF) === rgb(newColor), 'recoloring a group recolors its words live');
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'trope-editor.png') });
+
+  // Remove tevir from every group → tevir words back to ink.
+  const tevirSel = '.col-vowel .tw.tk-tevir';
+  await page.selectOption('#teTropes select[data-key="tevir"]', '');
+  await page.waitForTimeout(150);
+  if (await page.locator(tevirSel).count()) check(await colorOf(page, tevirSel) === ink, 'tevir with no group is uncolored');
+
+  // Servants off → mercha uncolored; then give mercha its own new group.
+  await page.uncheck('#teFollow');
+  await page.waitForTimeout(150);
+  const mercha = '.col-vowel .tw.tk-mercha';
+  check(await colorOf(page, mercha) === ink, 'servants off: mercha uncolored until assigned');
+  check(await page.locator('#teTropes select[data-key="mercha"]').count() === 1, 'servants off: servants become assignable');
+  await page.click('#teAddGroup');
+  const last = page.locator('.te-group').last();
+  const gid = await last.getAttribute('data-gid');
+  await last.locator('input[type=text]').fill('Servants');
+  await page.selectOption('#teTropes select[data-key="mercha"]', gid);
+  await page.waitForTimeout(150);
+  const servColor = await page.evaluate(id => tropeScheme.groups.find(g => g.id === id).color, gid);
+  check(await colorOf(page, mercha) === rgb(servColor), 'mercha takes its own new group color');
+  check((await page.locator('#tropeLegend').innerText()).includes('Servants'), 'legend shows the renamed new group');
+  await page.click('#teDone');
+  await sameHtml(page, before, 'all editor actions');
+
+  // Persistence across reload.
+  await page.reload();
+  await ready(page);
+  check(await page.evaluate(() => document.documentElement.dataset.trope) === 'on', 'colors stay on after reload');
+  check(await colorOf(page, SOF) === rgb(newColor), 'custom group color survives reload');
+  check(await colorOf(page, mercha) === rgb(servColor), 'custom servant group survives reload');
+
+  // Dark mode lightens.
+  await page.click('#themeToggle .toggle-btn[data-val="dark"]');
+  await page.waitForTimeout(150);
+  const dark = await colorOf(page, SOF);
+  check(dark && dark !== rgb(newColor), `dark mode uses a lighter shade (${dark})`);
+  await page.click('#themeToggle .toggle-btn[data-val="light"]');
+
+  // Reset.
+  await page.click('#tropeEditBtn');
+  await page.click('#teReset');
+  await page.click('#teDone');
+  await page.waitForTimeout(150);
+  check(await colorOf(page, SOF) === rgb(sofColor), 'reset restores the default colors');
+  check(await colorOf(page, SERVANT_TO_SOF) === rgb(sofColor), 'reset restores servants-follow');
+
+  // Bima.
+  await page.click('.tab-btn[data-tab="bima"]');
   await page.waitForTimeout(300);
+  check(await colorOf(page, '.bima-body .tw.tk-sof-pasuk') === rgb(sofColor), 'Bima text is colored too');
+  await page.click('.tab-btn[data-tab="practice"]');
+  await page.waitForTimeout(200);
 
-  // Reload via share link and via localStorage.
-  const p2 = await context.newPage();
-  await p2.route('**cloudflareinsights.com**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
-  await p2.goto(PAGE_URL + '?tc=lvl');
-  await ready(p2);
-  check((await p2.evaluate(() => document.documentElement.dataset.trope)) === 'lvl', '?tc=lvl restores hierarchy mode');
-  check(await p2.locator('#tropeToggle .toggle-btn[data-val="lvl"].active').count() === 1, 'toggle shows hierarchy active');
-  const p2snap = await snapshot(p2);
-  check(p2snap.vowel === before.vowel, 'vowel line breaks identical when loading directly in a color mode');
-  await p2.close();
-
-  const p3 = await context.newPage();
-  await p3.route('**cloudflareinsights.com**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
-  await p3.goto(PAGE_URL);
-  await p3.evaluate(() => localStorage.setItem('tropeColors', 'fam'));
-  await p3.goto(PAGE_URL);
-  await ready(p3);
-  check((await p3.evaluate(() => document.documentElement.dataset.trope)) === 'fam', 'localStorage restores groups mode');
-  await p3.close();
+  // Links: tc=1 and the old tc=fam.
+  for (const q of ['?tc=1', '?tc=fam']) {
+    const p2 = await newPage(context);
+    await p2.goto(PAGE_URL);
+    await p2.evaluate(() => localStorage.setItem('tropeColors', 'off'));
+    await p2.goto(PAGE_URL + q);
+    await ready(p2);
+    check(await p2.evaluate(() => document.documentElement.dataset.trope) === 'on', `${q} turns colors on`);
+    check((await snapshot(p2)).vowel === before.vowel, `${q}: vowel line breaks identical to a Plain load`);
+    await p2.close();
+  }
 
   check(errors.length === 0, `no console/page errors${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   await browser.close();
