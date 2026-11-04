@@ -676,7 +676,7 @@ If you're starting a fresh conversation, this section is the answer to
 "what's left to do." Everything else in this file is *why* and *how*;
 this is *what*.
 
-**Done, November 2026 session — on branch `trope-colors` (PR #4, awaiting David's visual OK before merge):**
+**Done, November 2026 session — trope colors, PR #4, merged to `main` on David's OK (Nov 4):**
 - **Trope (cantillation) colors with a user-editable color scheme.**
   First version (same night) had two fixed schemes, "groups" and
   "hierarchy". David's review: hierarchy (Emperors/Kings/…) is useless to
@@ -725,7 +725,10 @@ this is *what*.
     Yetiv and Gershayim in their own groups (David's call). Darga sits
     with Tevir by default and Telisha Ketana has its own color: both
     are servants with a melody of their own — a darga without a tevir
-    after it must not "disappear" into the next trope's color.
+    after it must not "disappear" into the next trope's color. Telisha
+    Gedola is its own group too — 13 default groups (David asked for
+    "12 colors, 12 tribes", but the count with every split is 13;
+    kept all 13 and told him).
 - **Mobile header (Nov 2026):** "🔍 Look up a verse" and "📅 Full-year
   Tikkun" share one row under the dropdown, equal width, same look
   (previously one full-width and one stray half-row button).

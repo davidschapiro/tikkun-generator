@@ -120,7 +120,8 @@
         // gets its own color.
         { id: 'g-tevir', name: 'Tevir', color: '#ef6c00', keys: ['tevir', 'darga'] },
         { id: 'g-tkt', name: 'Telisha Ketana', color: '#3949ab', keys: ['telisha-ketana'] },
-        { id: 'g-geresh', name: 'Azla-Geresh', color: '#c2185b', keys: ['geresh', 'telisha-gedola'] },
+        { id: 'g-geresh', name: 'Azla-Geresh', color: '#c2185b', keys: ['geresh'] },
+        { id: 'g-tgd', name: 'Telisha Gedola', color: '#0288d1', keys: ['telisha-gedola'] },
         { id: 'g-gershayim', name: 'Gershayim', color: '#546e7a', keys: ['gershayim'] },
         { id: 'g-pazer', name: 'Pazer', color: '#6d4c41', keys: ['pazer', 'karnei-para'] },
       ],
