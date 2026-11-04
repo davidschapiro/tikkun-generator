@@ -717,6 +717,12 @@ this is *what*.
     "Edit colors" at the end of the legend). Group rows (swatch → palette
     of `Trope.PALETTE` + native color input, name, delete), "+ New
     group", a dropdown per trope, servants-follow checkbox, reset.
+    Servants are ALWAYS listed (David: Darga and Telisha Ketana were
+    missing): a servant put into a group always takes that group's
+    color — its `.tw.tc.tk-X` rule is emitted after all follow rules
+    (`.tw.tc.tm-Y`, same specificity) so it wins; a servant in no group
+    follows its master if the switch is on, else stays ink. Default has
+    Yetiv and Gershayim in their own groups (David's call).
     User-entered names are HTML-escaped (`escHtml`).
   - Scroll column never wrapped (no trope in a sefer Torah — coloring
     it would give the answer away). Petucha/setuma/paseq tokens never

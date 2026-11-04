@@ -108,12 +108,14 @@
       groups: [
         { id: 'g-sof', name: 'Sof Pasuk', color: '#d32f2f', keys: ['sof-pasuk', 'tipcha-sof'] },
         { id: 'g-etnachta', name: 'Etnachta', color: '#1565c0', keys: ['etnachta', 'tipcha-etnachta'] },
-        { id: 'g-katon', name: 'Zakef Katon', color: '#2e7d32', keys: ['zakef-katon', 'pashta', 'yetiv'] },
+        { id: 'g-katon', name: 'Zakef Katon', color: '#2e7d32', keys: ['zakef-katon', 'pashta'] },
+        { id: 'g-yetiv', name: 'Yetiv', color: '#9e9d24', keys: ['yetiv'] },
         { id: 'g-gadol', name: 'Zakef Gadol', color: '#7cb342', keys: ['zakef-gadol'] },
         { id: 'g-revii', name: "Revi'i", color: '#7b1fa2', keys: ['revii', 'legarmeh'] },
         { id: 'g-segol', name: 'Segol', color: '#00838f', keys: ['segol', 'zarka', 'shalshelet'] },
         { id: 'g-tevir', name: 'Tevir', color: '#ef6c00', keys: ['tevir'] },
-        { id: 'g-geresh', name: 'Azla-Geresh', color: '#c2185b', keys: ['geresh', 'gershayim', 'telisha-gedola'] },
+        { id: 'g-geresh', name: 'Azla-Geresh', color: '#c2185b', keys: ['geresh', 'telisha-gedola'] },
+        { id: 'g-gershayim', name: 'Gershayim', color: '#546e7a', keys: ['gershayim'] },
         { id: 'g-pazer', name: 'Pazer', color: '#6d4c41', keys: ['pazer', 'karnei-para'] },
       ],
     };
@@ -139,31 +141,35 @@
 
   // Stylesheet for a scheme. Light: the color as chosen. Dark: the same
   // hue lightened toward white so it stays readable on the dark card.
+  // A servant (conjunctive) that the user put into a group always gets
+  // that group's color; a servant in no group follows its master when
+  // followMaster is on (otherwise stays uncolored). Specificity: the
+  // follow rule is .tw.tc.tm-X (3 classes); a servant's own rule is
+  // .tw.tc.tk-Y (3 classes) and is emitted LAST, so it wins.
   function schemeToCss(scheme) {
     const s = normalizeScheme(scheme);
-    const rules = [];
-    const darkRules = [];
+    const first = [], last = [];
     for (const g of s.groups) {
-      const sel = [];
+      const sel = [], own = [];
       for (const k of g.keys) {
-        const t = TROPE_BY_KEY[k];
-        if (t.conj) { if (!s.followMaster) sel.push(`html[data-trope] .tw.tk-${k}`); }
+        if (TROPE_BY_KEY[k].conj) own.push(`html[data-trope] .tw.tc.tk-${k}`);
         else {
           sel.push(`html[data-trope] .tw.tk-${k}`);
           if (s.followMaster) sel.push(`html[data-trope] .tw.tc.tm-${k}`);
         }
       }
-      const legend = `html[data-trope] .tg-${g.id}`;
-      const all = sel.concat([legend]).join(',\n');
-      rules.push(`${all}{color:${g.color};}`);
-      const dark = `color-mix(in oklab, ${g.color} 62%, white)`;
-      darkRules.push(`${all}{color:${dark};}`);
+      sel.push(`html[data-trope] .tg-${g.id}`);
+      first.push({ sel, color: g.color });
+      if (own.length) last.push({ sel: own, color: g.color });
     }
-    const darkBlock = darkRules.join('\n');
+    const all = first.concat(last);
+    const light = all.map(r => `${r.sel.join(',\n')}{color:${r.color};}`).join('\n');
+    const dark = (ctx) => all.map(r =>
+      `${r.sel.map(x => x.replace('html[data-trope]', ctx)).join(',\n')}{color:color-mix(in oklab, ${r.color} 62%, white);}`).join('\n');
     // Same two dark-mode contexts index.html uses everywhere else.
-    return rules.join('\n') +
-      `\n@media(prefers-color-scheme:dark){\n${darkBlock.replace(/html\[data-trope\]/g, 'html:not([data-theme="light"])[data-trope]')}\n}\n` +
-      darkBlock.replace(/html\[data-trope\]/g, 'html[data-theme="dark"][data-trope]') + '\n';
+    return light +
+      `\n@media(prefers-color-scheme:dark){\n${dark('html:not([data-theme="light"])[data-trope]')}\n}\n` +
+      dark('html[data-theme="dark"][data-trope]') + '\n';
   }
 
   const stripTags = (html) => String(html).replace(/<[^>]+>/g, '');

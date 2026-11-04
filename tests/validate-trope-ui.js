@@ -107,12 +107,21 @@ async function newPage(context) {
   await page.waitForTimeout(150);
   if (await page.locator(tevirSel).count()) check(await colorOf(page, tevirSel) === ink, 'tevir with no group is uncolored');
 
+  // Servants are listed even while following: darga and telisha ketana
+  // can get their own group, which then beats the follow color.
+  for (const k of ['darga', 'telisha-ketana']) check(await page.locator(`#teTropes select[data-key="${k}"]`).count() === 1, `${k} is assignable while servants follow`);
+  if (await page.locator('.col-vowel .tw.tk-darga').count()) {
+    await page.selectOption('#teTropes select[data-key="darga"]', 'g-tevir');
+    await page.waitForTimeout(150);
+    const tevirColor = await page.evaluate(() => tropeScheme.groups.find(g => g.id === 'g-tevir').color);
+    check(await colorOf(page, '.col-vowel .tw.tk-darga') === rgb(tevirColor), 'darga assigned to Tevir takes the Tevir color');
+  }
+
   // Servants off → mercha uncolored; then give mercha its own new group.
   await page.uncheck('#teFollow');
   await page.waitForTimeout(150);
   const mercha = '.col-vowel .tw.tk-mercha';
   check(await colorOf(page, mercha) === ink, 'servants off: mercha uncolored until assigned');
-  check(await page.locator('#teTropes select[data-key="mercha"]').count() === 1, 'servants off: servants become assignable');
   await page.click('#teAddGroup');
   const last = page.locator('.te-group').last();
   const gid = await last.getAttribute('data-gid');

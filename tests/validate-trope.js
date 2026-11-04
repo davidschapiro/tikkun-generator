@@ -107,7 +107,25 @@ for (const [refStr, he] of ref) {
   console.log(`Context checks: ${compared} tokens chapter-vs-verse, ${splitChecked} split verses`);
 }
 
-const expectExact ={ 'shalshelet': 4, 'karnei-para': 1, 'yerach-ben-yomo': 1 };
+{
+  const def = DEFAULT_SCHEME();
+  const colored = new Set(def.groups.flatMap((g) => g.keys));
+  TROPES.filter((t) => !t.conj).forEach((t) => { if (!colored.has(t.key)) fail(`default scheme leaves ${t.key} uncolored`); });
+  ['yetiv', 'gershayim'].forEach((k) => { const g = def.groups.find((x) => x.keys.includes(k)); if (!g || g.keys.length !== 1) fail(`default: ${k} not in its own group`); });
+  if (JSON.stringify(normalizeScheme('garbage')) !== JSON.stringify(def)) fail('normalizeScheme(garbage) is not the default');
+  const dup = normalizeScheme({ groups: [{ id: 'a', name: 'A', color: '#ff0000', keys: ['revii', 'nonsense'] }, { id: 'b', name: 'B', color: 'red', keys: ['revii', 'tevir'] }] });
+  if (dup.groups[0].keys.join() !== 'revii' || dup.groups[1].keys.join() !== 'tevir' || !/^#[0-9a-f]{6}$/.test(dup.groups[1].color)) fail('normalizeScheme does not dedupe keys / fix colors');
+  const css = schemeToCss(def);
+  if (!css.includes('.tw.tc.tm-sof-pasuk') || css.includes('tk-munach')) fail('followMaster CSS wrong');
+  const css2 = schemeToCss({ ...def, followMaster: false, groups: [...def.groups, { id: 'g-s', name: 'S', color: '#555555', keys: ['munach'] }] });
+  if (!css2.includes('.tw.tc.tk-munach') || css2.includes('.tw.tc.tm-')) fail('non-followMaster CSS wrong');
+  // A servant in a group while servants follow: its own rule must come after every follow rule.
+  const light3 = schemeToCss({ ...def, groups: [...def.groups, { id: 'g-d', name: 'D', color: '#123456', keys: ['darga'] }] }).split('@media')[0];
+  if (light3.indexOf('.tw.tc.tk-darga') < light3.lastIndexOf('.tw.tc.tm-')) fail('assigned servant rule does not come after follow rules');
+  console.log('Scheme checks done');
+}
+
+const expectExact = { 'shalshelet': 4, 'karnei-para': 1, 'yerach-ben-yomo': 1 };
 for (const [id, n] of Object.entries(expectExact)) {
   if ((idCounts[id] || 0) !== n) fail(`${id}: expected ${n}, got ${idCounts[id] || 0}`);
 }

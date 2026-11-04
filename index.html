@@ -276,6 +276,7 @@ html[data-trope] .trope-legend{display:flex;}
 .te-trope{display:grid;grid-template-columns:1fr auto;gap:0.5rem;align-items:center;padding:0.18rem 0;
   border-bottom:1px solid var(--border);font-size:0.78rem;}
 .te-trope .te-he{font-family:'Arimo',sans-serif;color:var(--ink-soft);margin-left:0.5em;}
+.te-sub{font-size:0.74rem;font-weight:700;color:var(--ink-mid);margin:0.8rem 0 0.2rem;}
 .te-trope select{font:0.78rem 'Arimo',sans-serif;background:var(--bg);border:1px solid var(--border);
   border-radius:var(--radius);color:var(--ink);padding:0.15rem 0.3rem;max-width:11rem;}
 #teReset{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
@@ -737,7 +738,7 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   <p class="te-hint">Put the tropes that belong together into one group and give each group a color.
     Saved in this browser. Applies to the vowelized text and the Bima Tikkun — never to the scroll column.</p>
   <label class="te-follow"><input type="checkbox" id="teFollow">
-    <span>Servants (Munach, Mercha, Mahpach, Kadma, …) take the color of the trope they lead into</span></label>
+    <span>Servants (Munach, Mercha, Mahpach, Kadma, …) that are not in a group take the color of the trope they lead into</span></label>
   <div id="teGroups"></div>
   <button type="button" class="te-add" id="teAddGroup">+ New group</button>
   <h4>Which group each trope belongs to</h4>
@@ -978,12 +979,17 @@ function renderTropeEditor() {
         `<button type="button" data-color="${c}" style="background:${c}" class="${c === g.color ? 'sel' : ''}" aria-label="${c}"></button>`).join('')}
         <input type="color" value="${g.color}" title="Any color"></div>` : ''}
     </div>`).join('');
-  const opts = (key) => `<option value="">— no color —</option>` + s.groups.map(g =>
-    `<option value="${g.id}"${g.keys.includes(key) ? ' selected' : ''}>${escHtml(g.name)}</option>`).join('');
-  document.getElementById('teTropes').innerHTML = Trope.TROPES
-    .filter(t => !t.conj || !s.followMaster)
-    .map(t => `<div class="te-trope"><span>${escHtml(t.en)}${t.he ? `<span class="te-he" lang="he" dir="rtl">${t.he}</span>` : ''}</span>
-      <select data-key="${t.key}" aria-label="Group for ${escHtml(t.en)}">${opts(t.key)}</select></div>`).join('');
+  // Servants are always listed: one left at the first option follows the
+  // trope it leads into (when that switch is on); one put into a group
+  // always takes that group's color.
+  const opts = (t) => `<option value="">${t.conj && s.followMaster ? '— color of the next trope —' : '— no color —'}</option>` +
+    s.groups.map(g => `<option value="${g.id}"${g.keys.includes(t.key) ? ' selected' : ''}>${escHtml(g.name)}</option>`).join('');
+  const row = t => `<div class="te-trope"><span>${escHtml(t.en)}${t.he ? `<span class="te-he" lang="he" dir="rtl">${t.he}</span>` : ''}</span>
+      <select data-key="${t.key}" aria-label="Group for ${escHtml(t.en)}">${opts(t)}</select></div>`;
+  document.getElementById('teTropes').innerHTML =
+    Trope.TROPES.filter(t => !t.conj).map(row).join('') +
+    `<div class="te-sub">Servants (conjunctives)</div>` +
+    Trope.TROPES.filter(t => t.conj && t.key !== 'none').map(row).join('');
 }
 function openTropeEditor() {
   applyTropeMode('on');
