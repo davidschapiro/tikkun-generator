@@ -113,7 +113,13 @@
         { id: 'g-gadol', name: 'Zakef Gadol', color: '#7cb342', keys: ['zakef-gadol'] },
         { id: 'g-revii', name: "Revi'i", color: '#7b1fa2', keys: ['revii', 'legarmeh'] },
         { id: 'g-segol', name: 'Segol', color: '#00838f', keys: ['segol', 'zarka', 'shalshelet'] },
-        { id: 'g-tevir', name: 'Tevir', color: '#ef6c00', keys: ['tevir'] },
+        // Darga and Telisha Ketana are servants, but with a melody of
+        // their own (David's call): Darga sits with Tevir by default, so a
+        // darga that isn't followed by a tevir keeps the Tevir color
+        // instead of disappearing into the next trope's; Telisha Ketana
+        // gets its own color.
+        { id: 'g-tevir', name: 'Tevir', color: '#ef6c00', keys: ['tevir', 'darga'] },
+        { id: 'g-tkt', name: 'Telisha Ketana', color: '#3949ab', keys: ['telisha-ketana'] },
         { id: 'g-geresh', name: 'Azla-Geresh', color: '#c2185b', keys: ['geresh', 'telisha-gedola'] },
         { id: 'g-gershayim', name: 'Gershayim', color: '#546e7a', keys: ['gershayim'] },
         { id: 'g-pazer', name: 'Pazer', color: '#6d4c41', keys: ['pazer', 'karnei-para'] },

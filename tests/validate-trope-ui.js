@@ -111,10 +111,13 @@ async function newPage(context) {
   // can get their own group, which then beats the follow color.
   for (const k of ['darga', 'telisha-ketana']) check(await page.locator(`#teTropes select[data-key="${k}"]`).count() === 1, `${k} is assignable while servants follow`);
   if (await page.locator('.col-vowel .tw.tk-darga').count()) {
-    await page.selectOption('#teTropes select[data-key="darga"]', 'g-tevir');
-    await page.waitForTimeout(150);
+    // Default puts darga with tevir; move it to Segol and check it follows.
     const tevirColor = await page.evaluate(() => tropeScheme.groups.find(g => g.id === 'g-tevir').color);
-    check(await colorOf(page, '.col-vowel .tw.tk-darga') === rgb(tevirColor), 'darga assigned to Tevir takes the Tevir color');
+    check(await colorOf(page, '.col-vowel .tw.tk-darga') === rgb(tevirColor), 'darga has the Tevir color by default');
+    await page.selectOption('#teTropes select[data-key="darga"]', 'g-segol');
+    await page.waitForTimeout(150);
+    const segolColor = await page.evaluate(() => tropeScheme.groups.find(g => g.id === 'g-segol').color);
+    check(await colorOf(page, '.col-vowel .tw.tk-darga') === rgb(segolColor), 'darga moved to Segol takes the Segol color');
   }
 
   // Servants off → mercha uncolored; then give mercha its own new group.

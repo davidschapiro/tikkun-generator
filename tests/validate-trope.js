@@ -111,6 +111,8 @@ for (const [refStr, he] of ref) {
   const def = DEFAULT_SCHEME();
   const colored = new Set(def.groups.flatMap((g) => g.keys));
   TROPES.filter((t) => !t.conj).forEach((t) => { if (!colored.has(t.key)) fail(`default scheme leaves ${t.key} uncolored`); });
+  if (!(def.groups.find((g) => g.keys.includes('tevir')) || {}).keys.includes('darga')) fail('default: darga not with tevir');
+  { const g = def.groups.find((x) => x.keys.includes('telisha-ketana')); if (!g || g.keys.length !== 1) fail('default: telisha ketana not in its own group'); }
   ['yetiv', 'gershayim'].forEach((k) => { const g = def.groups.find((x) => x.keys.includes(k)); if (!g || g.keys.length !== 1) fail(`default: ${k} not in its own group`); });
   if (JSON.stringify(normalizeScheme('garbage')) !== JSON.stringify(def)) fail('normalizeScheme(garbage) is not the default');
   const dup = normalizeScheme({ groups: [{ id: 'a', name: 'A', color: '#ff0000', keys: ['revii', 'nonsense'] }, { id: 'b', name: 'B', color: 'red', keys: ['revii', 'tevir'] }] });

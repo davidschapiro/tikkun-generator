@@ -722,7 +722,13 @@ this is *what*.
     color — its `.tw.tc.tk-X` rule is emitted after all follow rules
     (`.tw.tc.tm-Y`, same specificity) so it wins; a servant in no group
     follows its master if the switch is on, else stays ink. Default has
-    Yetiv and Gershayim in their own groups (David's call).
+    Yetiv and Gershayim in their own groups (David's call). Darga sits
+    with Tevir by default and Telisha Ketana has its own color: both
+    are servants with a melody of their own — a darga without a tevir
+    after it must not "disappear" into the next trope's color.
+- **Mobile header (Nov 2026):** "🔍 Look up a verse" and "📅 Full-year
+  Tikkun" share one row under the dropdown, equal width, same look
+  (previously one full-width and one stray half-row button).
     User-entered names are HTML-escaped (`escHtml`).
   - Scroll column never wrapped (no trope in a sefer Torah — coloring
     it would give the answer away). Petucha/setuma/paseq tokens never

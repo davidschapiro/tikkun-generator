@@ -108,7 +108,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 @media(max-width:680px){
   .vl-desktop{display:none;}
   .vl-mobile{display:inline;}
-  #verseLookupBtn{width:100%;text-align:center;}
+  /* Mobile: the two buttons share one row below the dropdown, equal
+     width and the same look (icon + label), instead of one full-width
+     and one stray half-row button. */
+  #verseLookupBtn,#yearTikkunBtn{order:3;flex:1 1 0;min-width:0;text-align:center;}
 }
 .verse-lookup-btn{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
@@ -468,7 +471,6 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   .parasha-name{font-size:0.85rem;min-width:0;text-align:right;}
   .top-row{width:100%;justify-content:space-between;flex-wrap:wrap;}
   #parashaSelect{width:100%;}
-  #verseLookupBtn{order:3;}
 }
 </style>
 </head>
@@ -656,11 +658,11 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
     <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">
       <span class="vl-desktop">🔍 Verse</span>
-      <span class="vl-mobile">Look up a verse</span>
+      <span class="vl-mobile">🔍 Look up a verse</span>
     </button>
     <button class="verse-lookup-btn" id="yearTikkunBtn" title="Build a printable Tikkun for a whole Hebrew year">
       <span class="vl-desktop">📅 Full Year</span>
-      <span class="vl-mobile">Full-year Tikkun</span>
+      <span class="vl-mobile">📅 Full-year Tikkun</span>
     </button>
   </div>
   <div class="toggle-row">
