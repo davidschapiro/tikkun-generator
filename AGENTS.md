@@ -819,9 +819,11 @@ this is *what*.
     (same workflow-file limitation as the trope tests).
   - Known limitation: no verse-level seeking — a triennial aliyah inside
     a long full-kriyah aliyah starts playback at the recording's start.
-    vayavinu's site has phrase-by-phrase text sync for its own player;
-    if timestamps were ever available, `&start=` on the embed URL would
-    fix this.
+    vayavinu has no verse markers or timestamps: per its leining page,
+    each aliyah is one YouTube video with the text highlighted phrase by
+    phrase *inside the video image*, which is not machine-readable. Seeking
+    would need timestamps from vayavinu or our own alignment; then
+    `&start=` on the embed URL would do it.
 
 **Done, October 2026 session:**
 - **Fixed a real live-site bug: prev/next arrows couldn't reach any
