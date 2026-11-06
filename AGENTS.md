@@ -1653,3 +1653,5 @@ tuning decision:
 mechanism for screen rendering — Side-by-Side, Either-Or, resize,
 initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 (§2), the paseq scroll-removal fix, petucha/setuma (§11 above).
+
+- **Verse count in aliyah headers** (Nov 2026): `aliyahSection()` shows `(N v.)` after the range, N = `verses.length`, i.e. the verses actually rendered, which is exactly the range shown (no reading in the data has more than one segment; the `' | '` split in `parseRange`/`aliyahSection` is defensive only). Count and Listen button sit in `.lbl-extra` (nowrap) so on phones (≤480px) they wrap together onto a second line instead of pushing the Hebrew label out of the header.

@@ -295,6 +295,9 @@ html[data-trope] .trope-legend{display:flex;}
    in the aliyah header; the panel opens below it. The YouTube iframe is
    only created on an explicit click (two-click privacy pattern: nothing
    is loaded from YouTube until the user asks for it). */
+.lbl-count{opacity:.8;font-size:.92em}
+.lbl-extra{white-space:nowrap}
+@media (max-width:480px){.lbl-range{white-space:normal;text-align:center;line-height:1.5}}
 .audio-btn{margin-inline-start:0.55rem;padding:0.08rem 0.55rem;border:1px solid rgba(255,255,255,0.55);
   border-radius:999px;background:rgba(255,255,255,0.12);color:#fff;font:700 0.72rem 'Arimo',sans-serif;
   cursor:pointer;vertical-align:1px;letter-spacing:0.03em;}
@@ -2592,7 +2595,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
     : '';
   const hdr = `<div class="aliyah-hdr" style="background:${col}">
     <span class="lbl-en">${lbl.en}</span>
-    <span class="lbl-range">${displayRange}${audioBtn}</span>
+    <span class="lbl-range">${displayRange} <span class="lbl-extra">${verses && verses.length ? `<span class="lbl-count" title="Number of verses">(${verses.length} v.)</span>` : ''}${audioBtn}</span></span>
     <span class="lbl-he">${lbl.he}</span></div>`;
 
   let body;
