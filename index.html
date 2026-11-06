@@ -2595,7 +2595,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
     : '';
   const hdr = `<div class="aliyah-hdr" style="background:${col}">
     <span class="lbl-en">${lbl.en}</span>
-    <span class="lbl-range">${displayRange} <span class="lbl-extra">${verses && verses.length ? `<span class="lbl-count" title="Number of verses">(${verses.length} v.)</span>` : ''}${audioBtn}</span></span>
+    <span class="lbl-range">${displayRange.replace(/^(.*) (\S+)$/, '<span class="lbl-extra">$1</span> <span class="lbl-extra">$2</span>')} <span class="lbl-extra">${verses && verses.length ? `<span class="lbl-count" title="Number of verses">(${verses.length} v.)</span>` : ''}${audioBtn}</span></span>
     <span class="lbl-he">${lbl.he}</span></div>`;
 
   let body;
