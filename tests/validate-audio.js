@@ -108,6 +108,8 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     const h = audioMatchesForRange(r)[0];
     return { ashk: h.rec.ashk[h.idx], seph: h.rec.seph[h.idx], label: h.rec.label };
   }, range);
+  const yt1 = await first.locator('.ap-yt').first().getAttribute('href');
+  check(yt1 === 'https://www.youtube.com/watch?v=' + expected.ashk, '"Open on YouTube" fallback link points to the Ashkenazit video');
   await first.locator('.ap-load').first().click();
   await page.waitForTimeout(400);
   const src = await first.locator('.audio-panel iframe').first().getAttribute('src');
@@ -116,6 +118,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
   await page.waitForTimeout(300);
   const src2 = await first.locator('.audio-panel iframe').first().getAttribute('src');
   check(src2 && src2.includes(expected.seph), 'Sephardit swaps the loaded player');
+  check((await first.locator('.ap-yt').first().getAttribute('href')).endsWith(expected.seph), '"Open on YouTube" link follows the nusach toggle');
   check(await page.evaluate(() => localStorage.getItem('audioNusach')) === 'seph', 'nusach choice is remembered');
   await page.screenshot({ path: path.join(process.env.SHOTS || '/tmp', 'audio-panel.png') });
 

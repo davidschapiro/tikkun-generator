@@ -311,6 +311,8 @@ html[data-trope] .trope-legend{display:flex;}
 .audio-panel .ap-load{align-self:flex-start;padding:0.35rem 0.9rem;border:1px solid var(--gold);border-radius:var(--radius);
   background:var(--bg-card);color:var(--gold);font:700 0.78rem 'Arimo',sans-serif;cursor:pointer;}
 .audio-panel .ap-load:hover{background:var(--gold);color:#fff;}
+.audio-panel .ap-actions{display:flex;flex-wrap:wrap;gap:0.8rem;align-items:center;}
+.audio-panel .ap-yt{font-size:0.78rem;font-weight:700;}
 .audio-panel .ap-frame{position:relative;width:100%;max-width:560px;aspect-ratio:16/9;border:0;border-radius:var(--radius);}
 .audio-panel .ap-credit{font-size:0.72rem;color:var(--ink-soft);margin-top:0.5rem;}
 .audio-panel a{color:var(--gold);}
@@ -2507,6 +2509,13 @@ function fmtVerseRange(book, ra, rb) {
 function audioNusach() {
   try { return localStorage.getItem('audioNusach') === 'seph' ? 'seph' : 'ashk'; } catch (e) { return 'ashk'; }
 }
+// Video id for a recording in the chosen nusach, falling back to the other one.
+function audioVideoId(h, want) {
+  const id = (want === 'seph' ? h.rec.seph : h.rec.ashk)[h.idx];
+  if (id) return { id, fallback: false };
+  return { id: (want === 'seph' ? h.rec.ashk : h.rec.seph)[h.idx], fallback: true };
+}
+const ytWatch = (id) => `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
 function buildAudioPanel(rangeStr) {
   const matches = audioMatchesForRange(rangeStr);
   const p = parseRange(rangeStr);
@@ -2521,7 +2530,10 @@ function buildAudioPanel(rangeStr) {
     return `<div class="ap-rec" data-i="${i}">
       <span class="ap-label">${label}</span>
       <span class="ap-note">${note}</span>
-      <button type="button" class="ap-load" data-i="${i}">▶ Load player</button>
+      <div class="ap-actions">
+        <button type="button" class="ap-load" data-i="${i}">▶ Load player</button>
+        <a class="ap-yt" data-i="${i}" href="${ytWatch(audioVideoId(h, nus).id || '')}" target="_blank" rel="noopener">Open on YouTube ↗</a>
+      </div>
     </div>`;
   }).join('');
   return `<div class="audio-panel" data-range="${rangeStr}">
@@ -2533,7 +2545,8 @@ function buildAudioPanel(rangeStr) {
     </div>
     ${recHTML}
     <div class="ap-credit">Recordings by Rabbi Jeremy Wieder, <a href="https://www.vayavinu.com/main-leining-page" target="_blank" rel="noopener">vayavinu.com</a>.
-      The player loads from YouTube (youtube-nocookie.com) only when you click “Load player”.</div>
+      The player loads from YouTube (youtube-nocookie.com) only when you click “Load player”.
+      If YouTube asks you to sign in or to confirm you’re not a bot, use “Open on YouTube” instead.</div>
   </div>`;
 }
 function loadAudioPlayer(panel, i) {
@@ -2543,9 +2556,7 @@ function loadAudioPlayer(panel, i) {
   const want = audioNusach();
   // A few videos exist in one nusach only (e.g. Yitro Shvi'i, Sephardit);
   // fall back to the other one and say so.
-  let id = (want === 'seph' ? h.rec.seph : h.rec.ashk)[h.idx];
-  let fallback = false;
-  if (!id) { id = (want === 'seph' ? h.rec.ashk : h.rec.seph)[h.idx]; fallback = true; }
+  const { id, fallback } = audioVideoId(h, want);
   const rec = panel.querySelector(`.ap-rec[data-i="${i}"]`);
   rec.querySelectorAll('iframe, .ap-fallback').forEach(el => el.remove());
   if (!id) return;
@@ -2578,6 +2589,8 @@ function initAudio() {
       try { localStorage.setItem('audioNusach', nusBtn.dataset.nus); } catch (err) {}
       const panel = nusBtn.closest('.audio-panel');
       panel.querySelectorAll('.ap-nusach .toggle-btn').forEach(b => b.classList.toggle('active', b === nusBtn));
+      const ms = audioMatchesForRange(panel.dataset.range);
+      panel.querySelectorAll('.ap-yt').forEach(a => { const h = ms[+a.dataset.i]; if (h) a.href = ytWatch(audioVideoId(h, nusBtn.dataset.nus).id || ''); });
       // Swap any already-loaded players to the other nusach.
       panel.querySelectorAll('.ap-rec').forEach(r => { if (r.querySelector('iframe')) loadAudioPlayer(panel, +r.dataset.i); });
     }
