@@ -1613,8 +1613,8 @@ function weekdayDaysLabel(days) {
   const [a, b] = days;
   const sameMonth = a.slice(0, 7) === b.slice(0, 7);
   return sameMonth
-    ? `Monday ${+a.slice(8)} / Thursday ${f(b, {month:'short', day:'numeric', year:'numeric'})}`
-    : `Monday ${f(a, {month:'short', day:'numeric'})} / Thursday ${f(b, {month:'short', day:'numeric', year:'numeric'})}`;
+    ? `Mon ${+a.slice(8)} / Thu ${f(b, {month:'short', day:'numeric', year:'numeric'})}`
+    : `Mon ${f(a, {month:'short', day:'numeric'})} / Thu ${f(b, {month:'short', day:'numeric', year:'numeric'})}`;
 }
 async function loadWeekdayReading(entry) {
   state.holidayKey = null;
