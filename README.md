@@ -82,7 +82,9 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 ## Sources
 
 - Leyning data: [Hebcal.com](https://hebcal.com)'s `/leyning` endpoint (Eisenberg/CJLS triennial system) — single unified source for Shabbat, holiday, and weekday readings
-- Torah text: [Sefaria.org](https://sefaria.org)
+- Torah text: *Miqra according to the Masorah* (MAM), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), fetched live from [Sefaria.org](https://sefaria.org)
+
+<a href="https://www.sefaria.org"><picture><source media="(prefers-color-scheme: dark)" srcset="img/powered-by-sefaria-light.png"><img src="img/powered-by-sefaria-dark.png" alt="Powered by Sefaria" width="140"></picture></a>
 - Hebrew font: Shlomo SemiStam by Shlomo Orbach, based on Ezra SIL SR — [SIL Open Font License 1.1](https://scripts.sil.org/OFL)
 
 ## Tools
