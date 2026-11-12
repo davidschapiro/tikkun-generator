@@ -8,12 +8,13 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 - **Practice any reading** — select a parasha, holiday, or fast day from the dropdown, or type in a specific verse reference to jump straight there
 - **Shabbat and weekday readings** — toggle between the full Shabbat kriyah and the Monday/Thursday reading for the same parasha
+- **Step through the year** — the ‹ › arrows walk every reading in date order: Shabbat, the week's Monday/Thursday reading, holidays and fast days (Shacharit and Mincha)
 - **Triennial or Full Kriyah** — switch between the CJLS triennial cycle and the full reading
 - **Diaspora or Israel** — separate schedules where they differ
 - **Print** — printer-friendly output, side-by-side, always correctly centered on the page
 - **Either-Or practice mode** — hide one column and reveal it word by word for active practice
 - **Trope colors** — color the vowelized text by trope. You decide which tropes belong together and which color each group gets (🎨 next to the toggle); the default follows the usual teaching groups — thirteen groups, one color each: Sof Pasuk, Etnachta, Zakef Katon (with Pashta), Zakef Gadol, Yetiv, Revi'i, Segol (with Zarka and Shalshelet), Tevir (with Darga), Azla-Geresh, Gershayim, Telisha Gedola, Telisha Ketana, and Pazer (with Karnei Para); the remaining servants take the color of the trope they lead into. Your colors are saved in your browser. Hover a word to see its trope's name. The scroll column always stays plain
-- **Listen** — a ▶ Listen button on every aliyah plays Rabbi Jeremy Wieder's recording of it from [vayavinu.com](https://www.vayavinu.com/main-leining-page), in Ashkenazit or Sephardit pronunciation. Works for triennial, weekday and combined-week aliyot too: you get the recording that contains your verses, with a note when it covers more than your aliyah
+- **Listen** — a ▶ Listen button on every aliyah plays Rabbi Jeremy Wieder's recording of it from [vayavinu.com](https://www.vayavinu.com/main-leining-page), in Ashkenazit or Sephardit pronunciation. Works for triennial, weekday and combined-week aliyot too: you get the recording that contains your verses, with a note when it covers more than your aliyah. If YouTube asks you to sign in inside the player, "Open on YouTube ↗" plays it on youtube.com instead
 - **Jump to any verse** — look up any Torah reference (e.g. Numbers 25:10) and go directly to the right parasha and aliyah
 - **Fast day readings** — all five public fasts with their Shacharit and Mincha readings; the sections customarily repeated by the congregation are highlighted in blue
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka, Purim, and Yom Kippur Mincha
@@ -25,7 +26,8 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - Auto-generates on load and on every control change
 - **Parasha selector** grouped by year and book, current week onward (~1.5 years of upcoming Shabbatot); holidays grouped per year alongside parshiot
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8"), Purim, Rosh Chodesh, Yom Kippur Mincha; pre-baked, no extra API calls
-- **Monday/Thursday weekday Torah reading** — a "Shabbat / Weekday" toggle shows the open parasha's own weekday instance (Monday or Thursday, whichever resolves), fetched live on demand
+- **Monday/Thursday weekday Torah reading** — a "Shabbat / Weekday" toggle shows the open parasha's weekday reading, fetched live from Hebcal on demand
+- **‹ › arrows in true date order** — every Shabbat, holiday, fast day (Shacharit and Mincha as separate stops) and weekday reading. In a regular week Monday and Thursday are one stop, shown as "Mon 21 / Thu 24 Dec 2026"; if a holiday or fast takes one of the two days, that day shows its own reading and the other day is a stop of its own. Rosh Chodesh is not an arrow stop (use the dropdown); in a week where it falls on Monday or Thursday the weekday stop shows only the other day
 - **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own correctly-sourced Mincha reading. All Mincha leyning comes directly from Hebcal's `/leyning` endpoint, not hardcoded
 - **Congregation-repeat coloring for fast-day Shacharit** — in the Vayechal Moshe reading (Exodus 32:11–14 + 34:1–10), the three word spans customarily chanted first by the congregation and then repeated by the Ba'al Kriyah are rendered in dark blue, inline in the text flow with no paragraph breaks. Word-level precision: only the actual congregation phrases are colored (e.g. "שׁוּב" mid-verse 32:12, not the whole verse). An explanatory note appears at the top of each affected aliyah.
 - **Rosh Chodesh** — single generic entry in the dropdown (the reading is always identical — Numbers 28:1-15 — so there is no point listing every month); no date shown in the meta line for the same reason
@@ -48,27 +50,28 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - **Bima Tikkun is fully justified** with the same petucha/setuma paragraph handling as Tikkun Korim
 - **Chapter:verse indicator** — full `chapter:verse` at the start of every chapter, every 15th verse, and at any reading beginning mid-chapter; bare verse number elsewhere
 - **Verse lookup** — a "🔍 Verse" button next to the dropdown (mobile: "Look up a verse", full-width) opens a modal where you can enter any Torah book, chapter, and verse. The tool validates the reference against a hardcoded verse-count table (so "Deuteronomy 10:50" is rejected immediately), then finds the correct parasha and aliyah from the pre-baked fullkriyah range index — no runtime API call. Always navigates in Full Kriyah mode; scrolls to and briefly highlights the specific verse in gold
-- **Aliyah jump chips** — a row of colored buttons (matching each aliyah header's color) sits in the controls bar alongside the aliyah selector. Clicking scrolls directly to that aliyah; chips for deselected aliyot are hidden automatically so the bar always reflects only what's visible
+- **Jump to aliyah** — a "↓ Jump to aliyah" dropdown in the controls bar (e.g. "Rishon · Genesis 26:23-26:29") scrolls straight to that aliyah; aliyot hidden by the aliyah selector are left out
+- **Verse count** — every aliyah header shows how many verses it has, e.g. "Genesis 24:10-24:14 (5 v.)"
 - **Aliyah multi-select** — "All Aliyot" button opens a popover; unchecking it deselects everything so you can quickly pick one or two; the "at least one" guard on individual checkboxes prevents an accidental blank screen
-- **Shareable links** — the 🔗 button next to the nav arrows copies a link that reproduces exactly what you're looking at: date, weekday/holiday view, Diaspora/Israel, Triennial/Full Kriyah, Regular Maftir, a narrowed aliyah selection, and your scroll position (whichever aliyah is centered on your screen). Opening that link scrolls the recipient straight to that aliyah, pinned at the top so they have room to read on from there. Trope colors are included when switched on, so a teacher can send a student a colored view. Other display preferences (theme, Practice/Bima tab, layout) are deliberately left out — they stay whatever the recipient already has set
-- **Side-by-Side / Either-Or layout toggle** for Tikkun Korim — Either-Or collapses to single column with a Scroll/Tikkun sub-toggle for cover-and-check practice
+- **Shareable links** — the 🔗 button next to the nav arrows copies a link that reproduces exactly what you're looking at: date (for a weekday reading, its Monday/Thursday), weekday/holiday view, Diaspora/Israel, Triennial/Full Kriyah, Regular Maftir, a narrowed aliyah selection, and your scroll position (whichever aliyah is centered on your screen). Opening that link scrolls the recipient straight to that aliyah, pinned at the top so they have room to read on from there. Trope colors are included when switched on, so a teacher can send a student a colored view. Other display preferences (theme, Practice/Bima tab, layout) are deliberately left out — they stay whatever the recipient already has set
+- **Side-by-Side / Either-Or layout toggle** for Tikkun Korim — Either-Or collapses to single column with a Scroll/Tikkun sub-toggle for cover-and-check practice. The Bima Tikkun is always a single tikkun column, so on that tab the toggle is greyed out and the Scroll/Tikkun sub-toggle doesn't appear
 - **Trope colors** — "Plain / Trope colors" toggle plus a 🎨 color editor: groups with a name and a color each (14-color preset palette or any custom color), a dropdown per trope — servants included — to choose its group (or no color), and a switch for whether servants left without a group take the color of the trope they lead into. Tipcha is assignable separately before Etnachta and before Sof Pasuk; Munach Legarmeh (munach + paseq) is its own entry. Names follow Ashkenazi usage — the geresh sign is "Azla" after a kadma and "Azla-Geresh" on its own. The scheme lives in `localStorage` (`tropeScheme`); dark mode automatically uses a lighter shade of each color. Applies to the vowelized column, Bima Tikkun and print — never the scroll column. Shared links carry `tc=1` (colors on) but not the scheme. Switching or editing never moves a line break
-- **Audio (vayavinu.com)** — every aliyah header has a ▶ Listen button that opens a panel with the matching recording(s) by Rabbi Jeremy Wieder. Matching is by verse range against the exact full-kriyah aliyah ranges of every recording (from `@hebcal/leyning`), so triennial, Monday/Thursday, combined-week (Chukat-Balak, Matot-Masei, …) and holiday readings all find the right recording; Yom Tov readings prefer the Yom Tov recordings, and Rosh Hashana / Yom Kippur only ever get High-Holiday-trope recordings (never the Shabbat-trope recording of the same verses). Ashkenazit/Sephardit choice is remembered. Two-click privacy: nothing is loaded from YouTube until you press "Load player", and it then uses youtube-nocookie.com. Hidden in print
+- **Audio (vayavinu.com)** — every aliyah header has a ▶ Listen button that opens a panel with the matching recording(s) by Rabbi Jeremy Wieder. Matching is by verse range against the exact full-kriyah aliyah ranges of every recording (from `@hebcal/leyning`), so triennial, Monday/Thursday, combined-week (Chukat-Balak, Matot-Masei, …) and holiday readings all find the right recording; Yom Tov readings prefer the Yom Tov recordings, and Rosh Hashana / Yom Kippur only ever get High-Holiday-trope recordings (never the Shabbat-trope recording of the same verses). Ashkenazit/Sephardit choice is remembered. Two-click privacy: nothing is loaded from YouTube until you press "Load player", and it then uses youtube-nocookie.com. Next to it, "Open on YouTube ↗" opens the same recording on youtube.com, for when YouTube shows its "Sign in to confirm you're not a bot" check inside the embedded player (VPNs, iCloud Private Relay, shared networks, strict privacy settings): the embedded player can't see your YouTube login, youtube.com itself can. Hidden in print
 - Both toggles in a **floating widget** (bottom-right, always visible while scrolling)
 - Tab switcher between Tikkun Korim and Bima Tikkun (last tab remembered); tab switcher lives just above the tikkun content, not buried in the header
 - Print button per tikkun — printer-friendly (white headers, no color fills); always forces Side-by-Side; columns centered and precisely pin-sized to `PRINT_REF_WIDTH` regardless of paper size (A4 or Letter)
 
 ### UI / controls layout
 - All reading controls live in a **sticky header** centered on both desktop and mobile:
-  - Row 1: nav arrows · date · parasha name · jump-to-parasha dropdown (one line on desktop; dropdown wraps below on mobile)
-  - Row 2: Triennial/Full Kriyah · Shabbat/Weekday · Diaspora/Israel toggles
-  - Row 3 (after content loads): aliyah selector · aliyah jump chips
-  - Row 4 (conditional): Regular Maftir checkbox
+  - Row 1: nav arrows · date · 🔗 · parasha name · jump-to-parasha dropdown · Verse · Full Year (one line on desktop; wraps on mobile)
+  - Row 2: Triennial/Full Kriyah · Shabbat/Weekday · Diaspora/Israel · Side-by-Side/Either-Or · Plain/Trope colors
+  - Row 3 (after content loads): All Aliyot selector · "↓ Jump to aliyah" dropdown · Regular Maftir (only in Triennial)
 - Controls bar slides away on scroll-down, reappears on scroll-up
 
 ### Mobile
 - **Defaults to Either-Or / Tikkun view** below 680px
-- Aliyah chips centered on all line-wrap configurations
+- The aliyah row stays on one line, down to 320px wide
+- Aliyah headers wrap only between book name, verse range and "(N v.) ▶ Listen", never inside a range
 
 ### Technical
 - Hebrew text set in **Shlomo SemiStam** (SIL Open Font License), embedded
@@ -90,11 +93,14 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 - A setuma can occasionally still land at a line edge on a tight column — accepted as permanent, glyph stays in both columns
 - Simchat Torah Chatanim structure not included
-- **Audio is per full-kriyah aliyah** — the recordings follow the full-kriyah division, so for a triennial or weekday aliyah the player starts at the beginning of the full aliyah that contains it (the panel says which verses the recording covers); there is no verse-level seeking. Yitro's Shvi'i exists in Ashkenazit only
+- **Audio is per full-kriyah aliyah** — the recordings follow the full-kriyah division, so for a triennial or weekday aliyah the player starts at the beginning of the full aliyah that contains it (the panel says which verses the recording covers); there is no verse-level seeking (vayavinu.com publishes no verse timings). Yitro's Shvi'i exists in Ashkenazit only
+- **Rosh Chodesh on a Monday or Thursday** isn't an arrow stop; it's reachable through the dropdown's generic Rosh Chodesh entry
 
 ## Deploy & maintenance
 
-Hosted on GitHub Pages. Any push to `main` auto-deploys. Static files — no build process.
+Hosted on **Cloudflare Pages** (project `tikkun-generator`, custom domain tikkun.kahal-masorti.org). Any push to `main` deploys to production; every branch gets a preview at `<branch>.tikkun-generator.pages.dev`. Static files — no build process.
+
+Tests (`tests/`, Playwright): tokenizer, paragraph breaks and print geometry run on every push via GitHub Actions (`test.yml`); `validate-print-layout`, `validate-trope`, `validate-trope-ui`, `validate-audio` and `validate-nav-header` are run locally before merging (`node tests/<name>.js`). Changes go branch → pull request → merge.
 
 Schedule data is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1**, fetching ~1.5 years ahead. Can be triggered manually from the Actions tab.
 
@@ -102,9 +108,3 @@ Schedule data is embedded in `index.html` and refreshed automatically via **GitH
 
 Kahal Masorti e.V. · c/o Ufferfilge/Bubeck · Baumeisterstr. 11 · 26122 Oldenburg · Amtsgericht Potsdam, VR 10083 P
 Verantwortlicher gemäß §18 Abs. 2 MStV: David Schapiro · david@schapiro.org
-
-
-A self-contained web tool for generating Torah and holiday reading practice sheets (tikkunim).
-
-**Live:** https://tikkun.kahal-masorti.org
-
