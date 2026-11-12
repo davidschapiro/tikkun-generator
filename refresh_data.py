@@ -27,14 +27,19 @@ today's nearest Monday/Thursday or a button-triggered lookup, never
 something a person scrolls a dropdown to find.
 """
 
-import urllib.request, json, re
+import urllib.request, json, re, sys
 from datetime import date, timedelta
 from collections import defaultdict
 
-today      = date.today()
+# Optional overrides, e.g. to rebuild the current window without moving it:
+#   python refresh_data.py --start 2026-08-08 --end 2028-01-29
+def _arg(name):
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else None
+
+today      = date.fromisoformat(_arg('--start')) if _arg('--start') else date.today()
 start_str  = today.isoformat()
-end_str    = (today + timedelta(days=547)).isoformat()  # ~1.5 years
-print(f"Fetching {start_str} -> {end_str} (1.5 years)")
+end_str    = _arg('--end') or (today + timedelta(days=547)).isoformat()  # ~1.5 years
+print(f"Fetching {start_str} -> {end_str}")
 
 BOOK_MAP = {
     'Bereshit':'Genesis','Noach':'Genesis','Lech-Lecha':'Genesis','Vayera':'Genesis',
@@ -106,7 +111,7 @@ def build_parasha_and_holiday_data(israel=False):
     just to populate the dropdown)."""
     items = fetch_leyning_items(israel)
 
-    parashas, holidays = [], []
+    parashas, holidays, rosh_chodesh = [], [], []
     seen_parasha = set()
 
     for item in items:
@@ -157,6 +162,10 @@ def build_parasha_and_holiday_data(israel=False):
             # Exception: "Chanukah Day N (on Rosh Chodesh)" has a different
             # reading and is kept as a normal dated entry.
             if 'Rosh Chodesh' in title and 'Chanukah' not in title:
+                # Every occurrence is also recorded with its date, so the
+                # prev/next arrows can stop on it (ROSH_CHODESH, see
+                # build_rosh_chodesh); the reading itself stays generic.
+                rosh_chodesh.append({'date': item['date'], 'title': title, 'hdate': item.get('hdate', '')})
                 if any(h['title'] == 'Rosh Chodesh' for h in holidays):
                     continue  # already have the generic entry
                 # First occurrence: store as a generic dateless entry
@@ -168,7 +177,30 @@ def build_parasha_and_holiday_data(israel=False):
 
     holidays.sort(key=lambda x: (x['date'], x['title']))
     holiday_keyed = {f"{h['date']}|{h['title']}": h['leyning'] for h in holidays}
-    return parashas, holiday_keyed
+    return parashas, holiday_keyed, rosh_chodesh
+
+def build_rosh_chodesh(items):
+    """Group Rosh Chodesh days into occurrences: a two-day Rosh Chodesh
+    (30th of the old month + 1st of the new, consecutive dates, same title)
+    is ONE entry. Keyed by the first day:
+      {"2027-02-07": {"days": ["2027-02-07", "2027-02-08"],
+                      "title": "Rosh Chodesh Adar I",
+                      "hdate": "30 Shevat 5787 / 1 Adar I 5787"}}
+    Days on Shabbat stay in the list; index.html drops them from the arrow
+    stop (Shabbat Rosh Chodesh is the parasha with a special maftir).
+    Identical in Diaspora and Israel, so stored once."""
+    out, prev = {}, None
+    for it in sorted(items, key=lambda x: x['date']):
+        d = date.fromisoformat(it['date'])
+        if prev and prev['title'] == it['title'] and (d - date.fromisoformat(prev['days'][-1])).days == 1:
+            prev['days'].append(it['date'])
+            prev['hdates'].append(it['hdate'])
+            continue
+        prev = {'days': [it['date']], 'title': it['title'], 'hdates': [it['hdate']]}
+        out[it['date']] = prev
+    for v in out.values():
+        v['hdate'] = ' / '.join(h for h in v.pop('hdates') if h)
+    return out
 
 def replace_js_object(html, const_name, new_value):
     """Replace 'const NAME = {...}' using brace counting -- no regex backtracking."""
@@ -232,11 +264,13 @@ def build_static_opts(parasha_list, holiday_keyed):
 
 # -- Fetch ----------------------------------------------------------
 print("Fetching from /leyning (Diaspora)...")
-pd, hd = build_parasha_and_holiday_data(False)
+pd, hd, rcd = build_parasha_and_holiday_data(False)
 print(f"  Parshiot: {len(pd)}, Holiday/fast/Rosh Chodesh entries: {len(hd)}")
 
 print("Fetching from /leyning (Israel)...")
-pi, hi = build_parasha_and_holiday_data(True)
+pi, hi, _ = build_parasha_and_holiday_data(True)
+rc = build_rosh_chodesh(rcd)
+print(f"  Rosh Chodesh occurrences: {len(rc)}")
 print(f"  Parshiot: {len(pi)}, Holiday/fast/Rosh Chodesh entries: {len(hi)}")
 
 # -- Patch index.html -------------------------------------------------
@@ -259,6 +293,8 @@ html = replace_js_object(
         hi=json.dumps(hi, ensure_ascii=False)
     )
 )
+
+html = replace_js_object(html, 'ROSH_CHODESH', json.dumps(rc, ensure_ascii=False))
 
 # Rebuild static select optgroups
 static_opts = build_static_opts(pd, hd)

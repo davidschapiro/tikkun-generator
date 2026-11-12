@@ -89,6 +89,55 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
   await page.waitForTimeout(300); await ready();
   check(/^Mon 21 \/ Thu 24 Dec 2026$/.test((await view()).date), 'Weekday toggle on Shabbat Vayechi shows the same Monday/Thursday stop');
 
+  // 1b. Rosh Chodesh stops (Nov 2026). Feb 2027: Rosh Chodesh Adar I is
+  // Sun 7 + Mon 8 Feb -> ONE stop; it takes Monday, so the weekday stop is
+  // Thursday alone. Apr 2027: Rosh Chodesh Nisan on Thursday 8 Apr replaces
+  // Thursday; Monday 5 Apr stays the weekday stop.
+  const walk = async (start, n) => {
+    await page.goto(PAGE_URL + start); await ready();
+    const out = [await view()];
+    for (let k = 0; k < n; k++) {
+      await page.evaluate(() => {
+        window.__dates = [];
+        const el = document.getElementById('dateDisplay');
+        window.__obs && window.__obs.disconnect();
+        window.__obs = new MutationObserver(() => window.__dates.push(el.textContent));
+        window.__obs.observe(el, { childList: true, characterData: true, subtree: true });
+      });
+      await page.click('#nextBtn'); await page.waitForTimeout(300); await ready();
+      const v = await view(); v.seen = await page.evaluate(() => window.__dates); out.push(v);
+    }
+    console.log('   ' + out.map(v => `${v.date} [${v.name}]`).join('  →  '));
+    return out;
+  };
+  const feb = await walk('?d=2027-02-06', 3);
+  check(feb[1].date === 'Sun 7 / Mon 8 Feb 2027' && /Rosh Chodesh Adar I/.test(feb[1].name) && !feb[1].weekday,
+    'Shabbat Mishpatim › Rosh Chodesh Adar I as ONE stop "Sun 7 / Mon 8 Feb 2027"');
+  check(!feb[1].seen.some(t => /^Shabbat/.test(t)), 'no Shabbat date flashes on the way to Rosh Chodesh');
+  const rcUrl = feb[1].url;
+  check(feb[2].date === 'Thursday, 11 Feb 2027' && feb[2].weekday, '› then the weekday stop is Thursday 11 Feb alone (Rosh Chodesh took Monday)');
+  check(/13 Feb 2027/.test(feb[3].date) && !feb[3].weekday, '› then Shabbat 13 Feb');
+  await page.click('#prevBtn'); await page.waitForTimeout(300); await ready();
+  await page.click('#prevBtn'); await page.waitForTimeout(300); await ready();
+  check((await view()).date === 'Sun 7 / Mon 8 Feb 2027', '‹ ‹ back to the Rosh Chodesh stop');
+  check(await page.$eval('.aliyah-hdr .lbl-range', e => /Numbers 28:1/.test(e.textContent)), 'Rosh Chodesh stop shows the Rosh Chodesh reading (Numbers 28:1–…)');
+  check(/Rosh Chodesh/.test(await page.$eval('#parashaSelect', s => s.options[s.selectedIndex].textContent)), 'dropdown shows "Rosh Chodesh" on that stop');
+
+  const apr = await walk('?d=2027-04-03', 3);
+  check(apr[1].date === 'Monday, 5 Apr 2027' && apr[1].weekday, 'Apr 2027: weekday stop is Monday 5 Apr alone');
+  check(apr[2].date === 'Thursday, 8 Apr 2027' && /Rosh Chodesh Nisan/.test(apr[2].name), 'Rosh Chodesh Nisan on Thursday 8 Apr replaces the Thursday reading');
+  check(/10 Apr 2027/.test(apr[3].date), '› then Shabbat 10 Apr');
+  // Link + dropdown.
+  check(/h=rc%7C2027-02-07|h=rc\|2027-02-07/.test(rcUrl), `Rosh Chodesh link (${rcUrl})`);
+  await page.goto(PAGE_URL + rcUrl); await ready();
+  check((await view()).date === 'Sun 7 / Mon 8 Feb 2027', 'the link reopens the Rosh Chodesh stop');
+  await page.goto(PAGE_URL + '?d=2026-11-14'); await ready();
+  await page.selectOption('#parashaSelect', 'holiday|rosh-chodesh|Rosh Chodesh'); await page.waitForTimeout(300); await ready();
+  const rcPick = await view();
+  const nextRc = await page.evaluate(() => { const t = dateStr(new Date());
+    return buildChronologicalEntries('diaspora').find(e => e.rc && e.days[e.days.length - 1] >= t); });
+  check(!!nextRc && rcPick.name === nextRc.rc.title && !/^Rosh Chodesh$/.test(rcPick.date), `dropdown "Rosh Chodesh" opens the next dated one (${rcPick.date}, ${rcPick.name})`);
+
   // 3. Compact aliyah row.
   await page.goto(PAGE_URL + '?d=2026-11-14');
   await ready();
