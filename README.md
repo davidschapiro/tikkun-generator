@@ -78,14 +78,15 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - Favicon: a tav (ת) rendered in the same embedded font, gold-on-dark
 - Dark mode support — always follows your system's light/dark setting, including live if you change it mid-session; no manual override to keep in sync
 - No backend, no build step — `index.html` + `tokenizer.js`, both static
+- Footer shows the **Powered by Sefaria** badge (dark or light version to match the theme) and credits the text edition and its license; hidden in print
 
 ## Sources
 
 - Leyning data: [Hebcal.com](https://hebcal.com)'s `/leyning` endpoint (Eisenberg/CJLS triennial system) — single unified source for Shabbat, holiday, and weekday readings
-- Torah text: *Miqra according to the Masorah* (MAM), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), fetched live from [Sefaria.org](https://sefaria.org)
+- Torah text: *Miqra according to the Masorah* (MAM), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), fetched live through [Sefaria](https://www.sefaria.org)'s public API
+- Hebrew font: Shlomo SemiStam by Shlomo Orbach, based on Ezra SIL SR — [SIL Open Font License 1.1](https://scripts.sil.org/OFL)
 
 <a href="https://www.sefaria.org"><picture><source media="(prefers-color-scheme: dark)" srcset="img/powered-by-sefaria-light.png"><img src="img/powered-by-sefaria-dark.png" alt="Powered by Sefaria" width="140"></picture></a>
-- Hebrew font: Shlomo SemiStam by Shlomo Orbach, based on Ezra SIL SR — [SIL Open Font License 1.1](https://scripts.sil.org/OFL)
 
 ## Tools
 
