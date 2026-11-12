@@ -220,12 +220,17 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
    fight the sticky controls-bar and cause double-sticky issues, so
    instead it just stays at the top of the output area where it's easy
    to scroll back to). Hidden in print -- nobody needs to tap it on paper. */
-.aliyah-jump-bar{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;justify-content:center;width:100%;}
-.aliyah-jump-btn{padding:0.35rem 0.9rem;border:1px solid transparent;border-radius:var(--radius);
-  font-family:'Arimo',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;
-  color:#fff;letter-spacing:0.04em;transition:opacity 0.12s;}
-.aliyah-jump-btn:hover{opacity:0.82;}
-@media print{.aliyah-jump-bar{display:none!important;}}
+.aliyah-jump-select{min-width:150px;width:auto;}
+@media (max-width:480px){
+  #aliyahRow{width:100%;}
+  #aliyahRow .toggle-row{flex-wrap:nowrap;gap:0.4rem;width:100%;}
+  #aliyahRow #aliyahMsTrigger{min-width:0;padding-left:0.6rem;padding-right:0.6rem;}
+  .aliyah-jump-select{min-width:0;width:0;flex:1 1 auto;}
+  #aliyahRow .aliyah-ms{flex:none;}
+  #regularMaftirToggle{font-size:0.72rem!important;white-space:nowrap;}
+}
+@media print{.aliyah-jump-select{display:none!important;}}
+.toggle-group.tg-inactive{opacity:0.45;pointer-events:none;}
 /* In the tab-row the All Aliyot button doesn't need a wide min-width --
    the chips already tell you what aliyot exist. Let it shrink to content. */
 #aliyahMsTrigger{min-width:120px;}
@@ -725,13 +730,12 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
       <button type="button" class="parasha-select" id="aliyahMsTrigger">All Aliyot</button>
       <div class="aliyah-ms-panel" id="aliyahMsPanel" style="display:none;"></div>
     </div>
-    <div id="aliyahJumpBar" class="aliyah-jump-bar" style="display:none;"></div>
+    <select id="aliyahJumpSelect" class="parasha-select aliyah-jump-select" style="display:none;" aria-label="Jump to aliyah"></select>
+    <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
+      <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
+    </label>
   </div>
   </div>
-
-  <label id="regularMaftirToggle" style="display:none;align-items:center;gap:0.35rem;font-size:0.78rem;cursor:pointer;">
-    <input type="checkbox" id="regularMaftirCheckbox">Regular Maftir
-  </label>
 
 </div>
 
@@ -1188,6 +1192,24 @@ function buildChronologicalEntries(locKey) {
     if (dt === 'rosh-chodesh') return;
     entries.push({date: dt, type: 'holiday', key});
   });
+  // Monday/Thursday readings (Nov 2026): the arrows used to jump from a
+  // fast day or Shabbat straight to the next Shabbat, skipping the weekday
+  // readings in between. Every Monday and Thursday inside the embedded
+  // window is now its own entry, unless a dated holiday/fast already
+  // occupies that day (then the holiday entry is the reading). Weekday
+  // readings themselves are fetched live per date (fetchWeekdayLeyning),
+  // which also returns the right reading for days the embedded data
+  // doesn't list as holidays, e.g. Rosh Chodesh on a Monday.
+  if (entries.length) {
+    const dates = entries.map(e => e.date).sort();
+    const taken = new Set(entries.filter(e => e.type === 'holiday').map(e => e.date));
+    const d = new Date(dates[0] + 'T12:00:00');
+    const last = dates[dates.length - 1];
+    for (; dateStr(d) <= last; d.setDate(d.getDate() + 1)) {
+      const wd = d.getDay();
+      if ((wd === 1 || wd === 4) && !taken.has(dateStr(d))) entries.push({date: dateStr(d), type: 'weekday'});
+    }
+  }
   // Same tie-break rebuildDropdown() already applies for same-day entries
   // (e.g. a fast's Shacharit vs. its own Mincha reading): date first, then
   // a stable secondary order so repeated calls never reshuffle ties.
@@ -1202,6 +1224,11 @@ function buildChronologicalEntries(locKey) {
 // treated as belonging to its owning Shabbat, see navigateReading below —
 // or a date outside the embedded ~1.5-year window).
 function currentEntryIndex(entries) {
+  if (state.weekdayLeyning) {
+    const wd = state.weekdayLeyning.date;
+    const i = entries.findIndex(e => e.type === 'weekday' && e.date === wd);
+    return i !== -1 ? i : entries.findIndex(e => e.date === wd);
+  }
   if (state.holidayKey) {
     return entries.findIndex(e => e.type === 'holiday' && e.key === state.holidayKey);
   }
@@ -1226,6 +1253,15 @@ function navigateReading(dir) {
   syncReadingTypeToggle();
   state.chCache = {};
 
+  if (target && target.type === 'weekday') {
+    state.holidayKey = null;
+    state.refDate = new Date(target.date + 'T12:00:00');
+    document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.val === 'weekday'));
+    syncDropdown();
+    loadWeekdayReading(true);
+    return;
+  }
   if (target) {
     if (target.type === 'holiday') {
       state.holidayKey = target.key;
@@ -1313,7 +1349,7 @@ function findVerseLocation(book, ch, v, locKey) {
 function syncUrl() {
   const params = new URLSearchParams();
   if (state.weekdayLeyning) {
-    params.set('d', dateStr(toShabbat(state.refDate)));
+    params.set('d', state.weekdayLeyning.date); // the exact Mon/Thu (old links with the Shabbat date still work)
     params.set('wd', '1');
   } else if (state.holidayKey) {
     params.set('h', state.holidayKey);
@@ -1548,12 +1584,21 @@ async function fetchWeekdayReadingForShabbat(shabbatDate) {
   throw lastErr || new Error('Could not find a weekday reading for this parasha.');
 }
 
-async function loadWeekdayReading() {
+// exactDay: load the reading of state.refDate itself (a Monday/Thursday
+// reached with the arrows or restored from a link). Otherwise (the
+// Shabbat/Weekday toggle) the week's weekday reading for the upcoming
+// Shabbat. Either way refDate ends up on the weekday shown, so the arrows
+// continue from there and toShabbat(refDate) is still the owning Shabbat.
+async function loadWeekdayReading(exactDay) {
   state.holidayKey = null;
   state.chCache = {};
   try {
-    const shabbat = toShabbat(state.refDate);
-    state.weekdayLeyning = await fetchWeekdayReadingForShabbat(shabbat);
+    if (exactDay || state.refDate.getDay() !== 6) {
+      state.weekdayLeyning = await fetchWeekdayLeyning(state.refDate);
+    } else {
+      state.weekdayLeyning = await fetchWeekdayReadingForShabbat(toShabbat(state.refDate));
+    }
+    state.refDate = new Date(state.weekdayLeyning.date + 'T12:00:00');
   } catch (e) {
     state.weekdayLeyning = null;
     syncReadingTypeToggle();
@@ -2677,34 +2722,23 @@ function renderOutput(p, aliyotData, isHoliday) {
   // renderOutput) rather than in generate() because renderedKeys is
   // naturally in scope here -- it would be out of scope in generate()
   // since renderOutput returns a string, not an object.
-  const jumpBar = document.getElementById('aliyahJumpBar');
-  const jumpColors = isHoliday ? HOLIDAY_COLORS : SHABBAT_COLORS;
-  if (jumpBar && renderedKeys.length > 1) {
-    jumpBar.innerHTML = renderedKeys.map(k => {
-      const lbl = LABELS[k] || {en: k};
-      const col = jumpColors[k] || '#555';
-      return `<button class="aliyah-jump-btn" data-jump="${k}"
-        style="background:${col}">${lbl.en}</button>`;
+  // Jump-to: a compact <select> (was a row of colored chips; replaced
+  // Nov 2026 to save a header line after trope colors were added).
+  const jumpSel = document.getElementById('aliyahJumpSelect');
+  if (jumpSel && renderedKeys.length > 1) {
+    jumpSel.innerHTML = `<option value="">↓ Jump to aliyah</option>` + renderedKeys.map(k => {
+      const lbl = LABELS[k] || {en: k, he: k};
+      const r = (aliyotData[k].range || '').split(' | ')[0];
+      return `<option value="${k}">${lbl.en} · ${r}</option>`;
     }).join('');
-    jumpBar.style.display = 'flex';
-    jumpBar.querySelectorAll('.aliyah-jump-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.jump;
-        const visibleSection = document.querySelector('.tikkun-section.visible');
-        const target = visibleSection
-          ? visibleSection.querySelector(`.aliyah[data-aliyah="${key}"]`)
-          : document.querySelector(`.aliyah[data-aliyah="${key}"]`);
-        if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
-      });
-    });
-  } else if (jumpBar) {
-    jumpBar.innerHTML = '';
-    jumpBar.style.display = 'none';
+    jumpSel.style.display = '';
+  } else if (jumpSel) {
+    jumpSel.innerHTML = '';
+    jumpSel.style.display = 'none';
   }
 
-  // Jump-to bar is now rendered into #aliyahJumpBar in the tab-row (see
-  // the jump-bar wiring block below, after output.innerHTML is set) —
-  // not injected into each tikkun section's HTML.
+  // The jump-to select lives in the header row (#aliyahJumpSelect), not in
+  // each tikkun section's HTML; its change handler is wired once in init.
 
   return `
     <div class="tikkun-section practice-section visible">
@@ -3089,8 +3123,8 @@ async function generate() {
   const output = document.getElementById('outputArea');
   status.innerHTML='<div class="status"><div class="spinner"></div>Fetching…</div>';
   output.innerHTML='';
-  const jumpBar = document.getElementById('aliyahJumpBar');
-  if (jumpBar) { jumpBar.innerHTML = ''; jumpBar.style.display = 'none'; }
+  const jumpSel = document.getElementById('aliyahJumpSelect');
+  if (jumpSel) { jumpSel.innerHTML = ''; jumpSel.style.display = 'none'; }
   const aliyahRow = document.getElementById('aliyahRow');
   if (aliyahRow) aliyahRow.style.display = 'none';
 
@@ -3274,9 +3308,8 @@ function applyAliyahFilter() {
   // aliyot that aren't currently shown, so the bar only offers jumps
   // to things actually visible. When everything is selected, show all
   // chips (the normal full-parasha state).
-  document.querySelectorAll('#aliyahJumpBar .aliyah-jump-btn').forEach(btn => {
-    btn.style.display = (checked.length === all.length || activeKeys.has(btn.dataset.jump))
-      ? '' : 'none';
+  document.querySelectorAll('#aliyahJumpSelect option[value]:not([value=""])').forEach(opt => {
+    opt.hidden = opt.disabled = !(checked.length === all.length || activeKeys.has(opt.value));
   });
 
   const trigger = document.getElementById('aliyahMsTrigger');
@@ -3308,12 +3341,28 @@ function toggleAliyahPanel() {
   document.getElementById('aliyahMsPanel').style.display =
     (document.getElementById('aliyahMsPanel').style.display === 'none') ? 'block' : 'none';
 }
+function activeTabName() {
+  const b = document.querySelector('.tab-btn.active');
+  return b ? b.dataset.tab : 'practice';
+}
 function updateFloatingToggleVisibility(activeTab) {
   // The floating widget (Scroll/Tikkun view) only applies to Either-Or mode
   // on the Tikkun Korim tab. In Side-by-Side mode or on the Bima tab, hide it.
+  // Bug (Nov 2026): choosing Either-Or while on the Bima tab showed the
+  // widget anyway (the layout handler set it visible directly), although
+  // the Bima Tikkun is a single tikkun column by design and the buttons did
+  // nothing. The layout handler now goes through here, and on the Bima tab
+  // the Side-by-Side/Either-Or toggle itself is dimmed, since it only
+  // affects Tikkun Korim.
+  activeTab = activeTab || activeTabName();
   const widget = document.getElementById('floatingViewToggle');
   const isEitherOr = document.body.classList.contains('layout-either');
   widget.style.display = (activeTab === 'practice' && isEitherOr) ? 'flex' : 'none';
+  const lt = document.getElementById('layoutToggle');
+  if (lt) {
+    lt.classList.toggle('tg-inactive', activeTab !== 'practice');
+    lt.title = activeTab !== 'practice' ? 'Only affects the Tikkun Korim tab' : '';
+  }
 }
 async function printSection(which) {
   document.body.classList.add(`print-${which}`);
@@ -3613,6 +3662,14 @@ function init() {
     });
   });
 
+  document.getElementById('aliyahJumpSelect').addEventListener('change', (e) => {
+    const key = e.target.value;
+    e.target.value = '';
+    if (!key) return;
+    const visibleSection = document.querySelector('.tikkun-section.visible');
+    const target = (visibleSection || document).querySelector(`.aliyah[data-aliyah="${key}"]`);
+    if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
   document.getElementById('aliyahMsTrigger').addEventListener('click', (e) => {
     e.stopPropagation();
     toggleAliyahPanel();
@@ -3753,7 +3810,7 @@ function init() {
       if (mode === 'either') {
         document.body.classList.add('layout-either');
         columnToggle.classList.remove('tg-hidden');
-        widget.style.display = '';
+        updateFloatingToggleVisibility();
         document.querySelectorAll('#columnToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
         document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').classList.add('active');
         document.body.classList.remove('show-scroll');
