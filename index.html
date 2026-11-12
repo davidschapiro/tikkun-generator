@@ -1200,14 +1200,21 @@ function buildChronologicalEntries(locKey) {
   // readings themselves are fetched live per date (fetchWeekdayLeyning),
   // which also returns the right reading for days the embedded data
   // doesn't list as holidays, e.g. Rosh Chodesh on a Monday.
+  // In a regular week Monday and Thursday read the same text, so they are
+  // ONE stop ("Monday/Thursday", days:[mon,thu]); only when a holiday takes
+  // one of the two days does the other become a stop of its own.
   if (entries.length) {
     const dates = entries.map(e => e.date).sort();
     const taken = new Set(entries.filter(e => e.type === 'holiday').map(e => e.date));
     const d = new Date(dates[0] + 'T12:00:00');
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // back to that week's Monday
     const last = dates[dates.length - 1];
-    for (; dateStr(d) <= last; d.setDate(d.getDate() + 1)) {
-      const wd = d.getDay();
-      if ((wd === 1 || wd === 4) && !taken.has(dateStr(d))) entries.push({date: dateStr(d), type: 'weekday'});
+    for (; dateStr(d) <= last; d.setDate(d.getDate() + 7)) {
+      const mon = dateStr(d);
+      const t = new Date(d); t.setDate(t.getDate() + 3);
+      const thu = dateStr(t);
+      const days = [mon, thu].filter(x => !taken.has(x) && x >= dates[0] && x <= last);
+      if (days.length) entries.push({date: days[0], type: 'weekday', days});
     }
   }
   // Same tie-break rebuildDropdown() already applies for same-day entries
@@ -1226,7 +1233,7 @@ function buildChronologicalEntries(locKey) {
 function currentEntryIndex(entries) {
   if (state.weekdayLeyning) {
     const wd = state.weekdayLeyning.date;
-    const i = entries.findIndex(e => e.type === 'weekday' && e.date === wd);
+    const i = entries.findIndex(e => e.type === 'weekday' && e.days.includes(wd));
     return i !== -1 ? i : entries.findIndex(e => e.date === wd);
   }
   if (state.holidayKey) {
@@ -1258,8 +1265,11 @@ function navigateReading(dir) {
     state.refDate = new Date(target.date + 'T12:00:00');
     document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.val === 'weekday'));
-    syncDropdown();
-    loadWeekdayReading(true);
+    // Not syncDropdown(): that writes "Shabbat <next Saturday>" into the
+    // header, which flashed for the duration of the fetch (reported Nov 2026).
+    document.getElementById('parashaSelect').value = '';
+    document.getElementById('dateDisplay').textContent = weekdayDaysLabel(target.days);
+    loadWeekdayReading(target);
     return;
   }
   if (target) {
@@ -1349,7 +1359,7 @@ function findVerseLocation(book, ch, v, locKey) {
 function syncUrl() {
   const params = new URLSearchParams();
   if (state.weekdayLeyning) {
-    params.set('d', state.weekdayLeyning.date); // the exact Mon/Thu (old links with the Shabbat date still work)
+    params.set('d', (state.weekdayLeyning.days || [state.weekdayLeyning.date])[0]); // Monday of a merged stop, else the exact day (old links with the Shabbat date still work)
     params.set('wd', '1');
   } else if (state.holidayKey) {
     params.set('h', state.holidayKey);
@@ -1584,21 +1594,55 @@ async function fetchWeekdayReadingForShabbat(shabbatDate) {
   throw lastErr || new Error('Could not find a weekday reading for this parasha.');
 }
 
-// exactDay: load the reading of state.refDate itself (a Monday/Thursday
-// reached with the arrows or restored from a link). Otherwise (the
-// Shabbat/Weekday toggle) the week's weekday reading for the upcoming
-// Shabbat. Either way refDate ends up on the weekday shown, so the arrows
-// continue from there and toShabbat(refDate) is still the owning Shabbat.
-async function loadWeekdayReading(exactDay) {
+// The weekday stop for state.refDate's week (or the given arrow entry):
+// a merged Monday/Thursday stop loads the week's reading (Thursday first,
+// Monday as fallback, as before); a single-day stop loads exactly that
+// day. Without an entry (outside the embedded window, or an old link with
+// a Shabbat date) the toggle's original behavior applies. refDate ends up
+// on the day actually fetched, so the arrows continue from there and
+// toShabbat(refDate) is still the owning Shabbat.
+function weekdayEntryFor(dateIso) {
+  const entries = buildChronologicalEntries(state.israel ? 'israel' : 'diaspora');
+  const sat = dateStr(toShabbat(new Date(dateIso + 'T12:00:00')));
+  const week = entries.filter(e => e.type === 'weekday' && dateStr(toShabbat(new Date(e.date + 'T12:00:00'))) === sat);
+  return week.find(e => e.days.includes(dateIso)) || week[week.length - 1] || null;
+}
+function weekdayDaysLabel(days) {
+  const f = (iso, o) => new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', o);
+  if (!days || days.length < 2) return f(days[0], {weekday:'long', month:'short', day:'numeric', year:'numeric'});
+  const [a, b] = days;
+  const sameMonth = a.slice(0, 7) === b.slice(0, 7);
+  return sameMonth
+    ? `Monday ${+a.slice(8)} / Thursday ${f(b, {month:'short', day:'numeric', year:'numeric'})}`
+    : `Monday ${f(a, {month:'short', day:'numeric'})} / Thursday ${f(b, {month:'short', day:'numeric', year:'numeric'})}`;
+}
+async function loadWeekdayReading(entry) {
   state.holidayKey = null;
   state.chCache = {};
+  if (!entry) entry = weekdayEntryFor(dateStr(state.refDate));
+  document.getElementById('statusArea').innerHTML = '<div class="status"><div class="spinner"></div>Fetching…</div>';
   try {
-    if (exactDay || state.refDate.getDay() !== 6) {
+    if (entry && entry.days.length === 1) {
+      state.weekdayLeyning = await fetchWeekdayLeyning(new Date(entry.days[0] + 'T12:00:00'));
+    } else if (entry) {
+      // Both days in parallel: the merged label is only honest if both
+      // really have the weekday reading (Rosh Chodesh, which the embedded
+      // data doesn't list, can take one of them).
+      const res = await Promise.all(entry.days.map(d => fetchWeekdayLeyning(new Date(d + 'T12:00:00')).catch(() => null)));
+      const ok = res.filter(r => r && r.itype === 'weekday');
+      if (!ok.length && !res.some(Boolean)) throw new Error('Could not find a weekday reading for this week.');
+      state.weekdayLeyning = ok.length ? ok[ok.length - 1] : res.filter(Boolean).pop();
+      state.weekdayLeyning.days = ok.length === 2 ? entry.days : [state.weekdayLeyning.date];
+    } else if (state.refDate.getDay() !== 6) {
       state.weekdayLeyning = await fetchWeekdayLeyning(state.refDate);
     } else {
       state.weekdayLeyning = await fetchWeekdayReadingForShabbat(toShabbat(state.refDate));
     }
-    state.refDate = new Date(state.weekdayLeyning.date + 'T12:00:00');
+    // The merged label only fits if the fetched day really is one of them
+    // (a weekday-type reading, not e.g. Rosh Chodesh that Hebcal returned).
+    const w = state.weekdayLeyning;
+    if (!w.days) w.days = [w.date];
+    state.refDate = new Date(w.date + 'T12:00:00');
   } catch (e) {
     state.weekdayLeyning = null;
     syncReadingTypeToggle();
@@ -3137,7 +3181,7 @@ async function generate() {
       p = { title: w.title, date: w.date, hebrew: w.title, hdate: w.date, leyning: w.leyning };
       leyningData = w.leyning;
       updateParashaName(w.title);
-      setDateDisplayForDate(w.date);
+      document.getElementById('dateDisplay').textContent = weekdayDaysLabel(w.days || [w.date]);
     } else if (state.holidayKey) {
       isHoliday = true;
       const locKey = state.israel ? 'israel' : 'diaspora';

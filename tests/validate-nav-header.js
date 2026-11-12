@@ -2,10 +2,11 @@
 //
 //   1. The ‹ › arrows walk every reading in true date order, including the
 //      Monday/Thursday readings between two Shabbatot (they used to be
-//      skipped): Asara b'Tevet Mincha (Sun 20 Dec 2026) → Mon 21 Dec → Thu 24 Dec
-//      → Shabbat 26 Dec (Vayechi), and back again with ‹.
-//   2. A weekday reading's share link carries its exact date and reopens
-//      that same day.
+//      skipped): Asara b'Tevet Mincha (Sun 20 Dec 2026) → one stop
+//      "Monday 21 / Thursday 24 Dec" → Shabbat 26 Dec (Vayechi), and back
+//      with ‹. The header never flashes the next Shabbat's date meanwhile.
+//   2. The weekday stop's share link reopens it; the Weekday toggle on that
+//      Shabbat shows the same stop.
 //   3. The aliyah row is one compact line: filter, "Jump to aliyah" select,
 //      Regular Maftir. The select scrolls to the chosen aliyah.
 //   4. Bima tab + Either-Or: the Scroll/Tikkun view widget stays hidden and
@@ -48,26 +49,45 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
   await page.goto(PAGE_URL + '?h=' + encodeURIComponent(fastKey));
   await ready();
   const seq = [await view()];
-  for (let n = 0; n < 3; n++) {
+  for (let n = 0; n < 2; n++) {
+    // Record every value the date header takes during the transition: the
+    // next Shabbat's date used to flash before the weekday reading loaded.
+    await page.evaluate(() => {
+      window.__dates = [];
+      const el = document.getElementById('dateDisplay');
+      window.__obs && window.__obs.disconnect();
+      window.__obs = new MutationObserver(() => window.__dates.push(el.textContent));
+      window.__obs.observe(el, { childList: true, characterData: true, subtree: true });
+    });
     await page.click('#nextBtn');
     await page.waitForTimeout(300);
     await ready();
-    seq.push(await view());
+    const v = await view();
+    v.seen = await page.evaluate(() => window.__dates);
+    seq.push(v);
   }
   console.log('   ' + seq.map(v => `${v.date} [${v.name}]${v.weekday ? ' (weekday)' : ''}`).join('  →  '));
-  check(/21 Dec 2026/.test(seq[1].date) && seq[1].weekday && /Vayechi/.test(seq[1].name), '› from the fast lands on Monday 21 Dec (Vayechi weekday reading)');
-  check(/24 Dec 2026/.test(seq[2].date) && seq[2].weekday, '› then Thursday 24 Dec');
-  check(/26 Dec 2026/.test(seq[3].date) && !seq[3].weekday && /Vayechi/.test(seq[3].name), '› then Shabbat 26 Dec, Vayechi, with the toggle back on Shabbat');
+  check(/^Monday 21 \/ Thursday 24 Dec 2026$/.test(seq[1].date) && seq[1].weekday && /Vayechi/.test(seq[1].name), '› from the fast lands on ONE stop "Monday 21 / Thursday 24 Dec 2026" (Vayechi weekday reading)');
+  check(!seq[1].seen.some(t => /^Shabbat/.test(t)), `no Shabbat date flashes on the way to the weekday stop (${[...new Set(seq[1].seen)].join(' | ')})`);
+  check(/26 Dec 2026/.test(seq[2].date) && !seq[2].weekday && /Vayechi/.test(seq[2].name), '› then Shabbat 26 Dec, Vayechi, with the toggle back on Shabbat');
   await page.click('#prevBtn'); await page.waitForTimeout(300); await ready();
   const back = await view();
-  check(/24 Dec 2026/.test(back.date) && back.weekday, '‹ from Shabbat goes back to Thursday 24 Dec');
+  check(/^Monday 21 \/ Thursday 24 Dec 2026$/.test(back.date) && back.weekday, '‹ from Shabbat goes back to the Monday/Thursday stop');
+  await page.click('#prevBtn'); await page.waitForTimeout(300); await ready();
+  check(/Asara/.test((await view()).name), '‹ again goes back to the fast');
 
-  // 2. Share link keeps the exact weekday.
-  check(/d=2026-12-24/.test(back.url) && /wd=1/.test(back.url), `weekday link carries the exact date (${back.url})`);
+  // 2. Share link keeps the weekday stop.
+  check(/d=2026-12-21/.test(back.url) && /wd=1/.test(back.url), `weekday link carries the stop's date (${back.url})`);
   await page.goto(PAGE_URL + back.url);
   await ready();
   const reopened = await view();
-  check(/24 Dec 2026/.test(reopened.date) && reopened.weekday, 'the link reopens Thursday 24 Dec');
+  check(/^Monday 21 \/ Thursday 24 Dec 2026$/.test(reopened.date) && reopened.weekday, 'the link reopens the Monday/Thursday stop');
+  // Toggle from Shabbat shows the same merged label.
+  await page.goto(PAGE_URL + '?d=2026-12-26');
+  await ready();
+  await page.click('#readingTypeToggle .toggle-btn[data-val="weekday"]');
+  await page.waitForTimeout(300); await ready();
+  check(/^Monday 21 \/ Thursday 24 Dec 2026$/.test((await view()).date), 'Weekday toggle on Shabbat Vayechi shows the same Monday/Thursday stop');
 
   // 3. Compact aliyah row.
   await page.goto(PAGE_URL + '?d=2026-11-14');
