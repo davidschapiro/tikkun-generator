@@ -8,7 +8,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 - **Practice any reading** — select a parasha, holiday, or fast day from the dropdown, or type in a specific verse reference to jump straight there
 - **Shabbat and weekday readings** — toggle between the full Shabbat kriyah and the Monday/Thursday reading for the same parasha
-- **Step through the year** — the ‹ › arrows walk every reading in date order: Shabbat, the week's Monday/Thursday reading, holidays and fast days (Shacharit and Mincha)
+- **Step through the year** — the ‹ › arrows walk every reading in date order: Shabbat, the week's Monday/Thursday reading, Rosh Chodesh, holidays and fast days (Shacharit and Mincha)
 - **Triennial or Full Kriyah** — switch between the CJLS triennial cycle and the full reading
 - **Diaspora or Israel** — separate schedules where they differ
 - **Print** — printer-friendly output, side-by-side, always correctly centered on the page
@@ -18,7 +18,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - **Jump to any verse** — look up any Torah reference (e.g. Numbers 25:10) and go directly to the right parasha and aliyah
 - **Fast day readings** — all five public fasts with their Shacharit and Mincha readings; the sections customarily repeated by the congregation are highlighted in blue
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka, Purim, and Yom Kippur Mincha
-- **Rosh Chodesh** — single generic reading (always Numbers 28:1–15)
+- **Rosh Chodesh** — every Rosh Chodesh is a stop of its own (a two-day Rosh Chodesh is one stop); the reading is always Numbers 28:1–15
 
 ## Features
 
@@ -27,10 +27,10 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - **Parasha selector** grouped by year and book, current week onward (~1.5 years of upcoming Shabbatot); holidays grouped per year alongside parshiot
 - **Holiday readings** — all major Yamim Tovim, Chol HaMoed, Chanukka weekdays (correctly labeled "Day 1–8"), Purim, Rosh Chodesh, Yom Kippur Mincha; pre-baked, no extra API calls
 - **Monday/Thursday weekday Torah reading** — a "Shabbat / Weekday" toggle shows the open parasha's weekday reading, fetched live from Hebcal on demand
-- **‹ › arrows in true date order** — every Shabbat, holiday, fast day (Shacharit and Mincha as separate stops) and weekday reading. In a regular week Monday and Thursday are one stop, shown as "Mon 21 / Thu 24 Dec 2026"; if a holiday or fast takes one of the two days, that day shows its own reading and the other day is a stop of its own. Rosh Chodesh is not an arrow stop (use the dropdown); in a week where it falls on Monday or Thursday the weekday stop shows only the other day
+- **‹ › arrows in true date order** — every Shabbat, holiday, fast day (Shacharit and Mincha as separate stops) and weekday reading. In a regular week Monday and Thursday are one stop, shown as "Mon 21 / Thu 24 Dec 2026"; if a holiday, fast or Rosh Chodesh takes one of the two days, that day shows its own reading and the other day is a stop of its own. Rosh Chodesh is one stop per month, two-day Rosh Chodesh included ("Rosh Chodesh Adar I · Sun 7 / Mon 8 Feb 2027"); a Rosh Chodesh day on Shabbat belongs to the Shabbat stop
 - **All public fast days** — Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther, Tzom Tammuz, and Tisha B'Av, each with its own correctly-sourced Mincha reading. All Mincha leyning comes directly from Hebcal's `/leyning` endpoint, not hardcoded
 - **Congregation-repeat coloring for fast-day Shacharit** — in the Vayechal Moshe reading (Exodus 32:11–14 + 34:1–10), the three word spans customarily chanted first by the congregation and then repeated by the Ba'al Kriyah are rendered in dark blue, inline in the text flow with no paragraph breaks. Word-level precision: only the actual congregation phrases are colored (e.g. "שׁוּב" mid-verse 32:12, not the whole verse). An explanatory note appears at the top of each affected aliyah.
-- **Rosh Chodesh** — single generic entry in the dropdown (the reading is always identical — Numbers 28:1-15 — so there is no point listing every month); no date shown in the meta line for the same reason
+- **Rosh Chodesh** — one entry in the dropdown (the reading is always Numbers 28:1-15); choosing it opens the next Rosh Chodesh from today, and the arrows stop on every Rosh Chodesh with its date, name and Hebrew date(s)
 - **Triennial / Full Kriyah** toggle (remembered across sessions); auto-switches to full reading for holidays
 - **Regular Maftir override for Triennial mode** — toggleable, only shown when Triennial is active and no holiday is selected
 - **Diaspora / Israel** toggle — separate parasha and holiday schedules for each
@@ -97,7 +97,6 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 - A setuma can occasionally still land at a line edge on a tight column — accepted as permanent, glyph stays in both columns
 - Simchat Torah Chatanim structure not included
 - **Audio is per full-kriyah aliyah** — the recordings follow the full-kriyah division, so for a triennial or weekday aliyah the player starts at the beginning of the full aliyah that contains it (the panel says which verses the recording covers); there is no verse-level seeking (vayavinu.com publishes no verse timings). Yitro's Shvi'i exists in Ashkenazit only
-- **Rosh Chodesh on a Monday or Thursday** isn't an arrow stop; it's reachable through the dropdown's generic Rosh Chodesh entry
 
 ## Deploy & maintenance
 
@@ -105,7 +104,7 @@ Hosted on **Cloudflare Pages** (project `tikkun-generator`, custom domain tikkun
 
 Tests (`tests/`, Playwright): tokenizer, paragraph breaks and print geometry run on every push via GitHub Actions (`test.yml`); `validate-print-layout`, `validate-trope`, `validate-trope-ui`, `validate-audio` and `validate-nav-header` are run locally before merging (`node tests/<name>.js`). Changes go branch → pull request → merge.
 
-Schedule data is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1**, fetching ~1.5 years ahead. Can be triggered manually from the Actions tab.
+Schedule data (parshiot, holidays and fasts, and every Rosh Chodesh date) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1**, fetching ~1.5 years ahead. Can be triggered manually from the Actions tab. To rebuild by hand without moving the window: `python refresh_data.py --start YYYY-MM-DD --end YYYY-MM-DD`.
 
 ## Impressum
 

@@ -853,8 +853,8 @@ this is *what*.
   assume every reading occasion is a Saturday?**
   Fix: `buildChronologicalEntries(locKey)` merges every embedded
   `PARASHA_LISTS` date with every embedded dated `HOLIDAY_DATA` entry
-  (Rosh Chodesh excluded — it's a single generic dateless dropdown
-  entry, not a calendar occasion) into one sorted list, and
+  (Rosh Chodesh excluded here at the time — superseded Nov 2026: every
+  occurrence is now a stop, see "Rosh Chodesh stops" at the end) into one sorted list, and
   `navigateReading(dir)` steps to the immediate neighbor in that list
   rather than a fixed week-sized hop. Falls back to the original plain
   7-day shift whenever the current position isn't found in the embedded
@@ -1355,6 +1355,8 @@ tuning decision:
   "whichever one is currently open."
 - **Rosh Chodesh:** single generic entry in dropdown (reading is always
   identical; listing every month was noise). No date shown in meta.
+  (Since Nov 2026 the dropdown entry opens the next dated Rosh Chodesh stop
+  and the arrows stop on every Rosh Chodesh — see "Rosh Chodesh stops".)
 - **Hebrew dates in meta line** for all holidays/fast days. Previously
   showed the secular date twice; fix was storing `item.hdate` from `/leyning`
   in `HOLIDAY_DATA` at build time and reading from `p.leyning.hdate` in
@@ -1658,10 +1660,24 @@ initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 
 - **YouTube bot check / sign-in wall in the embed** (Nov 2026, user report): YouTube sometimes shows "Sign in to confirm you're not a bot" inside the embedded player — typically on VPNs, iCloud Private Relay, shared/university networks, or privacy browsers. The embed is a third-party frame (and youtube-nocookie on purpose), so the viewer's YouTube login on youtube.com doesn't reach it; clicking "Sign in" just opens youtube.com. We can't detect this (cross-origin iframe), so every recording also has an always-visible **"Open on YouTube ↗"** link (`youtube.com/watch?v=…`, current nusach, updated on toggle), and the credit line says to use it if YouTube asks to sign in. Don't switch to youtube.com/embed to "fix" it: it sets cookies and still fails in Safari/Firefox.
 
-- **Arrows walk the weekday readings too** (Nov 2026): `buildChronologicalEntries()` adds one weekday stop per week: `{type:'weekday', days:[mon,thu]}` when neither day is a dated holiday/fast in the embedded data (same text on both days, so one stop, header "Mon 21 / Thu 24 Dec 2026"), otherwise a single-day stop for the free day. `loadWeekdayReading(entry)` fetches both days of a merged stop in parallel from Hebcal `/leyning`; if one of them turns out not to be a weekday reading (Rosh Chodesh isn't in the embedded data, e.g. Mon 8 Feb 2027 = Rosh Chodesh Adar I), the header shows only the day that is, and that Rosh Chodesh day is not an arrow stop (Rosh Chodesh never is). The arrow handler writes the weekday label into the header before fetching, never `syncDropdown()` (that flashed "Shabbat <next date>" during the fetch). `refDate` ends on the day fetched, so ‹ › continue from there and the Shabbat toggle still goes to `toShabbat(refDate)`. Share links: `d=<first day of the stop>&wd=1`; old links with the Shabbat date open that week's stop. Shabbat Mincha is not a separate stop.
+- **Arrows walk the weekday readings too** (Nov 2026): `buildChronologicalEntries()` adds one weekday stop per week: `{type:'weekday', days:[mon,thu]}` when neither day is a dated holiday/fast in the embedded data (same text on both days, so one stop, header "Mon 21 / Thu 24 Dec 2026"), otherwise a single-day stop for the free day. `loadWeekdayReading(entry)` fetches both days of a merged stop in parallel from Hebcal `/leyning`; if one of them turns out not to be a weekday reading, the header shows only the day that is. Since the Rosh Chodesh stops (below) take their days before weekday stops are built, this runtime check is only a safety net for anything Hebcal knows that the embedded data doesn't. The arrow handler writes the weekday label into the header before fetching, never `syncDropdown()` (that flashed "Shabbat <next date>" during the fetch). `refDate` ends on the day fetched, so ‹ › continue from there and the Shabbat toggle still goes to `toShabbat(refDate)`. Share links: `d=<first day of the stop>&wd=1`; old links with the Shabbat date open that week's stop. Shabbat Mincha is not a separate stop.
 - **Aliyah row is one line** (Nov 2026): the colored jump chips were replaced by a `<select id="aliyahJumpSelect">` ("↓ Jump to aliyah", options "Rishon · Genesis …"), sitting next to the All Aliyot filter and the Regular Maftir checkbox. The filter hides/disables options for aliyot not shown. On phones (≤480px) the row is full width and doesn't wrap.
 - **Bima tab and Either-Or** (Nov 2026): the Scroll/Tikkun view widget only exists for Tikkun Korim in Either-Or. The layout handler calls `updateFloatingToggleVisibility()` instead of showing the widget itself, and on the Bima tab the Side-by-Side/Either-Or toggle is dimmed (`.tg-inactive`, tooltip "Only affects the Tikkun Korim tab").
 - Test: `tests/validate-nav-header.js` covers all three.
 
 - **Powered by Sefaria + text license** (Nov 2026): Sefaria's developer team asked projects built on their API to show the "Powered by Sefaria" badge (David's email with developers@sefaria.org, Nov 12 2026; they also confirmed no rate limit "for now"). Footer now shows the badge (`img/powered-by-sefaria-dark.png` on light pages, `-light.png` on dark; switches with both the system scheme and the manual Light/Dark toggle, same two dark selectors as everywhere else) and credits the actual edition: the Hebrew Sefaria serves here is *Miqra according to the Masorah*, licensed CC BY-SA (checked via `heVersionTitle`/`heLicense` of `/api/texts`), and BY-SA asks for the work and license to be named, not just the website. Footer is hidden in print, so printed tikkunim carry no credit; that's unchanged. README Sources lists the same; the Help dialog skips the Sources section, so the badge HTML there never reaches `mdToHtml`.
 
+- **Rosh Chodesh stops** (Nov 2026): every Rosh Chodesh is an arrow stop.
+  - Data: `refresh_data.py` records each Rosh Chodesh item from `/leyning` and `build_rosh_chodesh()` groups consecutive same-title days into one occurrence, written to `const ROSH_CHODESH = {"<first day>": {days, title, hdate}}` in index.html (one list, identical in Diaspora and Israel). `HOLIDAY_DATA` still holds only the one generic `rosh-chodesh|Rosh Chodesh` reading.
+  - `buildChronologicalEntries()` adds `{type:'holiday', key:'rc|<first day>', days, rc}`, dropping Shabbat days (Shabbat Rosh Chodesh = the parasha with its special maftir) and days another dated holiday covers (Rosh Chodesh Tevet = Chanukah). A two-day Rosh Chodesh is one stop, header "Sun 7 / Mon 8 Feb 2027" (`daysLabel()`), name "Rosh Chodesh Adar I", meta line both Hebrew dates.
+  - Rosh Chodesh days count as taken when weekday stops are built, so on a Monday/Thursday Rosh Chodesh replaces the weekday reading (Feb 2027: Rosh Chodesh Sun 7 + Mon 8, weekday stop Thu 11 alone; Apr 2027: weekday Mon 5, Rosh Chodesh Nisan Thu 8).
+  - `generate()` renders an `rc|…` key with the generic reading; `remapHolidayKeyToLocale()` passes `rc|` keys through unchanged; share links are `?h=rc|<first day>`. Choosing "Rosh Chodesh" in the dropdown opens the next dated stop from today (generic reading only past the embedded window).
+  - Tests: `tests/validate-nav-header.js` walks Feb and Apr 2027, checks the reading (Numbers 28), the link and the dropdown.
+
+### Lessons and practices (Nov 2026)
+
+- **Running `refresh_data.py` by hand:** use `--start/--end` to rebuild the current window without moving it (`python refresh_data.py --start <first date in the data> --end <last>`). Then diff the embedded data before committing: Hebcal changes `torah` summary strings over time (Nov 2026: Chol HaMoed summaries, and an "Ecclesiastes" appended to some Israel Sukkot summaries). Don't let that churn ride along in a feature PR; keep it for the scheduled refresh or its own PR.
+- **New arrow stop types** go into `buildChronologicalEntries()` only, as `{date, type, key?, days?}`. Dates a stop occupies belong in its `days`, because the weekday builder treats every `days` entry of a holiday-type stop as taken. `currentEntryIndex()` must be able to find the stop again from `state`, or the arrows fall back to week jumps.
+- **Never call `syncDropdown()` before an async fetch.** It writes "Shabbat <date>" into the header and that shows for the length of the request. Write the target's own label (`daysLabel()`) and name first, then fetch.
+- **Date-dependent tests:** don't hard-code "the next X from today". Derive the expectation from the embedded data in the page (as the dropdown Rosh Chodesh check does), and pin walks to fixed dates inside the data window.
+- **Flash checks:** the nav test records every value of `#dateDisplay` with a MutationObserver during a transition; add the same check for any new stop type.
