@@ -412,6 +412,14 @@ footer a:hover{color:var(--gold);}
 }
 .support-btn:hover{border-color:var(--gold)!important;color:var(--gold)!important;}
 footer a:hover{color:var(--gold);}
+/* Powered by Sefaria badge: dark badge on light pages, light badge on dark ones */
+footer .pbs{display:block;width:fit-content;margin:0 auto 0.6rem;line-height:0;}
+footer .pbs img{display:block;height:auto;}
+footer .pbs .pbs-ondark{display:none;}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) footer .pbs .pbs-onlight{display:none;}
+  :root:not([data-theme="light"]) footer .pbs .pbs-ondark{display:block;}}
+[data-theme="dark"] footer .pbs .pbs-onlight{display:none;}
+[data-theme="dark"] footer .pbs .pbs-ondark{display:block;}
 
 /* ── IMPRESSUM MODAL ── */
 dialog{border:none;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.2);
@@ -889,7 +897,13 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
 </dialog>
 
 <footer>
-  Text: <a href="https://sefaria.org" target="_blank">Sefaria.org</a> ·
+  <a class="pbs" href="https://www.sefaria.org" target="_blank" rel="noopener" title="Powered by Sefaria">
+    <img class="pbs-onlight" src="img/powered-by-sefaria-dark.png" alt="Powered by Sefaria" width="104" height="54">
+    <img class="pbs-ondark" src="img/powered-by-sefaria-light.png" alt="Powered by Sefaria" width="104" height="54">
+  </a>
+  Text: <a href="https://www.sefaria.org/texts/Tanakh" target="_blank" rel="noopener">Miqra according to the Masorah</a>
+  (<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA</a>), via
+  <a href="https://sefaria.org" target="_blank">Sefaria.org</a> ·
   Leyning: <a href="https://hebcal.com" target="_blank">Hebcal.com</a> ·
   <a onclick="document.getElementById('impressumDialog').showModal()">Impressum</a> ·
   <a href="mailto:david@schapiro.org?subject=Tikkun%20Generator" class="support-btn">✉ Feedback</a>
