@@ -90,6 +90,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
   color:var(--ink);padding:0.28rem 0.5rem;cursor:pointer;
 }
+/* Desktop: the dropdown gives way before the reading's name does — with
+   three buttons beside it (Verse, Full Year, Custom) its option-length
+   intrinsic width otherwise squeezed longer names onto 3-4 lines. */
+@media(min-width:681px){.parasha-name{flex:0 1 auto;max-width:22rem;}#parashaSelect{flex:1 1 0;min-width:12rem;}}
 .parasha-select optgroup{font-weight:700;color:var(--ink-soft);}
 .parasha-select option{font-weight:400;}
 
@@ -111,7 +115,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   /* Mobile: the two buttons share one row below the dropdown, equal
      width and the same look (icon + label), instead of one full-width
      and one stray half-row button. */
-  #verseLookupBtn,#yearTikkunBtn{order:3;flex:1 1 0;min-width:0;text-align:center;}
+  #verseLookupBtn,#yearTikkunBtn,#customReadingBtn{order:3;flex:1 1 0;min-width:0;text-align:center;}
 }
 .verse-lookup-btn{
   font-family:'Arimo',sans-serif;font-size:0.82rem;font-weight:700;
@@ -119,13 +123,13 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   color:var(--ink);padding:0.28rem 0.6rem;cursor:pointer;white-space:nowrap;
   transition:color 0.12s,border-color 0.12s;}
 .verse-lookup-btn:hover{color:var(--gold);border-color:var(--gold);}
-#verseLookupDialog,#yearTikkunDialog{border:1px solid var(--border);border-radius:10px;
+#verseLookupDialog,#yearTikkunDialog,#customReadingDialog{border:1px solid var(--border);border-radius:10px;
   background:var(--bg-card);color:var(--ink);padding:1.4rem 1.6rem;
   box-shadow:0 4px 24px rgba(0,0,0,0.22);max-width:360px;width:90vw;
   position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;}
 #yearTikkunDialog{max-width:440px;max-height:85vh;overflow-y:auto;}
-#verseLookupDialog::backdrop,#yearTikkunDialog::backdrop{background:rgba(0,0,0,0.45);}
-#verseLookupDialog h3,#yearTikkunDialog h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
+#verseLookupDialog::backdrop,#yearTikkunDialog::backdrop,#customReadingDialog::backdrop{background:rgba(0,0,0,0.45);}
+#verseLookupDialog h3,#yearTikkunDialog h3,#customReadingDialog h3{font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:1rem;}
 .vl-row{display:flex;gap:0.5rem;align-items:center;margin-bottom:0.7rem;}
 .vl-row label{font-size:0.78rem;color:var(--ink-soft);min-width:3rem;}
 .vl-row > select,.vl-row > input{
@@ -139,6 +143,33 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 #vlSubmit{background:var(--gold);color:#fff;}
 #vlCancel{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
 #vlResult{font-size:0.78rem;color:var(--red);margin-top:0.4rem;min-height:1em;}
+/* Custom reading dialog (Nov 2026): own title + own aliyah ranges. */
+#customReadingDialog{max-width:480px;max-height:88vh;overflow-y:auto;}
+.cr-hint{font-size:0.74rem;color:var(--ink-soft);margin:-0.4rem 0 0.8rem;line-height:1.4;}
+.cr-row{display:flex;gap:0.35rem;align-items:center;margin-bottom:0.45rem;}
+.cr-row select,.cr-row input{font-family:'Arimo',sans-serif;font-size:0.82rem;min-width:0;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--ink);padding:0.25rem 0.35rem;}
+.cr-row .cr-key{flex:0 0 6.2rem;}
+.cr-row .cr-book{flex:0 0 7.4rem;}
+.cr-row .cr-range{flex:1 1 4rem;}
+.cr-row .cr-bad{border-color:var(--red);}
+.cr-del{flex:0 0 auto;background:none;border:none;color:var(--ink-pale);font-size:1.1rem;
+  line-height:1;cursor:pointer;padding:0 0.2rem;}
+.cr-del:hover{color:var(--red);}
+#crResult{font-size:0.78rem;color:var(--red);margin-top:0.4rem;min-height:1em;}
+#crSubmit{background:var(--gold);color:#fff;}
+#crCancel,#crClear{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
+#crClear{margin-right:auto;}
+@media(max-width:480px){
+  /* Phones: the verse field keeps its width ("28:13-15" must stay
+     readable); the book select gives way and truncates instead. */
+  #customReadingDialog{width:94vw;padding:1.1rem 1rem;}
+  .cr-row{gap:0.25rem;}
+  .cr-row .cr-key{flex:0 0 5.1rem;}
+  .cr-row .cr-book{flex:1 1 0;}
+  .cr-row .cr-range{flex:0 0 6.2rem;}
+}
 .yt-family-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);
   border-radius:var(--radius);padding:0.5rem 0.7rem;margin-bottom:0.7rem;}
 .yt-family-row{display:flex;align-items:flex-start;gap:0.5rem;padding:0.25rem 0;font-size:0.78rem;}
@@ -698,11 +729,15 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     </select>
     <button class="verse-lookup-btn" id="verseLookupBtn" title="Jump to a specific verse">
       <span class="vl-desktop">🔍 Verse</span>
-      <span class="vl-mobile">🔍 Look up a verse</span>
+      <span class="vl-mobile">🔍 Verse</span>
     </button>
     <button class="verse-lookup-btn" id="yearTikkunBtn" title="Build a printable Tikkun for a whole Hebrew year">
       <span class="vl-desktop">📅 Full Year</span>
-      <span class="vl-mobile">📅 Full-year Tikkun</span>
+      <span class="vl-mobile">📅 Full year</span>
+    </button>
+    <button class="verse-lookup-btn" id="customReadingBtn" title="Your own title and aliyah division — for a minyan with its own custom, a Bar/Bat Mitzvah, a class">
+      <span class="vl-desktop">✏️ Custom</span>
+      <span class="vl-mobile">✏️ Custom</span>
     </button>
   </div>
   <div class="toggle-row">
@@ -814,6 +849,32 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
   <div class="vl-actions">
     <button id="vlCancel">Cancel</button>
     <button id="vlSubmit">Go</button>
+  </div>
+</dialog>
+
+<dialog id="customReadingDialog" aria-label="Custom reading">
+  <h3>Custom reading</h3>
+  <p class="cr-hint">Your own title and aliyah division — for a minyan with its own custom,
+    a Bar/Bat Mitzvah, a class. Works in both tabs, prints like any other reading,
+    and the 🔗 link shares it. Ranges like <b>28:13-15</b> or <b>28:13-29:2</b>.</p>
+  <div class="vl-row">
+    <label for="crTitle">Title</label>
+    <input id="crTitle" list="crTitleSuggestions" maxlength="80" placeholder="e.g. Shabbat Reading" autocomplete="off">
+    <datalist id="crTitleSuggestions">
+      <option value="Shabbat Reading"></option>
+      <option value="Weekday Reading"></option>
+      <option value="Bar Mitzvah"></option>
+      <option value="Bat Mitzvah"></option>
+      <option value="B'nei Mitzvah"></option>
+    </datalist>
+  </div>
+  <div id="crRows"></div>
+  <button type="button" class="te-add" id="crAddRow">+ Add aliyah</button>
+  <div id="crResult"></div>
+  <div class="vl-actions">
+    <button type="button" id="crClear">Clear</button>
+    <button type="button" id="crCancel">Cancel</button>
+    <button type="button" id="crSubmit">Show</button>
   </div>
 </dialog>
 
@@ -974,7 +1035,15 @@ const state = {
   chCache:    {},
   genId:      0,
   holidayKey: null,
-  weekdayLeyning: null
+  weekdayLeyning: null,
+  // Custom reading (Nov 2026): {title, aliyot:[{key, book, sc, sv, ec, ev}]}
+  // — the user's own title and aliyah division. Takes precedence over
+  // holidayKey/weekdayLeyning/refDate in generate(); every control that
+  // picks a regular reading (dropdown, arrows, Shabbat/Weekday, verse
+  // lookup) sets it back to null.
+  custom: null,
+  // Ranges of the last rendered reading, used to prefill the custom dialog.
+  lastAliyot: null
 };
 
 // One-shot restore instructions from a shared link, consumed the first
@@ -1289,6 +1358,7 @@ function navigateReading(dir) {
   const i = currentEntryIndex(entries);
   const target = (i === -1) ? null : entries[i + dir];
 
+  state.custom = null;
   state.weekdayLeyning = null;
   syncReadingTypeToggle();
   state.chCache = {};
@@ -1387,12 +1457,92 @@ function findVerseLocation(book, ch, v, locKey) {
   return null;
 }
 
+// ── Custom reading helpers (Nov 2026) ──────────────────────────────────
+const CUSTOM_KEYS = ['1','2','3','4','5','6','7','maftir'];
+
+// "28:13-15", "28:13-28:15", "28.13-15", "28:13" (one verse), en/em dash.
+// Returns {sc,sv,ec,ev} or {error}.
+function parseCustomRange(book, str) {
+  const counts = TORAH_VERSE_COUNTS[book];
+  const t = String(str || '').trim().replace(/[–—]/g, '-').replace(/\s+/g, '');
+  if (!t) return {error: 'enter a range'};
+  const m = t.match(/^(\d+)[:.,](\d+)(?:-(?:(\d+)[:.,])?(\d+))?$/);
+  if (!m) return {error: `"${str}" is not a range like 28:13-15`};
+  const sc = +m[1], sv = +m[2];
+  const ec = m[3] ? +m[3] : sc;
+  const ev = m[4] ? +m[4] : sv;
+  if (!counts || sc < 1 || sc > counts.length) return {error: `${book} has no chapter ${sc}`};
+  if (sv < 1 || sv > counts[sc - 1]) return {error: `${book} ${sc} has only ${counts[sc - 1]} verses`};
+  if (ec < 1 || ec > counts.length) return {error: `${book} has no chapter ${ec}`};
+  if (ev < 1 || ev > counts[ec - 1]) return {error: `${book} ${ec} has only ${counts[ec - 1]} verses`};
+  if (ec * 1000 + ev < sc * 1000 + sv) return {error: `${sc}:${sv}-${ec}:${ev} ends before it starts`};
+  return {sc, sv, ec, ev};
+}
+// Internal range format, the same one Hebcal data uses ("Genesis 28:13-28:15").
+function customRangeStr(a) { return `${a.book} ${a.sc}:${a.sv}-${a.ec}:${a.ev}`; }
+// Short form for the input field and the header ("28:13-15", "28:13-29:2").
+function customShortRange(a) {
+  return a.sc === a.ec ? (a.sv === a.ev ? `${a.sc}:${a.sv}` : `${a.sc}:${a.sv}-${a.ev}`)
+    : `${a.sc}:${a.sv}-${a.ec}:${a.ev}`;
+}
+function sortCustomAliyot(list) {
+  return list.slice().sort((x, y) => CUSTOM_KEYS.indexOf(x.key) - CUSTOM_KEYS.indexOf(y.key));
+}
+// One line for the meta row: "Genesis 28:13-22" when the aliyot run on
+// in one book without gaps, otherwise each range ("Genesis 28:13-15, …").
+function customSummary(c) {
+  const a = sortCustomAliyot(c.aliyot);
+  if (!a.length) return '';
+  const book = a[0].book;
+  const contiguous = a.every((x, i) => x.book === book && (i === 0 || (() => {
+    const p = a[i - 1];
+    const counts = TORAH_VERSE_COUNTS[book];
+    const next = p.ev < counts[p.ec - 1] ? [p.ec, p.ev + 1] : [p.ec + 1, 1];
+    return x.sc === next[0] && x.sv === next[1];
+  })()));
+  if (contiguous) return `${book} ${customShortRange({sc:a[0].sc, sv:a[0].sv, ec:a[a.length-1].ec, ev:a[a.length-1].ev})}`;
+  return a.map((x, i) => (i === 0 || x.book !== a[i-1].book ? x.book + ' ' : '') + customShortRange(x)).join(', ');
+}
+// Share link: ct=<title>&cr=2_Genesis.28.13-28.15,3_Genesis.28.16-28.19
+function encodeCustomAliyot(c) {
+  return sortCustomAliyot(c.aliyot).map(a => `${a.key}_${a.book}.${a.sc}.${a.sv}-${a.ec}.${a.ev}`).join(',');
+}
+function decodeCustom(title, cr) {
+  const aliyot = [];
+  for (const part of String(cr || '').split(',')) {
+    const m = part.match(/^(\w+)_([A-Za-z]+)\.(\d+)\.(\d+)-(\d+)\.(\d+)$/);
+    if (!m || !CUSTOM_KEYS.includes(m[1]) || aliyot.some(a => a.key === m[1])) continue;
+    const book = BOOK_CANON[m[2].toLowerCase()];
+    if (!book) continue;
+    const r = parseCustomRange(book, `${m[3]}:${m[4]}-${m[5]}:${m[6]}`);
+    if (r.error) continue;
+    aliyot.push({key: m[1], book, ...r});
+  }
+  return aliyot.length ? {title: String(title || '').slice(0, 80), aliyot: sortCustomAliyot(aliyot)} : null;
+}
+// The Cycle and Diaspora/Israel toggles mean nothing for a custom reading
+// (its ranges are fixed), so they're dimmed; Shabbat/Weekday shows neither
+// as active, and clicking either one leaves the custom reading.
+function syncCustomControls() {
+  const on = !!state.custom;
+  for (const id of ['modeToggle', 'locToggle']) {
+    const g = document.getElementById(id);
+    if (!g) continue;
+    g.classList.toggle('tg-inactive', on);
+    g.title = on ? 'Not used by a custom reading' : '';
+  }
+  if (on) document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+}
+
 // Reflects current state into the URL so it can be copied/shared and will
 // reproduce the exact same view on load. Uses replaceState (not pushState)
 // so navigating parashiot doesn't spam the browser history stack.
 function syncUrl() {
   const params = new URLSearchParams();
-  if (state.weekdayLeyning) {
+  if (state.custom) {
+    if (state.custom.title) params.set('ct', state.custom.title);
+    params.set('cr', encodeCustomAliyot(state.custom));
+  } else if (state.weekdayLeyning) {
     params.set('d', (state.weekdayLeyning.days || [state.weekdayLeyning.date])[0]); // Monday of a merged stop, else the exact day (old links with the Shabbat date still work)
     params.set('wd', '1');
   } else if (state.holidayKey) {
@@ -1400,9 +1550,11 @@ function syncUrl() {
   } else {
     params.set('d', dateStr(toShabbat(state.refDate)));
   }
-  if (state.israel) params.set('il', '1');
-  if (state.mode !== 'triennial') params.set('mode', state.mode);
-  if (state.regularMaftir) params.set('maftir', '1');
+  if (!state.custom) {
+    if (state.israel) params.set('il', '1');
+    if (state.mode !== 'triennial') params.set('mode', state.mode);
+    if (state.regularMaftir) params.set('maftir', '1');
+  }
   if (tropeMode !== 'off') params.set('tc', '1');
 
   // Aliyah filter — only include when it's a strict subset, so the common
@@ -1655,6 +1807,7 @@ function daysLabel(days) {
     : `${wd(a)} ${f(a, {month:'short', day:'numeric'})} / ${wd(b)} ${f(b, {month:'short', day:'numeric', year:'numeric'})}`;
 }
 async function loadWeekdayReading(entry) {
+  state.custom = null;
   state.holidayKey = null;
   state.chCache = {};
   if (!entry) entry = weekdayEntryFor(dateStr(state.refDate));
@@ -2780,9 +2933,12 @@ function renderOutput(p, aliyotData, isHoliday) {
     : (isHoliday && p.leyning && p.leyning.hdate) ? p.leyning.hdate
     : null;
   const dateLabel = hebrewDate ? `${hebrewDate} · ${p.date||''}` : (p.date||'');
-  const meta = `${dateLabel} · ${modeLbl} · ${state.israel?'Israel':'Diaspora'}`;
-  const heTitle = p.hebrew || p.title || '';
-  const enTitle = (p.title||'').replace('Parashat ','').replace('Parashas ','');
+  const meta = p.custom
+    ? `Custom reading · ${escHtml(customSummary(state.custom))}`
+    : `${dateLabel} · ${modeLbl} · ${state.israel?'Israel':'Diaspora'}`;
+  // Escaped: a custom reading's title is typed in by the user.
+  const heTitle = escHtml(p.hebrew || p.title || '');
+  const enTitle = escHtml((p.title||'').replace('Parashat ','').replace('Parashas ',''));
 
   const printHdr = (type) => `<div class="print-header">
     <div class="ph-he">${heTitle}</div>
@@ -3213,7 +3369,19 @@ async function generate() {
   try {
     let p, leyningData, isHoliday=false;
 
-    if (state.weekdayLeyning) {
+    if (state.custom) {
+      // Reuses the holiday rendering rules: ranges taken as they are, no
+      // triennial/maftir switching.
+      isHoliday = true;
+      const c = state.custom;
+      const title = c.title || 'Custom reading';
+      leyningData = {};
+      for (const a of c.aliyot) leyningData[a.key] = customRangeStr(a);
+      p = { title, hebrew: title, date: '', hdate: '', leyning: leyningData, custom: true };
+      updateParashaName(title);
+      document.getElementById('parashaSelect').value = '';
+      document.getElementById('dateDisplay').textContent = 'Custom reading';
+    } else if (state.weekdayLeyning) {
       isHoliday = true; // reuse holiday rendering rules: no triennial, no regularMaftir toggle
       const w = state.weekdayLeyning;
       p = { title: w.title, date: w.date, hebrew: w.title, hdate: w.date, leyning: w.leyning };
@@ -3302,6 +3470,8 @@ async function generate() {
       if(leyningData.maftir) ranges['maftir']=leyningData.maftir;
     }
 
+    syncCustomControls();
+    state.lastAliyot = Object.entries(ranges).map(([k, range]) => ({key: k, range}));
     const aliyotData = {};
     for (const [k,range] of Object.entries(ranges)) {
       aliyotData[k] = {range, verses: await fetchVerses(range)};
@@ -3579,6 +3749,105 @@ function rebuildDropdown() {
   });
 }
 
+// ── Custom reading dialog ──────────────────────────────────────────────
+function initCustomReadingDialog() {
+  const dlg = document.getElementById('customReadingDialog');
+  const rowsEl = document.getElementById('crRows');
+  const result = document.getElementById('crResult');
+  const books = Object.keys(TORAH_VERSE_COUNTS);
+
+  const addRow = (a) => {
+    a = a || {};
+    const used = [...rowsEl.querySelectorAll('.cr-key')].map(s => s.value);
+    const key = a.key || CUSTOM_KEYS.find(k => !used.includes(k)) || 'maftir';
+    const prevBook = [...rowsEl.querySelectorAll('.cr-book')].map(s => s.value).pop();
+    const book = a.book || prevBook || 'Genesis';
+    const row = document.createElement('div');
+    row.className = 'cr-row';
+    row.innerHTML = `<select class="cr-key" aria-label="Aliyah">${CUSTOM_KEYS.map(k =>
+        `<option value="${k}"${k === key ? ' selected' : ''}>${LABELS[k].en}</option>`).join('')}</select>
+      <select class="cr-book" aria-label="Book">${books.map(b =>
+        `<option value="${b}"${b === book ? ' selected' : ''}>${b}</option>`).join('')}</select>
+      <input class="cr-range" aria-label="Verses" placeholder="28:13-15" autocomplete="off" spellcheck="false"
+        value="${a.sc ? customShortRange(a) : ''}">
+      <button type="button" class="cr-del" title="Remove this aliyah" aria-label="Remove this aliyah">×</button>`;
+    row.querySelector('.cr-del').addEventListener('click', () => { row.remove(); result.textContent = ''; });
+    row.querySelector('.cr-range').addEventListener('input', e => e.target.classList.remove('cr-bad'));
+    rowsEl.appendChild(row);
+    return row;
+  };
+
+  const fill = (c) => {
+    rowsEl.innerHTML = '';
+    result.textContent = '';
+    document.getElementById('crTitle').value = c ? (c.title || '') : '';
+    for (const a of (c ? c.aliyot : [])) addRow(a);
+    if (!rowsEl.children.length) addRow();
+  };
+
+  // Prefill: the custom reading being edited, or else the reading on
+  // screen (its name as title, its aliyot as rows) — so changing one
+  // aliyah boundary of a regular reading is a single edit.
+  const prefill = () => {
+    if (state.custom) return state.custom;
+    const aliyot = [];
+    for (const {key, range} of (state.lastAliyot || [])) {
+      const pr = parseRange(range);
+      if (pr && CUSTOM_KEYS.includes(key) && TORAH_VERSE_COUNTS[pr.book]) aliyot.push({key, ...pr});
+    }
+    const name = document.getElementById('parashaName').textContent.trim();
+    return {title: name && name !== '—' ? name : '', aliyot};
+  };
+
+  document.getElementById('customReadingBtn').addEventListener('click', () => {
+    fill(prefill());
+    dlg.showModal();
+  });
+  document.getElementById('crAddRow').addEventListener('click', () => {
+    if (rowsEl.children.length >= CUSTOM_KEYS.length) {
+      result.textContent = `At most ${CUSTOM_KEYS.length} aliyot (Rishon to Shvi'i and Maftir).`;
+      return;
+    }
+    addRow().querySelector('.cr-range').focus();
+  });
+  document.getElementById('crClear').addEventListener('click', () => {
+    fill(null);
+    document.getElementById('crTitle').focus();
+  });
+  document.getElementById('crCancel').addEventListener('click', () => dlg.close());
+  document.getElementById('crSubmit').addEventListener('click', () => {
+    const aliyot = [], errors = [];
+    const seen = new Set();
+    for (const row of rowsEl.querySelectorAll('.cr-row')) {
+      const key = row.querySelector('.cr-key').value;
+      const book = row.querySelector('.cr-book').value;
+      const input = row.querySelector('.cr-range');
+      if (!input.value.trim()) continue; // empty rows are ignored
+      const r = parseCustomRange(book, input.value);
+      const lbl = LABELS[key].en;
+      if (r.error) { errors.push(`${lbl}: ${r.error}.`); input.classList.add('cr-bad'); continue; }
+      if (seen.has(key)) { errors.push(`${lbl} appears twice.`); input.classList.add('cr-bad'); continue; }
+      seen.add(key);
+      aliyot.push({key, book, ...r});
+    }
+    if (!errors.length && !aliyot.length) errors.push('Enter the verses of at least one aliyah.');
+    if (errors.length) { result.textContent = errors.join(' '); return; }
+    state.custom = {
+      title: document.getElementById('crTitle').value.trim().slice(0, 80),
+      aliyot: sortCustomAliyot(aliyot),
+    };
+    state.chCache = {};
+    dlg.close();
+    generate().then(() => window.scrollTo({top: 0}));
+  });
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+      document.getElementById('crSubmit').click();
+    }
+  });
+}
+
 function init() {
   initAudio();
   // Restore a shared link's state, if present, before any default is
@@ -3596,6 +3865,7 @@ function init() {
   });
 
   let pendingWeekday = false;
+  if (urlParams.has('cr')) state.custom = decodeCustom(urlParams.get('ct'), urlParams.get('cr'));
   if (urlParams.has('h')) {
     state.holidayKey = urlParams.get('h');
     state.refDate = toShabbat(new Date());
@@ -3691,6 +3961,7 @@ function init() {
 
   document.getElementById('parashaSelect').addEventListener('change',function(){
     if (!this.value) return;
+    state.custom = null;
     state.weekdayLeyning = null;
     syncReadingTypeToggle();
     if (this.value.startsWith('holiday|')) {
@@ -3740,6 +4011,7 @@ function init() {
       if (btn.dataset.val === 'weekday') {
         loadWeekdayReading();
       } else {
+        state.custom = null;
         state.weekdayLeyning = null;
         state.holidayKey = null;
         state.chCache = {};
@@ -3780,6 +4052,8 @@ function init() {
     const wrap = document.getElementById('aliyahFilter');
     if (!wrap.contains(e.target)) document.getElementById('aliyahMsPanel').style.display = 'none';
   });
+
+  initCustomReadingDialog();
 
   // Layout toggle: Side-by-Side / Either-Or
   document.getElementById('verseLookupBtn').addEventListener('click', () => {
@@ -3824,6 +4098,7 @@ function init() {
       document.querySelector('#columnToggle .toggle-btn[data-val="tikkun"]').click();
     }
 
+    state.custom = null;
     state.holidayKey = null;
     state.weekdayLeyning = null;
     state.refDate = new Date(found.parasha.date + 'T12:00:00');
@@ -3953,7 +4228,7 @@ function init() {
       b.classList.toggle('active', b.dataset.val === 'israel'));
   }
   syncDropdown();
-  if (pendingWeekday) {
+  if (pendingWeekday && !state.custom) {
     document.querySelectorAll('#readingTypeToggle .toggle-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.val === 'weekday'));
     loadWeekdayReading();
