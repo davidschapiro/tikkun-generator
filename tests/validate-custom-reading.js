@@ -91,6 +91,10 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
 
   // 2. The real request.
   await setRows([['2', 'Genesis', '28:13-15'], ['3', 'Genesis', '28.16–19'], ['4', 'Genesis', '28:20-28:22']]);
+  check(await page.evaluate(() => !document.querySelector('#crTitle').hasAttribute('list') && !document.querySelector('datalist')),
+    'title field has no datalist (no fake dropdown arrow)');
+  await page.click('#crSuggest button:has-text("Bat Mitzvah")');
+  check(await page.inputValue('#crTitle') === 'Bat Mitzvah', 'suggestion chip fills the title');
   await page.fill('#crTitle', 'Bar Mitzvah <b>X</b>');
   await page.click('#crSubmit');
   await ready();

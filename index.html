@@ -158,6 +158,11 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
   line-height:1;cursor:pointer;padding:0 0.2rem;}
 .cr-del:hover{color:var(--red);}
 #crResult{font-size:0.78rem;color:var(--red);margin-top:0.4rem;min-height:1em;}
+.cr-suggest{display:flex;flex-wrap:wrap;gap:0.3rem;margin:-0.2rem 0 0.8rem;}
+.cr-suggest button{font-family:'Arimo',sans-serif;font-size:0.72rem;cursor:pointer;
+  background:var(--bg);border:1px solid var(--border);border-radius:999px;
+  color:var(--ink-soft);padding:0.15rem 0.6rem;}
+.cr-suggest button:hover{border-color:var(--gold);color:var(--gold);}
 #crSubmit{background:var(--gold);color:#fff;}
 #crCancel,#crClear{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);}
 #crClear{margin-right:auto;}
@@ -859,14 +864,18 @@ dialog::backdrop{background:rgba(0,0,0,0.4);}
     and the 🔗 link shares it. Ranges like <b>28:13-15</b> or <b>28:13-29:2</b>.</p>
   <div class="vl-row">
     <label for="crTitle">Title</label>
-    <input id="crTitle" list="crTitleSuggestions" maxlength="80" placeholder="e.g. Shabbat Reading" autocomplete="off">
-    <datalist id="crTitleSuggestions">
-      <option value="Shabbat Reading"></option>
-      <option value="Weekday Reading"></option>
-      <option value="Bar Mitzvah"></option>
-      <option value="Bat Mitzvah"></option>
-      <option value="B'nei Mitzvah"></option>
-    </datalist>
+    <input id="crTitle" maxlength="80" placeholder="e.g. Shabbat Reading" autocomplete="off">
+  </div>
+  <!-- Tap-to-fill chips, not a <datalist>: Chrome on Android draws a
+       dropdown arrow for a datalist but only lists entries matching what's
+       already typed, so with a title in the field it looked like a broken
+       dropdown (David, Nov 2026). -->
+  <div class="cr-suggest" id="crSuggest">
+    <button type="button">Shabbat Reading</button>
+    <button type="button">Weekday Reading</button>
+    <button type="button">Bar Mitzvah</button>
+    <button type="button">Bat Mitzvah</button>
+    <button type="button">B'nei Mitzvah</button>
   </div>
   <div id="crRows"></div>
   <button type="button" class="te-add" id="crAddRow">+ Add aliyah</button>
@@ -3803,6 +3812,11 @@ function initCustomReadingDialog() {
     fill(prefill());
     dlg.showModal();
   });
+  document.querySelectorAll('#crSuggest button').forEach(b => b.addEventListener('click', () => {
+    const t = document.getElementById('crTitle');
+    t.value = b.textContent;
+    t.focus();
+  }));
   document.getElementById('crAddRow').addEventListener('click', () => {
     if (rowsEl.children.length >= CUSTOM_KEYS.length) {
       result.textContent = `At most ${CUSTOM_KEYS.length} aliyot (Rishon to Shvi'i and Maftir).`;
