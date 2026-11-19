@@ -171,7 +171,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
      readable); the book select gives way and truncates instead. */
   #customReadingDialog{width:94vw;padding:1.1rem 1rem;}
   .cr-row{gap:0.25rem;}
-  .cr-row .cr-key{flex:0 0 5.1rem;}
+  .cr-row .cr-key{flex:0 0 6.3rem;}
   .cr-row .cr-book{flex:1 1 0;}
   .cr-row .cr-range{flex:0 0 6.2rem;}
 }
@@ -330,6 +330,8 @@ html[data-trope] .trope-legend{display:flex;}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
+/* "Hosafah 1" / "הוספה א׳" stay on one line (Nov 2026). */
+.lbl-en,.lbl-he{white-space:nowrap;}
 .lbl-range{font-size:0.82rem;opacity:0.82;justify-self:center;white-space:nowrap;}
 
 /* Audio (vayavinu.com recordings, see buildAudioPanel). The ▶ button sits
@@ -1190,6 +1192,25 @@ const LABELS = {
   '5':{he:'חמישי',en:'Chamishi'},'6':{he:'שישי',en:'Shishi'},
   '7':{he:'שביעי',en:"Shvi'i"},'maftir':{he:'מפטיר',en:'Maftir'},
 };
+// Aliyot beyond Shvi'i (Nov 2026). Keys '8'…'20' are labelled Hosafah 1…13
+// (added aliyot). Hebcal data has exactly one such key: Simchat Torah on
+// Shabbat in Israel, '8' = Genesis 1:1-2:3 — which every hardcoded
+// '1'..'7' list silently dropped before this.
+const MAX_ALIYOT = 20;
+const ALIYAH_NUMS = Array.from({length: MAX_ALIYOT}, (_, i) => String(i + 1));
+const ALIYAH_ORDER = [...ALIYAH_NUMS, 'maftir'];
+{
+  const heNum = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ז׳','ח׳','ט׳','י׳','י״א','י״ב','י״ג'];
+  for (let n = 8; n <= MAX_ALIYOT; n++) LABELS[String(n)] = {he: `הוספה ${heNum[n - 8]}`, en: `Hosafah ${n - 7}`};
+}
+// Header color for any key: aliyot past Shvi'i reuse the palette from
+// Rishon on (8 → Rishon's color, …), so neighbours never share a color.
+function aliyahColor(key, isHoliday) {
+  const colors = isHoliday ? HOLIDAY_COLORS : SHABBAT_COLORS;
+  if (colors[key]) return colors[key];
+  const n = parseInt(key, 10);
+  return n > 7 ? colors[String((n - 8) % 7 + 1)] : '#333';
+}
 const SHABBAT_COLORS = {
   '1':'#3d2b1a','2':'#1e3b1e','3':'#1a2e42','4':'#3b1a30',
   '5':'#283b18','6':'#18303b','7':'#3b2e18','maftir':'#5e1e1e'
@@ -1467,7 +1488,7 @@ function findVerseLocation(book, ch, v, locKey) {
 }
 
 // ── Custom reading helpers (Nov 2026) ──────────────────────────────────
-const CUSTOM_KEYS = ['1','2','3','4','5','6','7','maftir'];
+const CUSTOM_KEYS = ALIYAH_ORDER;
 
 // "28:13-15", "28:13-28:15", "28.13-15", "28:13" (one verse), en/em dash.
 // Returns {sc,sv,ec,ev} or {error}.
@@ -1897,7 +1918,7 @@ function computeWeekdayBreakMarkers(weekdayLeyning) {
 function assignBreaksToAliyot(weekdayBreaks, aliyotData) {
   const result = {};
   if (!weekdayBreaks) return result;
-  const parsed = ['1','2','3','4','5','6','7']
+  const parsed = ALIYAH_NUMS
     .filter(k => aliyotData[k])
     .map(k => ({ k, r: parseRange(aliyotData[k].range) }))
     .filter(x => x.r);
@@ -2888,8 +2909,7 @@ function initAudio() {
 
 function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
   const lbl = LABELS[key] || {he:key,en:key};
-  const colors = isHoliday ? HOLIDAY_COLORS : SHABBAT_COLORS;
-  const col = colors[key] || '#333';
+  const col = aliyahColor(key, isHoliday);
   const displayRange = rangeStr.split(' | ')[0];
   const hasAudio = audioMatchesForRange(rangeStr).length > 0;
   const audioBtn = hasAudio
@@ -2954,7 +2974,7 @@ function renderOutput(p, aliyotData, isHoliday) {
     <div class="ph-en">${enTitle} · ${type}</div>
     <div class="ph-meta">${meta}</div></div>`;
 
-  const keys = ['1','2','3','4','5','6','7','maftir'];
+  const keys = ALIYAH_ORDER;
   let practiceHTML='', bimaHTML='';
   const renderedKeys = [];
   for (const k of keys) {
@@ -3140,14 +3160,14 @@ function shabbatDatesInYear(hebrewYear, locKey) {
 function rangesForOccasion(o, mode) {
   const ranges = {};
   if (o.kind === 'holiday' || o.kind === 'weekday') {
-    for (const k of ['1','2','3','4','5','6','7']) if (o.data[k]) ranges[k] = o.data[k];
+    for (const k of ALIYAH_NUMS) if (o.data[k]) ranges[k] = o.data[k];
     if (o.data.maftir) ranges.maftir = o.data.maftir;
   } else if (mode === 'triennial' && o.data.triennial) {
     const t = o.data.triennial;
-    for (const k of ['1','2','3','4','5','6','7']) if (t[k]) ranges[k] = t[k];
+    for (const k of ALIYAH_NUMS) if (t[k]) ranges[k] = t[k];
     if (t.maftir) ranges.maftir = t.maftir;
   } else {
-    for (const k of ['1','2','3','4','5','6','7']) if (o.data.ranges[k]) ranges[k] = o.data.ranges[k];
+    for (const k of ALIYAH_NUMS) if (o.data.ranges[k]) ranges[k] = o.data.ranges[k];
     if (o.data.ranges.maftir) ranges.maftir = o.data.ranges.maftir;
   }
   return ranges;
@@ -3190,7 +3210,7 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
 
   let bimaHTML = '';
   const breaksByKey = assignBreaksToAliyot(o.weekdayBreaks, aliyotData);
-  for (const k of ['1','2','3','4','5','6','7','maftir']) {
+  for (const k of ALIYAH_ORDER) {
     if (!aliyotData[k]) continue;
     const {range, verses} = aliyotData[k];
     // Full Kriyah + Shabbat + Weekday all selected together marks the
@@ -3466,7 +3486,7 @@ async function generate() {
     const ranges = {};
     if (!isHoliday && state.mode==='triennial' && leyningData.triennial) {
       const t = leyningData.triennial;
-      for (const k of ['1','2','3','4','5','6','7']) if(t[k]) ranges[k]=t[k];
+      for (const k of ALIYAH_NUMS) if(t[k]) ranges[k]=t[k];
       // Some communities read the regular (full-kriyah) maftir even on a
       // triennial week, rather than the triennial cycle's own maftir —
       // user-toggleable since this varies by community custom, not a
@@ -3475,7 +3495,7 @@ async function generate() {
       if (state.regularMaftir && leyningData.maftir) ranges['maftir'] = leyningData.maftir;
       else if (t.maftir) ranges['maftir'] = t.maftir;
     } else {
-      for (const k of ['1','2','3','4','5','6','7']) if(leyningData[k]) ranges[k]=leyningData[k];
+      for (const k of ALIYAH_NUMS) if(leyningData[k]) ranges[k]=leyningData[k];
       if(leyningData.maftir) ranges['maftir']=leyningData.maftir;
     }
 
@@ -3524,7 +3544,7 @@ function populateAliyahFilter(aliyotData) {
   const wrap = document.getElementById('aliyahFilter');
   const trigger = document.getElementById('aliyahMsTrigger');
   const panel = document.getElementById('aliyahMsPanel');
-  const keys = ['1','2','3','4','5','6','7','maftir'].filter(k => aliyotData[k]);
+  const keys = ALIYAH_ORDER.filter(k => aliyotData[k]);
   panel.innerHTML = '';
 
   const allRow = document.createElement('label');
@@ -3819,7 +3839,7 @@ function initCustomReadingDialog() {
   }));
   document.getElementById('crAddRow').addEventListener('click', () => {
     if (rowsEl.children.length >= CUSTOM_KEYS.length) {
-      result.textContent = `At most ${CUSTOM_KEYS.length} aliyot (Rishon to Shvi'i and Maftir).`;
+      result.textContent = `At most ${CUSTOM_KEYS.length} aliyot (Rishon to Hosafah ${MAX_ALIYOT - 7} and Maftir).`;
       return;
     }
     addRow().querySelector('.cr-range').focus();
