@@ -189,7 +189,7 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     cr: new URLSearchParams(location.search).get('cr'),
   }));
   check(h.keys === '1,2,3,4,5,6,7,8,9,maftir', `aliyot render in order through Hosafah 2 and Maftir (${h.keys})`);
-  check(h.labels[7] === 'Hosafah 1' && h.labels[8] === 'Hosafah 2' && h.labels[9] === 'Maftir', `labels: ${h.labels.slice(6).join(', ')}`);
+  check(h.labels[7] === 'Hosafah\u00a01' && h.labels[8] === 'Hosafah\u00a02' && h.labels[9] === 'Maftir', `labels: ${h.labels.slice(6).join(', ')}`);
   check(h.colors['8'] !== h.colors['7'] && h.colors['9'] !== h.colors['8'] && h.colors['9'] !== h.colors.maftir, 'added aliyot get colors distinct from their neighbours');
   check(h.jump === ',1,2,3,4,5,6,7,8,9,maftir' && h.filter === '1,2,3,4,5,6,7,8,9,maftir', 'jump dropdown and aliyah filter list the added aliyot');
   check(/(^|,)8_Genesis\.28\.18-28\.18,9_Genesis\.28\.19-28\.19,/.test(h.cr) && /maftir_Genesis\.28\.20-28\.22$/.test(h.cr), `link carries the added aliyot (${h.cr})`);
@@ -200,6 +200,26 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
   const st = await page.evaluate(() => [...document.querySelectorAll('.practice-section .aliyah')].map(s =>
     s.dataset.aliyah + ' ' + s.querySelector('.lbl-range').textContent.replace(/\s+/g, ' ').replace('▶ Listen', '').trim()));
   check(st.length === 9 && /^8 Genesis 1:1-2:3/.test(st[7]), `Israel Simchat Torah on Shabbat shows its 8th aliyah (${st[7]})`);
+  const lblOf = () => page.evaluate(() => {
+    const s = [...document.querySelectorAll('.practice-section .aliyah')].find(x => /Genesis 1:1-2:3/.test(x.querySelector('.lbl-range').textContent));
+    const b = [...document.querySelectorAll('.bima-section .aliyah')].find(x => /Genesis 1:1-2:3/.test(x.querySelector('.lbl-range').textContent));
+    const k = s && s.dataset.aliyah;
+    return { k, en: s && s.querySelector('.lbl-en').textContent.trim(), he: s && s.querySelector('.lbl-he').textContent.trim(),
+      bima: b && b.querySelector('.lbl-en').textContent.trim(),
+      jump: [...document.querySelectorAll('#aliyahJumpSelect option')].find(o => o.value === k)?.textContent,
+      filter: [...document.querySelectorAll('#aliyahMsPanel .aliyah-ms-row')].find(r => r.querySelector('.aliyah-cb')?.dataset.aliyah === k)?.textContent.trim() };
+  });
+  const cb = await lblOf();
+  check(cb.k === '8' && cb.en === 'Chatan Bereshit' && cb.he === 'חתן בראשית' && cb.bima === 'Chatan Bereshit'
+    && /^Chatan Bereshit/.test(cb.jump) && /^Chatan Bereshit/.test(cb.filter), `Israel: aliyah 8 labelled Chatan Bereshit everywhere (${JSON.stringify(cb)})`);
+  await page.goto(PAGE_URL + '?h=' + encodeURIComponent('2026-10-04|Simchat Torah'));
+  await ready();
+  const cbd = await lblOf();
+  check(cbd.k === '7' && cbd.en === 'Chatan Bereshit', `Diaspora: aliyah 7 labelled Chatan Bereshit (${cbd.k} ${cbd.en})`);
+  await page.goto(PAGE_URL + '?d=2026-10-10&mode=full');
+  await ready();
+  check(await page.evaluate(() => document.querySelector('.practice-section .aliyah[data-aliyah="1"] .lbl-en').textContent.trim()) === 'Rishon',
+    'Parashat Bereshit keeps "Rishon" (label only changes on Simchat Torah)');
 
   // Mobile: the three header buttons share a row without overflowing.
   await page.setViewportSize({ width: 360, height: 800 });

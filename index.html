@@ -330,8 +330,6 @@ html[data-trope] .trope-legend{display:flex;}
 .lbl-he{font-family:'Arimo',sans-serif;font-size:1.05rem;font-weight:700;
   direction:rtl;justify-self:end;letter-spacing:0.01em;}
 .lbl-en{font-size:0.9rem;font-weight:700;letter-spacing:0.04em;justify-self:start;}
-/* "Hosafah 1" / "הוספה א׳" stay on one line (Nov 2026). */
-.lbl-en,.lbl-he{white-space:nowrap;}
 .lbl-range{font-size:0.82rem;opacity:0.82;justify-self:center;white-space:nowrap;}
 
 /* Audio (vayavinu.com recordings, see buildAudioPanel). The ▶ button sits
@@ -1201,7 +1199,17 @@ const ALIYAH_NUMS = Array.from({length: MAX_ALIYOT}, (_, i) => String(i + 1));
 const ALIYAH_ORDER = [...ALIYAH_NUMS, 'maftir'];
 {
   const heNum = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ז׳','ח׳','ט׳','י׳','י״א','י״ב','י״ג'];
-  for (let n = 8; n <= MAX_ALIYOT; n++) LABELS[String(n)] = {he: `הוספה ${heNum[n - 8]}`, en: `Hosafah ${n - 7}`};
+  for (let n = 8; n <= MAX_ALIYOT; n++) LABELS[String(n)] = {he: `הוספה\u00a0${heNum[n - 8]}`, en: `Hosafah\u00a0${n - 7}`}; // NBSP: "Hosafah 1" never splits
+}
+// Label for an aliyah on screen. Usually LABELS[key]; on Simchat Torah the
+// aliyah that reads Genesis 1:1-2:3 is Chatan Bereshit, whatever its number
+// (Diaspora: 7, Israel when on Shabbat: 8) — David, Nov 2026.
+function aliyahLabel(key, range) {
+  if (state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || '')
+      && /^Genesis 1:1-2:3\b/.test(range || '')) {
+    return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
+  }
+  return LABELS[key] || {he: key, en: key};
 }
 // Header color for any key: aliyot past Shvi'i reuse the palette from
 // Rishon on (8 → Rishon's color, …), so neighbours never share a color.
@@ -2908,7 +2916,7 @@ function initAudio() {
 }
 
 function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
-  const lbl = LABELS[key] || {he:key,en:key};
+  const lbl = aliyahLabel(key, rangeStr);
   const col = aliyahColor(key, isHoliday);
   const displayRange = rangeStr.split(' | ')[0];
   const hasAudio = audioMatchesForRange(rangeStr).length > 0;
@@ -2994,8 +3002,8 @@ function renderOutput(p, aliyotData, isHoliday) {
   const jumpSel = document.getElementById('aliyahJumpSelect');
   if (jumpSel && renderedKeys.length > 1) {
     jumpSel.innerHTML = `<option value="">↓ Jump to aliyah</option>` + renderedKeys.map(k => {
-      const lbl = LABELS[k] || {en: k, he: k};
       const r = (aliyotData[k].range || '').split(' | ')[0];
+      const lbl = aliyahLabel(k, r);
       return `<option value="${k}">${lbl.en} · ${r}</option>`;
     }).join('');
     jumpSel.style.display = '';
@@ -3569,8 +3577,8 @@ function populateAliyahFilter(aliyotData) {
   panel.appendChild(allRow);
 
   keys.forEach(k => {
-    const lbl = LABELS[k] || {he:k, en:k};
     const displayRange = (aliyotData[k].range || '').split(' | ')[0];
+    const lbl = aliyahLabel(k, displayRange);
     const row = document.createElement('label');
     row.className = 'aliyah-ms-row';
     row.innerHTML = `<input type="checkbox" class="aliyah-cb" data-aliyah="${k}" checked>
