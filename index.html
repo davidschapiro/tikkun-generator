@@ -1202,12 +1202,16 @@ const ALIYAH_ORDER = [...ALIYAH_NUMS, 'maftir'];
   for (let n = 8; n <= MAX_ALIYOT; n++) LABELS[String(n)] = {he: `הוספה\u00a0${heNum[n - 8]}`, en: `Hosafah\u00a0${n - 7}`}; // NBSP: "Hosafah 1" never splits
 }
 // Label for an aliyah on screen. Usually LABELS[key]; on Simchat Torah the
-// aliyah that reads Genesis 1:1-2:3 is Chatan Bereshit, whatever its number
-// (Diaspora: 7, Israel when on Shabbat: 8) — David, Nov 2026.
+// two honours are named by passage, whatever their number (David, Nov 2026):
+//   Chatan Torah    — the aliyah ending at Deuteronomy 34:12
+//                     (Diaspora: 6, Israel when on Shabbat: 7)
+//   Chatan Bereshit — the aliyah reading Genesis 1:1-2:3
+//                     (Diaspora: 7, Israel when on Shabbat: 8)
 function aliyahLabel(key, range) {
-  if (state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || '')
-      && /^Genesis 1:1-2:3\b/.test(range || '')) {
-    return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
+  const r = range || '';
+  if (state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || '')) {
+    if (/^Deuteronomy \S+-34:12$/.test(r)) return {he: 'חתן תורה', en: 'Chatan Torah'};
+    if (/^Genesis 1:1-2:3\b/.test(r)) return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
   }
   return LABELS[key] || {he: key, en: key};
 }
