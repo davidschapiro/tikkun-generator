@@ -223,6 +223,28 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
   check(cbd.k === '7' && cbd.en === 'Chatan Bereshit', `Diaspora: aliyah 7 labelled Chatan Bereshit (${cbd.k} ${cbd.en})`);
   const ctd = await lblOf('Deuteronomy 33:27-34:12');
   check(ctd.k === '6' && ctd.en === 'Chatan Torah', `Diaspora: aliyah 6 labelled Chatan Torah (${ctd.k} ${ctd.en})`);
+  // Custom readings: labels by passage.
+  const labelsAt = async (qs) => {
+    await page.goto(PAGE_URL + qs); await ready();
+    return page.evaluate(() => [...document.querySelectorAll('.practice-section .aliyah')].map(s =>
+      s.dataset.aliyah + '=' + s.querySelector('.lbl-en').textContent.trim()).join(', '));
+  };
+  const stCustom = await labelsAt('?ct=Simchat+Torah&cr=' + encodeURIComponent(
+    '1_Deuteronomy.33.1-33.7,2_Deuteronomy.33.8-33.12,3_Deuteronomy.33.13-33.17,4_Deuteronomy.33.18-33.21,5_Deuteronomy.33.22-33.26,'
+    + '6_Deuteronomy.33.27-33.29,7_Deuteronomy.34.1-34.4,8_Deuteronomy.34.5-34.12,9_Genesis.1.1-2.3,maftir_Numbers.29.35-30.1'));
+  check(/7=Shvi'i, 8=Chatan Torah, 9=Chatan Bereshit, maftir=Maftir$/.test(stCustom),
+    `custom Simchat Torah division: Chatan Torah / Chatan Bereshit by passage (${stCustom})`);
+  const bmCustom = await labelsAt('?ct=Bar+Mitzvah&cr=' + encodeURIComponent('1_Genesis.1.1-2.3,2_Genesis.2.4-2.9'));
+  check(bmCustom === '1=Rishon, 2=Sheni', `custom Bereshit without the end of the Torah keeps Rishon (${bmCustom})`);
+  // A custom reading made while Simchat Torah is open must not inherit its labels.
+  await page.goto(PAGE_URL + '?h=' + encodeURIComponent('2026-10-04|Simchat Torah')); await ready();
+  await page.click('#customReadingBtn');
+  await setRows([['1', 'Genesis', '1:1-2:3']]);
+  await page.fill('#crTitle', 'Class');
+  await page.click('#crSubmit'); await ready();
+  const fromSt = await page.evaluate(() => document.querySelector('.practice-section .aliyah .lbl-en').textContent.trim());
+  check(fromSt === 'Rishon', `custom reading opened from Simchat Torah doesn't inherit the label (${fromSt})`);
+
   await page.goto(PAGE_URL + '?d=2027-09-25&mode=full');
   await ready();
   const vzb = await page.evaluate(() => [...document.querySelectorAll('.practice-section .aliyah .lbl-en')].map(e => e.textContent.trim()).join(', '));

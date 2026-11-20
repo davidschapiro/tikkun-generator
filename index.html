@@ -1205,13 +1205,22 @@ const ALIYAH_ORDER = [...ALIYAH_NUMS, 'maftir'];
 // two honours are named by passage, whatever their number (David, Nov 2026):
 //   Chatan Torah    — the aliyah ending at Deuteronomy 34:12
 //                     (Diaspora: 6, Israel when on Shabbat: 7)
-//   Chatan Bereshit — the aliyah reading Genesis 1:1-2:3
+//   Chatan Bereshit — the aliyah starting at Genesis 1:1 (1:1-2:3)
 //                     (Diaspora: 7, Israel when on Shabbat: 8)
+// Custom readings: the date says nothing, so the passage decides. Ending
+// the Torah only happens on Simchat Torah, so any aliyah ending at
+// Deut 34:12 is Chatan Torah; an aliyah from Genesis 1:1 is Chatan Bereshit
+// only if the same reading also ends the Torah (otherwise it may be a
+// Bar Mitzvah's own division of Parashat Bereshit).
+const CHATAN_TORAH_RE = /^Deuteronomy \S+-34:12$/;
 function aliyahLabel(key, range) {
   const r = range || '';
-  if (state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || '')) {
-    if (/^Deuteronomy \S+-34:12$/.test(r)) return {he: 'חתן תורה', en: 'Chatan Torah'};
-    if (/^Genesis 1:1-2:3\b/.test(r)) return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
+  const simchatTorah = state.custom
+    ? state.custom.aliyot.some(a => a.book === 'Deuteronomy' && a.ec === 34 && a.ev === 12)
+    : !!(state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || ''));
+  if (simchatTorah) {
+    if (CHATAN_TORAH_RE.test(r)) return {he: 'חתן תורה', en: 'Chatan Torah'};
+    if (/^Genesis 1:1-/.test(r)) return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
   }
   return LABELS[key] || {he: key, en: key};
 }
