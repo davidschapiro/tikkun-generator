@@ -234,6 +234,22 @@ const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!o
     + '6_Deuteronomy.33.27-33.29,7_Deuteronomy.34.1-34.4,8_Deuteronomy.34.5-34.12,9_Genesis.1.1-2.3,maftir_Numbers.29.35-30.1'));
   check(/7=Shvi'i, 8=Chatan Torah, 9=Chatan Bereshit, maftir=Maftir$/.test(stCustom),
     `custom Simchat Torah division: Chatan Torah / Chatan Bereshit by passage (${stCustom})`);
+  // The form shows the same names as the reading, live.
+  await page.click('#customReadingBtn');
+  const formLabels = () => page.evaluate(() => [...document.querySelectorAll('#crRows .cr-key')].map(s => s.options[s.selectedIndex].textContent).join(', '));
+  const fl = await formLabels();
+  check(/Shvi'i, Chatan Torah, Chatan Bereshit, Maftir$/.test(fl), `form dropdowns show Chatan Torah / Chatan Bereshit (${fl})`);
+  await page.locator('#crRows .cr-row').nth(7).locator('.cr-range').fill('34:5-11');
+  const fl2 = await formLabels();
+  check(/Shvi'i, Hosafah\u00a01, Hosafah\u00a02, Maftir$/.test(fl2), `form relabels live when the Torah's end is removed (${fl2})`);
+  await page.locator('#crRows .cr-row').nth(7).locator('.cr-range').fill('34:5-12');
+  const fl3 = await formLabels();
+  check(/Chatan Torah, Chatan Bereshit, Maftir$/.test(fl3), `…and back when it is typed again (${fl3})`);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.locator('#crRows .cr-row').nth(8).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: require('path').join(require('os').tmpdir(), 'custom-form-chatan.png') });
+  await page.setViewportSize({ width: 1100, height: 1300 });
+  await page.click('#crCancel');
   const bmCustom = await labelsAt('?ct=Bar+Mitzvah&cr=' + encodeURIComponent('1_Genesis.1.1-2.3,2_Genesis.2.4-2.9'));
   check(bmCustom === '1=Rishon, 2=Sheni', `custom Bereshit without the end of the Torah keeps Rishon (${bmCustom})`);
   // A custom reading made while Simchat Torah is open must not inherit its labels.

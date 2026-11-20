@@ -171,9 +171,10 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
      readable); the book select gives way and truncates instead. */
   #customReadingDialog{width:94vw;padding:1.1rem 1rem;}
   .cr-row{gap:0.25rem;}
-  .cr-row .cr-key{flex:0 0 6.3rem;}
-  .cr-row .cr-book{flex:1 1 0;}
-  .cr-row .cr-range{flex:0 0 6.2rem;}
+  .cr-row select,.cr-row input{font-size:0.78rem;padding:0.25rem 0.25rem;}
+  .cr-row .cr-key{flex:0 1 8rem;}   /* fits "Chatan Bereshit"; gives way below ~340px */
+  .cr-row .cr-book{flex:1 1 0;min-width:3.6rem;} /* short names on phones: Gen, Ex, … */
+  .cr-row .cr-range{flex:0 0 5.4rem;}
 }
 .yt-family-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);
   border-radius:var(--radius);padding:0.5rem 0.7rem;margin-bottom:0.7rem;}
@@ -1213,16 +1214,19 @@ const ALIYAH_ORDER = [...ALIYAH_NUMS, 'maftir'];
 // only if the same reading also ends the Torah (otherwise it may be a
 // Bar Mitzvah's own division of Parashat Bereshit).
 const CHATAN_TORAH_RE = /^Deuteronomy \S+-34:12$/;
+const isChatanTorah = (a) => a.book === 'Deuteronomy' && a.ec === 34 && a.ev === 12;
+// Passage rule shared by the reading and the custom form's dropdowns.
+function chatanLabel(range, simchatTorah) {
+  if (!simchatTorah) return null;
+  if (CHATAN_TORAH_RE.test(range || '')) return {he: 'חתן תורה', en: 'Chatan Torah'};
+  if (/^Genesis 1:1-/.test(range || '')) return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
+  return null;
+}
 function aliyahLabel(key, range) {
-  const r = range || '';
   const simchatTorah = state.custom
-    ? state.custom.aliyot.some(a => a.book === 'Deuteronomy' && a.ec === 34 && a.ev === 12)
+    ? state.custom.aliyot.some(isChatanTorah)
     : !!(state.holidayKey && /Simchat Torah/.test(state.holidayKey) && !/^Erev /.test(state.holidayKey.split('|')[1] || ''));
-  if (simchatTorah) {
-    if (CHATAN_TORAH_RE.test(r)) return {he: 'חתן תורה', en: 'Chatan Torah'};
-    if (/^Genesis 1:1-/.test(r)) return {he: 'חתן בראשית', en: 'Chatan Bereshit'};
-  }
-  return LABELS[key] || {he: key, en: key};
+  return chatanLabel(range, simchatTorah) || LABELS[key] || {he: key, en: key};
 }
 // Header color for any key: aliyot past Shvi'i reuse the palette from
 // Rishon on (8 → Rishon's color, …), so neighbours never share a color.
@@ -3805,6 +3809,10 @@ function initCustomReadingDialog() {
   const rowsEl = document.getElementById('crRows');
   const result = document.getElementById('crResult');
   const books = Object.keys(TORAH_VERSE_COUNTS);
+  // Phones: short book names so the aliyah name ("Chatan Bereshit") and the
+  // verses keep their room.
+  const BOOK_SHORT = {Genesis: 'Gen', Exodus: 'Ex', Leviticus: 'Lev', Numbers: 'Num', Deuteronomy: 'Deut'};
+  const narrow = window.matchMedia('(max-width: 480px)').matches;
 
   const addRow = (a) => {
     a = a || {};
@@ -3817,15 +3825,38 @@ function initCustomReadingDialog() {
     row.innerHTML = `<select class="cr-key" aria-label="Aliyah">${CUSTOM_KEYS.map(k =>
         `<option value="${k}"${k === key ? ' selected' : ''}>${LABELS[k].en}</option>`).join('')}</select>
       <select class="cr-book" aria-label="Book">${books.map(b =>
-        `<option value="${b}"${b === book ? ' selected' : ''}>${b}</option>`).join('')}</select>
+        `<option value="${b}"${b === book ? ' selected' : ''}>${narrow ? BOOK_SHORT[b] : b}</option>`).join('')}</select>
       <input class="cr-range" aria-label="Verses" placeholder="28:13-15" autocomplete="off" spellcheck="false"
         value="${a.sc ? customShortRange(a) : ''}">
       <button type="button" class="cr-del" title="Remove this aliyah" aria-label="Remove this aliyah">×</button>`;
-    row.querySelector('.cr-del').addEventListener('click', () => { row.remove(); result.textContent = ''; });
-    row.querySelector('.cr-range').addEventListener('input', e => e.target.classList.remove('cr-bad'));
+    row.querySelector('.cr-del').addEventListener('click', () => { row.remove(); result.textContent = ''; relabel(); });
+    row.querySelector('.cr-range').addEventListener('input', e => { e.target.classList.remove('cr-bad'); relabel(); });
+    row.querySelector('.cr-book').addEventListener('change', relabel);
+    row.querySelector('.cr-key').addEventListener('change', relabel);
     rowsEl.appendChild(row);
+    relabel();
     return row;
   };
+
+  // The row's aliyah dropdown shows the same name the reading will: the
+  // chosen option reads "Chatan Torah" / "Chatan Bereshit" when the row's
+  // verses are that honour (same rule as aliyahLabel); every other option
+  // keeps its slot name, so picking a slot still works as before.
+  function relabel() {
+    const parsed = [...rowsEl.querySelectorAll('.cr-row')].map(row => {
+      const book = row.querySelector('.cr-book').value;
+      const r = parseCustomRange(book, row.querySelector('.cr-range').value);
+      return r.error ? null : {book, ...r};
+    });
+    const simchatTorah = parsed.some(a => a && isChatanTorah(a));
+    [...rowsEl.querySelectorAll('.cr-row')].forEach((row, i) => {
+      const sel = row.querySelector('.cr-key');
+      const special = parsed[i] && chatanLabel(customRangeStr(parsed[i]), simchatTorah);
+      for (const o of sel.options) {
+        o.textContent = (o.selected && special) ? special.en : LABELS[o.value].en;
+      }
+    });
+  }
 
   const fill = (c) => {
     rowsEl.innerHTML = '';
