@@ -31,3 +31,6 @@ jobs:
 
       - name: Run print geometry test
         run: node tests/validate-print-geometry.js
+
+      - name: Run custom reading test
+        run: node tests/validate-custom-reading.js
