@@ -34,3 +34,12 @@ jobs:
 
       - name: Run custom reading test
         run: node tests/validate-custom-reading.js
+      
+      - name: Run navigation/header test
+        run: node tests/validate-nav-header.js
+
+      - name: Run trope colors test
+        run: node tests/validate-trope-ui.js
+
+      - name: Run audio test
+        run: node tests/validate-audio.js
