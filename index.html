@@ -275,9 +275,11 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
 /* Congregation-repeat verses for fast-day readings (Vayechal Moshe) */
 .cong-note{font-size:0.72rem;color:var(--ink-soft);font-style:italic;
   text-align:center;padding:0.3rem 0.6rem 0.5rem;direction:ltr;}
-.cong-token{color:#2a5298;}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .cong-token{color:#7fb3e8;}}
-[data-theme="dark"] .cong-token{color:#7fb3e8;}
+.cong-token,.cong-verse-bima{color:#2a5298;}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .cong-token,:root:not([data-theme="light"]) .cong-verse-bima{color:#7fb3e8;}}
+[data-theme="dark"] .cong-token,[data-theme="dark"] .cong-verse-bima{color:#7fb3e8;}
+/* Print: keep the blue (it's the point of the marking on a bima sheet). */
+@media print{.cong-token,.cong-verse-bima{color:#2a5298 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 
 /* Trope (cantillation) colors — see trope.js. Every vowelized word always
    carries .tw plus key classes (tk-<trope>, and tc tm-<master> for
@@ -289,7 +291,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Arimo',sans-serif;font-s
    move. The scroll column is never wrapped (no trope in a sefer Torah). */
 /* Congregation-repeat words keep their marking when trope colors take
    over the text color: a background tint instead (no width change). */
-html[data-trope] .cong-token{background:rgba(42,82,152,0.13);border-radius:3px;}
+html[data-trope] .cong-token,html[data-trope] .cong-verse-bima{background:rgba(42,82,152,0.13);border-radius:3px;}
 .trope-legend{display:none;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:0.3rem 0.9rem;
   font-size:0.74rem;font-weight:700;margin:0.2rem auto 0.6rem;max-width:900px;padding:0 1rem;}
 html[data-trope] .trope-legend{display:flex;}
@@ -1967,20 +1969,47 @@ function assignBreaksToAliyot(weekdayBreaks, aliyotData) {
 // Exodus 32:11-14 + 34:1-10). These are SUB-VERSE ranges — NOT whole verses.
 // fromWord: null = beginning of verse; stripped Hebrew otherwise
 // toWord:   null = end of verse;       stripped Hebrew of LAST cong word (inclusive)
+// fromAfter: the span starts AFTER fromWord (34:6: the congregation
+// starts at "ה' ה'", the words after וַיִּקְרָא, not at וַיַּעֲבֹר).
+// All spans are in Exodus (Nov 2026 fix: the book was never checked, so
+// Genesis/Numbers/Deuteronomy 32:12 and 34:6-9 turned blue too).
 const CONGREGATION_SPANS = [
   {startCh:32, startV:12, fromWord:'שוב',   endCh:32, endV:12, toWord:null  },
-  {startCh:34, startV:6,  fromWord:null,    endCh:34, endV:7,  toWord:'ונקה'},
+  {startCh:34, startV:6,  fromWord:'ויקרא', fromAfter:true, endCh:34, endV:7,  toWord:'ונקה'},
   {startCh:34, startV:9,  fromWord:'וסלחת', endCh:34, endV:9,  toWord:null  },
 ];
+const CONGREGATION_BOOK = 'Exodus';
+
+// Blue only on fast days (David, Nov 2026) — i.e. only for the Vayechal
+// reading itself: the congregation's response is a fast-day custom, not
+// part of reading these verses (Ki Tisa on Shabbat, Chol HaMoed Pesach
+// read the same verses without it). A reading counts as Vayechal when
+// one aliyah starts at Exodus 32:11 and every aliyah lies inside
+// Exodus 32:11-14 or 34:1-10. That is exactly the public fasts' Shacharit
+// and Mincha (Tisha B'Av Mincha included) in the Hebcal data, and also a
+// custom division of the same reading — never Ki Tisa or Chol HaMoed.
+const VAYECHAL_BLOCKS = [[32011, 32014], [34001, 34010]];
+function isVayechalReading(ranges) {
+  const ps = ranges.map(r => parseRange(String(r || '').split(' | ')[0])).filter(Boolean);
+  if (!ps.length || !ps.every(p => p.book === CONGREGATION_BOOK)) return false;
+  const inBlock = p => VAYECHAL_BLOCKS.some(([a, b]) =>
+    p.sc * 1000 + p.sv >= a && p.ec * 1000 + p.ev <= b);
+  return ps.every(inBlock) && ps.some(p => p.sc === 32 && p.sv === 11);
+}
 
 function stripHe(str) {
   return (str || '').replace(/[^\u05D0-\u05EA\u05BE]/g, '');
 }
 
-function splitVerseFromWord(verse, fromWord) {
+function splitVerseFromWord(verse, fromWord, fromAfter) {
   const words = verse.he.split(' ');
-  const idx = words.findIndex(w => stripHe(w) === fromWord);
+  let idx = words.findIndex(w => stripHe(w) === fromWord);
+  // Word not found: mark nothing rather than the whole verse (the old
+  // fallback colored whole verses whenever the text didn't match).
+  if (idx === -1) return [verse];
+  if (fromAfter) idx++;
   if (idx <= 0) return [{...verse, cong: true}];
+  if (idx >= words.length) return [verse];
   return [
     {...verse, he: words.slice(0, idx).join(' ')},
     {...verse, he: words.slice(idx).join(' '), cong: true},
@@ -1990,7 +2019,7 @@ function splitVerseFromWord(verse, fromWord) {
 function splitVerseToWord(verse, toWord) {
   const words = verse.he.split(' ');
   const idx = words.findIndex(w => stripHe(w) === toWord);
-  if (idx === -1) return [{...verse, cong: true}];
+  if (idx === -1) return [verse];
   const after = words.slice(idx + 1).join(' ');
   return [
     {...verse, he: words.slice(0, idx + 1).join(' '), cong: true},
@@ -2007,16 +2036,17 @@ function processVerseForCong(verse) {
     if (cNum < sNum || cNum > eNum) continue;
     const isStart = cNum === sNum;
     const isEnd   = cNum === eNum;
-    if (isStart && span.fromWord) return splitVerseFromWord(verse, span.fromWord);
+    if (isStart && span.fromWord) return splitVerseFromWord(verse, span.fromWord, span.fromAfter);
     if (isEnd   && span.toWord)   return splitVerseToWord(verse, span.toWord);
     return [{...verse, cong: true}];
   }
   return [verse];
 }
 
-function injectCongregationMarkers(verses) {
-  if (!verses.length) return verses;
-  if (verses[0].ch !== 32 && verses[0].ch !== 34) return verses;
+// congActive: the whole reading is Vayechal (isVayechalReading); book: the
+// aliyah's book. Both must hold — otherwise the verses pass through as is.
+function injectCongregationMarkers(verses, book, congActive) {
+  if (!verses.length || !congActive || book !== CONGREGATION_BOOK) return verses;
   return verses.flatMap(v => processVerseForCong(v));
 }
 
@@ -2086,15 +2116,22 @@ function buildBimaFlow(verses, breakMarkers) {
   let verseIdx = 0;
   let firstToken = true;
   let inCong = false;
+  const shownVerse = new Set(); // ch:v already numbered (mid-verse congregation splits)
   return tokens.map((t, i) => {
-    const vn = t.verseNum !== null && t.verseNum !== undefined
-      ? `<sup class="vn">${t.verseNum}</sup>` : '';
     let prefix = '';
-    // Detect verse boundary (t.verseNum non-null = first token of a new verse)
+    // Detect verse boundary (t.verseNum non-null = first token of a new
+    // (pseudo-)verse)
     if (!firstToken && t.verseNum !== null && t.verseNum !== undefined) {
       verseIdx++;
     }
     firstToken = false;
+    let vn = '';
+    if (t.verseNum !== null && t.verseNum !== undefined) {
+      const pv = realVerses[verseIdx];
+      const vk = pv ? `${pv.ch}:${pv.v}` : null;
+      if (!vk || !shownVerse.has(vk)) vn = `<sup class="vn">${t.verseNum}</sup>`;
+      if (vk) shownVerse.add(vk);
+    }
     const nowCong = !!congByIdx[verseIdx];
     if (nowCong && !inCong) {
       prefix = '<span class="cong-verse-bima">';
@@ -2932,7 +2969,7 @@ function initAudio() {
   });
 }
 
-function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
+function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers, congActive) {
   const lbl = aliyahLabel(key, rangeStr);
   const col = aliyahColor(key, isHoliday);
   const displayRange = rangeStr.split(' | ')[0];
@@ -2947,7 +2984,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
 
   let body;
   if (tikkun === 'practice') {
-    const annotatedVerses = injectCongregationMarkers(verses);
+    const annotatedVerses = injectCongregationMarkers(verses, (parseRange(String(rangeStr || '').split(' | ')[0]) || {}).book, congActive);
     const hasCong = annotatedVerses.some(v => v.cong);
     const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
     const {tokens} = buildTokens(annotatedVerses);
@@ -2963,7 +3000,7 @@ function aliyahSection(key, rangeStr, verses, tikkun, isHoliday, breakMarkers) {
          <div class="col-scroll-print" dir="rtl"></div>
          <div class="col-vowel-print"  dir="rtl"></div></div>`;
   } else {
-    const annotatedVerses = injectCongregationMarkers(verses);
+    const annotatedVerses = injectCongregationMarkers(verses, (parseRange(String(rangeStr || '').split(' | ')[0]) || {}).book, congActive);
     const hasCong = annotatedVerses.some(v => v.cong);
     const noteHTML = hasCong ? buildCongregationNoteHTML() : '';
     body = noteHTML + `<div class="bima-body" dir="rtl">${buildBimaFlow(annotatedVerses, breakMarkers)}</div>`;
@@ -3002,12 +3039,13 @@ function renderOutput(p, aliyotData, isHoliday) {
   const keys = ALIYAH_ORDER;
   let practiceHTML='', bimaHTML='';
   const renderedKeys = [];
+  const congActive = isVayechalReading(Object.values(aliyotData).map(a => a.range));
   for (const k of keys) {
     if (!aliyotData[k]) continue;
     renderedKeys.push(k);
     const {range,verses} = aliyotData[k];
-    practiceHTML += aliyahSection(k,range,verses,'practice',isHoliday);
-    bimaHTML     += aliyahSection(k,range,verses,'bima',isHoliday);
+    practiceHTML += aliyahSection(k,range,verses,'practice',isHoliday,undefined,congActive);
+    bimaHTML     += aliyahSection(k,range,verses,'bima',isHoliday,undefined,congActive);
   }
 
   // Populate the persistent jump bar in the tab-row. Done here (inside
@@ -3235,6 +3273,7 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
 
   let bimaHTML = '';
   const breaksByKey = assignBreaksToAliyot(o.weekdayBreaks, aliyotData);
+  const congActive = isVayechalReading(Object.values(aliyotData).map(a => a.range));
   for (const k of ALIYAH_ORDER) {
     if (!aliyotData[k]) continue;
     const {range, verses} = aliyotData[k];
@@ -3242,7 +3281,7 @@ function buildOccasionBimaHTML(o, aliyotData, hebrewYear, mode) {
     // weekday breaks inline, wherever each one actually falls (see
     // assignBreaksToAliyot — not always Rishon), instead of generating
     // a fully separate weekday occasion.
-    bimaHTML += aliyahSection(k, range, verses, 'bima', isHolidayStyle, breaksByKey[k]);
+    bimaHTML += aliyahSection(k, range, verses, 'bima', isHolidayStyle, breaksByKey[k], congActive);
   }
   return `<div class="year-tikkun-occasion">${printHdr}${bimaHTML}</div>`;
 }
