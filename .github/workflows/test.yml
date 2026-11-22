@@ -43,3 +43,6 @@ jobs:
 
       - name: Run audio test
         run: node tests/validate-audio.js
+        
+      - name: Run congregation blue test
+        run: node tests/validate-congregation.js
