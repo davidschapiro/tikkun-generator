@@ -105,7 +105,7 @@ A web tool for Ba'alei Kriyah and anyone who wants to practice Torah reading. En
 
 Hosted on **Cloudflare Pages** (project `tikkun-generator`, custom domain tikkun.kahal-masorti.org). Any push to `main` deploys to production; every branch gets a preview at `<branch>.tikkun-generator.pages.dev`. Static files — no build process.
 
-Tests (`tests/`, Playwright): tokenizer, paragraph breaks and print geometry run on every push via GitHub Actions (`test.yml`); `validate-print-layout`, `validate-trope`, `validate-trope-ui`, `validate-audio` and `validate-nav-header` are run locally before merging (`node tests/<name>.js`). Changes go branch → pull request → merge.
+Tests (`tests/`, Playwright): tokenizer, paragraph breaks, print geometry, custom reading, navigation/header, trope colors (UI), audio and congregation blue run on every push and pull request via GitHub Actions (`test.yml`); `validate-print-layout` and `validate-trope` are run locally before merging (`node tests/<name>.js`). Changes go branch → pull request → merge.
 
 Schedule data (parshiot, holidays and fasts, and every Rosh Chodesh date) is embedded in `index.html` and refreshed automatically via **GitHub Actions** (`refresh_data.py`) on **Jan 1 and Jul 1**, fetching ~1.5 years ahead. Can be triggered manually from the Actions tab. To rebuild by hand without moving the window: `python refresh_data.py --start YYYY-MM-DD --end YYYY-MM-DD`.
 

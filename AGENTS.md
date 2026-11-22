@@ -760,8 +760,9 @@ this is *what*.
     (Playwright on live data: HTML unchanged through every editor
     action, colors applied, servants-follow on/off, persistence, dark
     mode, reset, Bima, `?tc=1` and legacy `?tc=fam`, no console errors).
-    **Not yet in CI** — the workflow file can't be pushed from the
-    sandbox; add the steps via the web UI.
+    `validate-trope-ui.js` is in CI since Nov 21 2026 (`validate-trope.js`
+    still runs by hand only — see the CI entry in §11). Workflow files
+    can't be pushed from the sandbox; add steps via the web UI.
   - Test gotcha: the active tab is persisted (`localStorage.tikkunTab`),
     so a second page in the same browser context opens on whatever tab
     the first one left — a Bima tab renders the practice columns hidden
@@ -824,8 +825,8 @@ this is *what*.
     triennial, Diaspora + Israel) in `PARASHA_LISTS` get ≥1 overlapping
     recording, that every video's title names the aliyah it is filed
     under, the click-to-load behaviour, nusach switching, the
-    High-Holiday guard, print hiding, zero console errors. Not in CI yet
-    (same workflow-file limitation as the trope tests).
+    High-Holiday guard, print hiding, zero console errors. In CI since
+    Nov 21 2026.
   - Known limitation: no verse-level seeking — a triennial aliyah inside
     a long full-kriyah aliyah starts playback at the recording's start.
     vayavinu has no verse markers or timestamps: per its leining page,
@@ -1338,9 +1339,18 @@ tuning decision:
   of it. If they say yes, this is the better long-term audio source and
   the vayavinu integration above may become unnecessary/secondary. If
   no/no-response, fall back to the vayavinu approach.
-- **CI workflow** — now done (test.yml added Aug 2026). Tests run on
-  every push to main. Three tests: tokenizer, paragraph-breaks,
-  print-geometry.
+- **CI workflow** — `test.yml` (added Aug 2026) runs on every push to
+  `main` and every pull request into it. Since Nov 22 2026 it runs eight
+  tests: tokenizer, paragraph-breaks, print-geometry (since Aug 2026),
+  custom-reading, nav-header, trope-ui, audio (Nov 21) and congregation
+  (Nov 22), all added by David via the web UI; first full runs green.
+  Still by hand only: `validate-print-layout.js`
+  and `validate-trope.js`. The playwright tests load live Sefaria/Hebcal
+  data, so a red run can be an outage rather than a code bug — check the
+  failing step's log before debugging. The workflow file can't be pushed
+  from the sandbox (no `Actions: write` through the proxy): give David
+  the YAML lines and the edit URL
+  (`github.com/davidschapiro/tikkun-generator/edit/main/.github/workflows/test.yml`).
 
 **Nothing currently known to be broken on `main`.**
 
@@ -1389,6 +1399,7 @@ tuning decision:
   the documented wrong turns (verse-level markers, banner divs, block grids).
 - **Three-test suite:** tokenizer, paragraph-breaks, print-geometry. All
   passing. Run all three before any change to the rendering pipeline.
+  (Superseded: CI now runs eight tests — see the CI workflow entry.)
 - **Dark/Light mode toggle:** floating `Light | Dark` toggle-group at
   bottom-left, symmetric with the `Scroll view | Tikkun view` widget at
   bottom-right. Follows system preference by default; persists manual
@@ -1422,8 +1433,8 @@ tuning decision:
 **Nothing currently known to be broken on `main`.**
 
 2. **Lower priority, only if the project keeps growing:**
-   CI workflow running the test on every push (the PAT now has `Actions:
-   write`); moving embedded schedule data to separate fetched JSON files.
+   moving embedded schedule data to separate fetched JSON files. (CI is
+   done — eight tests, see the CI workflow entry.)
 - **Vowel-vs-scroll width assumption — RETRACTED, then reopened as a
   confirmed real bug.** Originally claimed "verified closed, zero
   overflows" via `scripts/check-vowel-vs-scroll-width.js` (still in
@@ -1685,14 +1696,14 @@ initial-load timing fix (§3), all the Hebrew-text-processing edge cases
   - Link: `ct` (title) and `cr` (`2_Genesis.28.13-28.15,…`); `il`/`mode`/`maftir` are left out. `decodeCustom()` drops any invalid part of a hand-edited link and falls back to the normal view if nothing valid is left.
   - **Titles are user input:** `renderOutput()` now escapes the title for every reading (harmless for Hebcal titles), and the header name uses `textContent`. The test types `<b>X</b>` as a title.
   - Header layout side effect: a third button made the dropdown's intrinsic width (its longest option) squeeze the reading's name onto 3–4 lines on desktop ("Sukkot Final Day (Hoshana Raba)"). Above 680px the name now takes its content width (max 22rem) and the dropdown the rest (min 12rem). Phone labels became "🔍 Verse" / "📅 Full year" / "✏️ Custom" so all three fit one row at 360px.
-  - Test: `tests/validate-custom-reading.js` (prefill, five kinds of bad input, the real three-aliyah case in both tabs, headers/counts/meta, dimmed toggles, link round trip in a fresh page, hand-edited link, edit flow, leaving via Shabbat/arrow/dropdown, print header, 360px fit). Not in CI yet, same workflow-file limitation as the trope and audio tests.
+  - Test: `tests/validate-custom-reading.js` (prefill, five kinds of bad input, the real three-aliyah case in both tabs, headers/counts/meta, dimmed toggles, link round trip in a fresh page, hand-edited link, edit flow, leaving via Shabbat/arrow/dropdown, print header, 360px fit). In CI since Nov 21 2026.
 
 - **Congregation-repeat ("blue") audit and fix** (David, Nov 22 2026: "only fast days! check book!").
   - What was wrong on `main`: (1) `injectCongregationMarkers()` only compared chapter:verse and gated on the aliyah's FIRST chapter being 32 or 34 — any book. So Genesis 32:12 and 34:6-9 (Vayishlach, full and triennial), Deuteronomy 32:12 (Ha'azinu), Numbers 32:12 (Matot-Masei) and Deuteronomy 34:6-9 (Israel Simchat Torah) were blue with the "read aloud first by the congregation" note; Ki Tisa and Israel's Pesach Chol HaMoed (Exodus 34:1-10) were partly blue, inconsistently (an aliyah containing 32:12 but starting in ch. 31 wasn't). The split helpers fell back to coloring the WHOLE verse when the word wasn't found, which is why those other books got whole blue verses. (2) The Bima Tikkun wrapped the words in `.cong-verse-bima`, a class with no CSS — the note showed, the words were plain ink — and repeated the verse number at every mid-verse split ("12 12", "7 7", "9 9"). (3) 34:6 was blue from וַיַּעֲבֹר; the congregation starts at ה׳ ה׳ (after וַיִּקְרָא).
   - Now: `isVayechalReading(ranges)` decides per READING (not per aliyah): every aliyah in Exodus 32:11-14 or 34:1-10 and one starting at 32:11. In the data that is exactly the nine fast readings (four minor fasts × Shacharit + Mincha, Tisha B'Av Mincha) — the test scans all 413 readings. It is computed in `renderOutput()` and in the full-year tikkun from the same `aliyotData`, and passed to `aliyahSection(…, congActive)`; `injectCongregationMarkers(verses, book, congActive)` also requires `book === 'Exodus'`. A custom reading that divides Vayechal differently gets blue; a custom Ki Tisa piece doesn't.
   - 34:6 span has `fromWord:'ויקרא', fromAfter:true`. Word-not-found now colors nothing (never the whole verse).
   - Bima: `.cong-verse-bima` shares the `.cong-token` color rules (light, dark, trope-mode tint, print with `print-color-adjust:exact`), and `buildBimaFlow` suppresses a repeated `ch:v` number. Don't call `markCongTokens()` in `buildBimaFlow` to get that: it nulls `verseNum` at splits, and Bima's own loop counts pseudo-verses by `verseNum`, so its `congByIdx` would misalign.
-  - Test: `tests/validate-congregation.js` (data scan; exact blue words in both tabs for Shacharit, Mincha and Tisha B'Av Mincha, color, no repeated verse numbers; no blue or note on Vayishlach, Ha'azinu, Matot-Masei, Ki Tisa, Simchat Torah Israel, Pesach Chol HaMoed Israel; custom readings). Not in CI until added to `test.yml` via the web UI.
+  - Test: `tests/validate-congregation.js` (data scan; exact blue words in both tabs for Shacharit, Mincha and Tisha B'Av Mincha, color, no repeated verse numbers; no blue or note on Vayishlach, Ha'azinu, Matot-Masei, Ki Tisa, Simchat Torah Israel, Pesach Chol HaMoed Israel; custom readings). In CI since Nov 22 2026.
 
 ### Lessons and practices (Nov 2026)
 
