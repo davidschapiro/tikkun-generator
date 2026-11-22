@@ -1340,10 +1340,11 @@ tuning decision:
   the vayavinu integration above may become unnecessary/secondary. If
   no/no-response, fall back to the vayavinu approach.
 - **CI workflow** — `test.yml` (added Aug 2026) runs on every push to
-  `main` and every pull request into it. Since Nov 21 2026 it runs seven
+  `main` and every pull request into it. Since Nov 22 2026 it runs eight
   tests: tokenizer, paragraph-breaks, print-geometry (since Aug 2026),
-  custom-reading, nav-header, trope-ui, audio (added by David via the
-  web UI; first full run green). Still by hand only: `validate-print-layout.js`
+  custom-reading, nav-header, trope-ui, audio (Nov 21) and congregation
+  (Nov 22), all added by David via the web UI; first full runs green.
+  Still by hand only: `validate-print-layout.js`
   and `validate-trope.js`. The playwright tests load live Sefaria/Hebcal
   data, so a red run can be an outage rather than a code bug — check the
   failing step's log before debugging. The workflow file can't be pushed
@@ -1398,7 +1399,7 @@ tuning decision:
   the documented wrong turns (verse-level markers, banner divs, block grids).
 - **Three-test suite:** tokenizer, paragraph-breaks, print-geometry. All
   passing. Run all three before any change to the rendering pipeline.
-  (Superseded: CI now runs seven tests — see the CI workflow entry.)
+  (Superseded: CI now runs eight tests — see the CI workflow entry.)
 - **Dark/Light mode toggle:** floating `Light | Dark` toggle-group at
   bottom-left, symmetric with the `Scroll view | Tikkun view` widget at
   bottom-right. Follows system preference by default; persists manual
@@ -1433,7 +1434,7 @@ tuning decision:
 
 2. **Lower priority, only if the project keeps growing:**
    moving embedded schedule data to separate fetched JSON files. (CI is
-   done — seven tests, see the CI workflow entry.)
+   done — eight tests, see the CI workflow entry.)
 - **Vowel-vs-scroll width assumption — RETRACTED, then reopened as a
   confirmed real bug.** Originally claimed "verified closed, zero
   overflows" via `scripts/check-vowel-vs-scroll-width.js` (still in
@@ -1702,7 +1703,7 @@ initial-load timing fix (§3), all the Hebrew-text-processing edge cases
   - Now: `isVayechalReading(ranges)` decides per READING (not per aliyah): every aliyah in Exodus 32:11-14 or 34:1-10 and one starting at 32:11. In the data that is exactly the nine fast readings (four minor fasts × Shacharit + Mincha, Tisha B'Av Mincha) — the test scans all 413 readings. It is computed in `renderOutput()` and in the full-year tikkun from the same `aliyotData`, and passed to `aliyahSection(…, congActive)`; `injectCongregationMarkers(verses, book, congActive)` also requires `book === 'Exodus'`. A custom reading that divides Vayechal differently gets blue; a custom Ki Tisa piece doesn't.
   - 34:6 span has `fromWord:'ויקרא', fromAfter:true`. Word-not-found now colors nothing (never the whole verse).
   - Bima: `.cong-verse-bima` shares the `.cong-token` color rules (light, dark, trope-mode tint, print with `print-color-adjust:exact`), and `buildBimaFlow` suppresses a repeated `ch:v` number. Don't call `markCongTokens()` in `buildBimaFlow` to get that: it nulls `verseNum` at splits, and Bima's own loop counts pseudo-verses by `verseNum`, so its `congByIdx` would misalign.
-  - Test: `tests/validate-congregation.js` (data scan; exact blue words in both tabs for Shacharit, Mincha and Tisha B'Av Mincha, color, no repeated verse numbers; no blue or note on Vayishlach, Ha'azinu, Matot-Masei, Ki Tisa, Simchat Torah Israel, Pesach Chol HaMoed Israel; custom readings). Not in CI until added to `test.yml` via the web UI.
+  - Test: `tests/validate-congregation.js` (data scan; exact blue words in both tabs for Shacharit, Mincha and Tisha B'Av Mincha, color, no repeated verse numbers; no blue or note on Vayishlach, Ha'azinu, Matot-Masei, Ki Tisa, Simchat Torah Israel, Pesach Chol HaMoed Israel; custom readings). In CI since Nov 22 2026.
 
 ### Lessons and practices (Nov 2026)
 
