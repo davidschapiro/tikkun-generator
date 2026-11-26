@@ -969,15 +969,19 @@ this is *what*.
   showed up at the bottom of every generated Bima Tikkun PDF page (see
   below) — one root cause, one fix, verified against both symptoms.
   Footer's Impressum link still opens/closes the dialog correctly.
-- **`tools/bima-5787/`** — new tooling, not part of the live app itself.
-  Generates one print-ready PDF covering all of Hebrew year 5787's
-  Torah-reading occasions (Diaspora, triennial cycle year 2): drives the
-  live app in headless Chromium via Playwright, one page load per
-  occasion using the app's own shareable-link URL scheme (`?d=`/`?h=`),
-  captures each as its own correctly-paginated PDF, merges in
-  chronological order. See `tools/bima-5787/README.md` for setup/usage
-  and how to regenerate for a different year.
-  Content decisions worth remembering if this comes up again:
+- **`tools/bima-5787/` — never merged; superseded the same day by the
+  in-app Full-Year Tikkun (corrected Nov 2026).** A Playwright script that
+  drove the live app in headless Chromium, one page load per occasion via
+  the share-link URL scheme (`?d=`/`?h=`), and merged the PDFs into one
+  5787 booklet (Diaspora, triennial year 2). The script and its
+  `occasions.json` live only on branch `bima-5787-diaspora` (commit
+  9917634, 9 Sep 2026); only the docs commit describing it (0b06b61)
+  reached `main`, which is why README/AGENTS.md said `tools/` existed when
+  it didn't. Also on 9 Sep the same job was built into the app itself
+  ("📅 Full year", see "Full-Year Tikkun (Bima)" at the end of §11), so the
+  script is obsolete; don't merge that branch.
+  The content decisions made for the script carried over into the in-app
+  feature (fast-day Mincha merge, the suggested holiday set):
   - The four minor fasts (Tzom Gedaliah, Asara B'Tevet, Ta'anit Esther,
     Tzom Tammuz) each have a Mincha reading that is byte-identical to
     their own Shacharit reading — confirmed by comparing `HOLIDAY_DATA`
@@ -1704,6 +1708,13 @@ initial-load timing fix (§3), all the Hebrew-text-processing edge cases
   - 34:6 span has `fromWord:'ויקרא', fromAfter:true`. Word-not-found now colors nothing (never the whole verse).
   - Bima: `.cong-verse-bima` shares the `.cong-token` color rules (light, dark, trope-mode tint, print with `print-color-adjust:exact`), and `buildBimaFlow` suppresses a repeated `ch:v` number. Don't call `markCongTokens()` in `buildBimaFlow` to get that: it nulls `verseNum` at splits, and Bima's own loop counts pseudo-verses by `verseNum`, so its `congByIdx` would misalign.
   - Test: `tests/validate-congregation.js` (data scan; exact blue words in both tabs for Shacharit, Mincha and Tisha B'Av Mincha, color, no repeated verse numbers; no blue or note on Vayishlach, Ha'azinu, Matot-Masei, Ki Tisa, Simchat Torah Israel, Pesach Chol HaMoed Israel; custom readings). In CI since Nov 22 2026.
+
+- **Full-Year Tikkun (Bima), in the app** (built 9 Sep 2026, documented Nov 2026): `#yearTikkunDialog`, opened by "📅 Full year". Code starts at `// ── FULL-YEAR TIKKUN (BIMA)` in index.html. One long printable Bima document for a Hebrew year, built entirely client-side with the same `fetchVerses()`/`aliyahSection()` as the single-occasion view, so text, tokenization, trope colors and congregation blue are identical.
+  - Years: `availableHebrewYears()` offers only years whose Rosh Hashana I AND the next one are both in `HOLIDAY_DATA` (`findHebrewYearBoundaries()` matches any "Rosh Hashana I" key variant). A trailing half year is never offered.
+  - Holidays: `HOLIDAY_FAMILIES` groups entries into checkboxes (`match`, `default`); "Reset to suggested" restores the defaults (weekday Chol HaMoed and Chanukah days 2-6 off). The minor fasts' Mincha is merged into their Shacharit entry (byte-identical text), not a choice; Tisha B'Av stays two entries.
+  - Cycle (`#ytMode`) applies to Shabbat readings only; holidays always use the holiday reading. `rangesForOccasion()` returns the aliyah ranges per occasion and must walk `ALIYAH_ORDER` (see the custom-reading entry).
+  - Weekday: one extra live `/leyning` lookup per week. With Shabbat on and Full Kriyah, the weekday breaks are drawn inside Rishon as gold diamonds (`.weekday-break`: the first two breaks numbered, the third unnumbered); otherwise weekday readings get their own pages.
+  - Bima view only: Tikkun Korim would need the async column-sync pass for every occasion.
 
 ### Lessons and practices (Nov 2026)
 
