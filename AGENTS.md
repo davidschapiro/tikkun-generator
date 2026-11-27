@@ -1723,3 +1723,5 @@ initial-load timing fix (§3), all the Hebrew-text-processing edge cases
 - **Never call `syncDropdown()` before an async fetch.** It writes "Shabbat <date>" into the header and that shows for the length of the request. Write the target's own label (`daysLabel()`) and name first, then fetch.
 - **Date-dependent tests:** don't hard-code "the next X from today". Derive the expectation from the embedded data in the page (as the dropdown Rosh Chodesh check does), and pin walks to fixed dates inside the data window.
 - **Flash checks:** the nav test records every value of `#dateDisplay` with a MutationObserver during a transition; add the same check for any new stop type.
+
+- **Link to the Verein's website** (Nov 2026): the footer says "A project of Kahal Masorti e.V." linking to https://www.kahal-masorti.de/ (the main site is on .de; Tikkun stays on .org), and the Impressum name links there too. Part of helping the main site rank for its own name.
